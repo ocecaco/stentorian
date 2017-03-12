@@ -169,6 +169,79 @@ mod types {
         }
     }
 
+    type LANGID = u16;
+
+    const LANG_LEN: usize = 64;
+    const SVFN_LEN: usize = 262;
+    const SRMI_NAMELEN: usize = SVFN_LEN;
+
+    #[allow(non_snake_case)]
+    #[repr(C)]
+    pub struct LANGUAGE {
+        LanguageID: LANGID,
+        szDialect: [u16; LANG_LEN]
+    }
+
+    #[allow(non_snake_case)]
+    #[repr(C)]
+    pub struct SRMODEINFO {
+        gEngineID: GUID,
+        szMfgName: [u16; SRMI_NAMELEN],
+        pub szProductName: [u16; SRMI_NAMELEN],
+        gModeID: GUID,
+        szModeName: [u16; SRMI_NAMELEN],
+        language: LANGUAGE,
+        dwSequencing: u32,
+        dwMaxWordsVocab: u32,
+        dwMaxWordsState: u32,
+        dwGrammars: u32,
+        dwFeatures: u32,
+        dwInterfaces: u32,
+        dwEngineFeatures: u32
+    }
+
+    DEFINE_GUID!(IID_ISRCentral, 0xB9BD3860, 0x44DB, 0x101B, 0x90, 0xA8, 0x00, 0xAA, 0x00, 0x3E, 0x4B, 0x50);
+    DEFINE_GUID!(CLSID_DgnDictate, 0xdd100001, 0x6205, 0x11cf, 0xae, 0x61, 0x00, 0x00, 0xe8, 0xa2, 0x86, 0x47 );
+
+    #[repr(C)]
+    pub struct ISRCentral {
+        pub vtable: *const ISRCentralVtable
+    }
+
+    #[repr(C)]
+    #[allow(non_snake_case)]
+    pub struct ISRCentralVtable {
+        pub base: IUnknownVtable,
+        pub ModeGet: extern "stdcall" fn(*const ISRCentral, *mut SRMODEINFO) -> HRESULT
+    }
+
+    #[allow(non_snake_case)]
+    impl ISRCentral {
+        pub unsafe fn ModeGet(&self, mode: *mut SRMODEINFO) -> HRESULT {
+            ((*self.vtable).ModeGet)(self, mode)
+        }
+    }
+
+    unsafe impl ComInterface for ISRCentral {
+        fn iid() -> IID {
+            IID_ISRCentral
+        }
+    }
+
+    impl AsRef<ISRCentral> for ISRCentral {
+        fn as_ref(&self) -> &ISRCentral {
+            self
+        }
+    }
+
+    impl AsRef<IUnknown> for ISRCentral {
+        fn as_ref(&self) -> &IUnknown {
+            let ptr: *const ISRCentral = self;
+            let parent: *const IUnknown = ptr as *const IUnknown;
+            unsafe { &*parent }
+        }
+    }
+
     // unsafe to implement because it implies the type can safely be cast to IUnknown ()
     pub unsafe trait ComInterface: AsRef<IUnknown> {
         fn iid() -> IID;
@@ -188,12 +261,12 @@ mod types {
 
     impl<T: ComInterface> Drop for ComPtr<T> {
         fn drop(&mut self) {
-            println!("drop called");
             let temp = self.instance;
             if !self.instance.is_null() {
                 self.instance = ptr::null();
                 unsafe {
-                    (&*temp).as_ref().Release();
+                    let unk = (&*temp).as_ref();
+                    unk.Release();
                 }
             }
         }
@@ -209,11 +282,9 @@ mod types {
 
     impl<T: ComInterface> Clone for ComPtr<T> {
         fn clone(&self) -> Self {
-            println!("clone called");
-            if !self.instance.is_null() {
-                unsafe  {
-                    self.as_ref().AddRef();
-                }
+            let unk = self.as_ref();
+            unsafe  {
+                unk.AddRef();
             }
 
             ComPtr { instance: self.instance }
@@ -222,7 +293,7 @@ mod types {
 }
 
 mod api {
-    use types::{COINIT, CLSID, HRESULT, CLSCTX, IID, RawComPtr, CLSID_DgnSite, IID_IServiceProvider, IServiceProvider, ComPtr, ComInterface, IUnknown};
+    use types::*;
     use libc::{c_void};
     use std::ptr;
     use std::mem;
@@ -244,6 +315,11 @@ mod api {
         Box::new(Test { test: ptr })
     }
 
+    unsafe fn raw_to_comptr<T: ComInterface>(ptr: RawComPtr) -> ComPtr<T> {
+        let interface_ptr: *const T = ptr as *const T;
+        ComPtr::from_raw(interface_ptr)
+    }
+
     // TODO: Ensure initialization has been called
     fn create_instance<U>(clsid: &CLSID, unk_outer: Option<&IUnknown>, cls_context: CLSCTX) -> Option<ComPtr<U>> where U: ComInterface {
         let mut ptr: RawComPtr = ptr::null();
@@ -253,8 +329,7 @@ mod api {
         if result != 0 {
             None
         } else {
-            let interface_ptr: *const U = ptr as *const U;
-            unsafe { Some(ComPtr::from_raw(interface_ptr)) }
+            unsafe { Some(raw_to_comptr(ptr)) }
         }
     }
 
@@ -265,10 +340,23 @@ mod api {
         }
 
         if let Some(obj) = create_instance::<IServiceProvider>(&CLSID_DgnSite, None, CLSCTX::CLSCTX_LOCAL_SERVER) {
-            let obj2 = obj.clone();
-            testing(obj);
+            let obj2 = unsafe {
+                let mut central: RawComPtr = ptr::null();
+                let result = obj.QueryService(&CLSID_DgnDictate, &IID_ISRCentral, &mut central);
+                assert!(result == 0);
+                raw_to_comptr::<ISRCentral>(central)
+            };
 
-            let test: Option<&IUnknown> = Some(&obj2 as &IUnknown);
+            let mut info: SRMODEINFO = unsafe { mem::uninitialized() };
+            unsafe {
+                obj2.ModeGet(&mut info);
+            }
+
+            println!("{}", String::from_utf16_lossy(&(&info.szProductName)
+                                                    .iter()
+                                                    .take_while(|&x| *x != 0)
+                                                    .map(|&x| x)
+                                                    .collect::<Vec<u16>>()));
         }
 
         unsafe {
