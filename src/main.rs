@@ -26,9 +26,9 @@ mod types {
     DEFINE_GUID!(IID_IUnknown, 0x00000000, 0x0000, 0x0000, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46);
     DEFINE_GUID!(CLSID_DgnSite, 0xdd100006, 0x6205, 0x11cf, 0xae, 0x61, 0x00, 0x00, 0xe8, 0xa2, 0x86, 0x47);
     DEFINE_GUID!(IID_IServiceProvider, 0x6d5140c1, 0x7436, 0x11ce, 0x80, 0x34, 0x00, 0xaa, 0x00, 0x60, 0x09, 0xfa);
- 
+
     #[repr(u32)]
-    pub enum COINIT { 
+    pub enum COINIT {
         COINIT_APARTMENTTHREADED  = 0x2,
         COINIT_MULTITHREADED      = 0x0,
         COINIT_DISABLE_OLE1DDE    = 0x4,
@@ -36,7 +36,7 @@ mod types {
     }
 
     #[repr(u32)]
-    pub enum CLSCTX { 
+    pub enum CLSCTX {
         CLSCTX_INPROC_SERVER           = 0x1,
         CLSCTX_INPROC_HANDLER          = 0x2,
         CLSCTX_LOCAL_SERVER            = 0x4,
@@ -63,7 +63,10 @@ mod types {
         CLSCTX_PS_DLL                  = 0x80000000
     }
 
-    pub type HRESULT = i32;
+    #[must_use]
+    #[repr(C)]
+    pub struct HRESULT(pub i32);
+
     pub type ULONG = u32;
 
     #[derive(Debug, Copy, Clone)]
@@ -98,7 +101,7 @@ mod types {
         unsafe fn QueryInterface(&self, iid: *const IID, v: *mut RawComPtr) -> HRESULT {
             ((*self.vtable).QueryInterface)(self, iid, v)
         }
-        
+
         pub unsafe fn AddRef(&self) -> ULONG {
             ((*self.vtable).AddRef)(self)
         }
@@ -110,7 +113,7 @@ mod types {
 
     unsafe impl ComInterface for IUnknown {
         fn iid() -> IID {
-           IID_IUnknown 
+           IID_IUnknown
         }
     }
 
@@ -274,7 +277,7 @@ mod types {
 
     impl<T: ComInterface> Deref for ComPtr<T> {
         type Target = T;
-        
+
         fn deref(&self) -> &T {
             unsafe { &*self.instance }
         }
@@ -298,7 +301,7 @@ mod api {
     use std::ptr;
     use std::mem;
     use std::boxed::Box;
-    
+
     #[link(name = "ole32")]
     extern "system" {
         fn CoInitializeEx(reserved: *const c_void, coinit: COINIT) -> HRESULT;
@@ -326,7 +329,7 @@ mod api {
         let outer: *const IUnknown = if let Some(x) = unk_outer { x } else { ptr::null() };
         let result = unsafe { CoCreateInstance(clsid, outer as RawComPtr, cls_context, &U::iid(), &mut ptr) };
 
-        if result != 0 {
+        if result.0 != 0 {
             None
         } else {
             unsafe { Some(raw_to_comptr(ptr)) }
@@ -336,26 +339,26 @@ mod api {
     pub fn test() {
         unsafe {
             let result: HRESULT = CoInitializeEx(ptr::null(), COINIT::COINIT_APARTMENTTHREADED);
-            assert!(result == 0);
+            assert_eq!(result.0, 0);
         }
 
         if let Some(obj) = create_instance::<IServiceProvider>(&CLSID_DgnSite, None, CLSCTX::CLSCTX_LOCAL_SERVER) {
             let obj2 = unsafe {
                 let mut central: RawComPtr = ptr::null();
                 let result = obj.QueryService(&CLSID_DgnDictate, &IID_ISRCentral, &mut central);
-                assert!(result == 0);
+                assert_eq!(result.0, 0);
                 raw_to_comptr::<ISRCentral>(central)
             };
 
             let mut info: SRMODEINFO = unsafe { mem::uninitialized() };
             unsafe {
-                obj2.ModeGet(&mut info);
+                assert_eq!(obj2.ModeGet(&mut info).0, 0);
             }
 
             println!("{}", String::from_utf16_lossy(&(&info.szProductName)
                                                     .iter()
-                                                    .take_while(|&x| *x != 0)
-                                                    .map(|&x| x)
+                                                    .cloned()
+                                                    .take_while(|&x| x != 0)
                                                     .collect::<Vec<u16>>()));
         }
 
