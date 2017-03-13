@@ -3,6 +3,9 @@
 #![allow(unused_variables)]
 extern crate libc;
 
+#[macro_use(bitflags)]
+extern crate bitflags;
+
 // copied from GitHub, maybe add license
 macro_rules! DEFINE_GUID (
     ($name:ident, $l:expr, $w1:expr, $w2:expr, $($bs:expr),+) => {
@@ -26,41 +29,44 @@ mod types {
     DEFINE_GUID!(IID_IUnknown, 0x00000000, 0x0000, 0x0000, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46);
     DEFINE_GUID!(CLSID_DgnSite, 0xdd100006, 0x6205, 0x11cf, 0xae, 0x61, 0x00, 0x00, 0xe8, 0xa2, 0x86, 0x47);
     DEFINE_GUID!(IID_IServiceProvider, 0x6d5140c1, 0x7436, 0x11ce, 0x80, 0x34, 0x00, 0xaa, 0x00, 0x60, 0x09, 0xfa);
-
-    #[repr(u32)]
-    pub enum COINIT {
-        COINIT_APARTMENTTHREADED  = 0x2,
-        COINIT_MULTITHREADED      = 0x0,
-        COINIT_DISABLE_OLE1DDE    = 0x4,
-        COINIT_SPEED_OVER_MEMORY  = 0x8
+    bitflags! {
+        #[repr(C)]
+        pub flags COINIT: u32 {
+            const COINIT_APARTMENTTHREADED  = 0x2,
+            const COINIT_MULTITHREADED      = 0x0,
+            const COINIT_DISABLE_OLE1DDE    = 0x4,
+            const COINIT_SPEED_OVER_MEMORY  = 0x8
+        }
     }
 
-    #[repr(u32)]
-    pub enum CLSCTX {
-        CLSCTX_INPROC_SERVER           = 0x1,
-        CLSCTX_INPROC_HANDLER          = 0x2,
-        CLSCTX_LOCAL_SERVER            = 0x4,
-        CLSCTX_INPROC_SERVER16         = 0x8,
-        CLSCTX_REMOTE_SERVER           = 0x10,
-        CLSCTX_INPROC_HANDLER16        = 0x20,
-        CLSCTX_RESERVED1               = 0x40,
-        CLSCTX_RESERVED2               = 0x80,
-        CLSCTX_RESERVED3               = 0x100,
-        CLSCTX_RESERVED4               = 0x200,
-        CLSCTX_NO_CODE_DOWNLOAD        = 0x400,
-        CLSCTX_RESERVED5               = 0x800,
-        CLSCTX_NO_CUSTOM_MARSHAL       = 0x1000,
-        CLSCTX_ENABLE_CODE_DOWNLOAD    = 0x2000,
-        CLSCTX_NO_FAILURE_LOG          = 0x4000,
-        CLSCTX_DISABLE_AAA             = 0x8000,
-        CLSCTX_ENABLE_AAA              = 0x10000,
-        CLSCTX_FROM_DEFAULT_CONTEXT    = 0x20000,
-        CLSCTX_ACTIVATE_32_BIT_SERVER  = 0x40000,
-        CLSCTX_ACTIVATE_64_BIT_SERVER  = 0x80000,
-        CLSCTX_ENABLE_CLOAKING         = 0x100000,
-        CLSCTX_APPCONTAINER            = 0x400000,
-        CLSCTX_ACTIVATE_AAA_AS_IU      = 0x800000,
-        CLSCTX_PS_DLL                  = 0x80000000
+    bitflags! {
+        #[repr(C)]
+        pub flags CLSCTX: u32 {
+            const CLSCTX_INPROC_SERVER           = 0x1,
+            const CLSCTX_INPROC_HANDLER          = 0x2,
+            const CLSCTX_LOCAL_SERVER            = 0x4,
+            const CLSCTX_INPROC_SERVER16         = 0x8,
+            const CLSCTX_REMOTE_SERVER           = 0x10,
+            const CLSCTX_INPROC_HANDLER16        = 0x20,
+            const CLSCTX_RESERVED1               = 0x40,
+            const CLSCTX_RESERVED2               = 0x80,
+            const CLSCTX_RESERVED3               = 0x100,
+            const CLSCTX_RESERVED4               = 0x200,
+            const CLSCTX_NO_CODE_DOWNLOAD        = 0x400,
+            const CLSCTX_RESERVED5               = 0x800,
+            const CLSCTX_NO_CUSTOM_MARSHAL       = 0x1000,
+            const CLSCTX_ENABLE_CODE_DOWNLOAD    = 0x2000,
+            const CLSCTX_NO_FAILURE_LOG          = 0x4000,
+            const CLSCTX_DISABLE_AAA             = 0x8000,
+            const CLSCTX_ENABLE_AAA              = 0x10000,
+            const CLSCTX_FROM_DEFAULT_CONTEXT    = 0x20000,
+            const CLSCTX_ACTIVATE_32_BIT_SERVER  = 0x40000,
+            const CLSCTX_ACTIVATE_64_BIT_SERVER  = 0x80000,
+            const CLSCTX_ENABLE_CLOAKING         = 0x100000,
+            const CLSCTX_APPCONTAINER            = 0x400000,
+            const CLSCTX_ACTIVATE_AAA_AS_IU      = 0x800000,
+            const CLSCTX_PS_DLL                  = 0x80000000
+        }
     }
 
     #[must_use]
@@ -338,11 +344,11 @@ mod api {
 
     pub fn test() {
         unsafe {
-            let result: HRESULT = CoInitializeEx(ptr::null(), COINIT::COINIT_APARTMENTTHREADED);
+            let result: HRESULT = CoInitializeEx(ptr::null(), COINIT_APARTMENTTHREADED);
             assert_eq!(result.0, 0);
         }
 
-        if let Some(obj) = create_instance::<IServiceProvider>(&CLSID_DgnSite, None, CLSCTX::CLSCTX_LOCAL_SERVER) {
+        if let Some(obj) = create_instance::<IServiceProvider>(&CLSID_DgnSite, None, CLSCTX_LOCAL_SERVER) {
             let obj2 = unsafe {
                 let mut central: RawComPtr = ptr::null();
                 let result = obj.QueryService(&CLSID_DgnDictate, &IID_ISRCentral, &mut central);
