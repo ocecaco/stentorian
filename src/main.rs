@@ -4,18 +4,8 @@ extern crate libc;
 #[macro_use(bitflags)]
 extern crate bitflags;
 
-// copied from GitHub, maybe add license
-macro_rules! DEFINE_GUID (
-    ($name:ident, $l:expr, $w1:expr, $w2:expr, $($bs:expr),+) => {
-        #[allow(non_upper_case_globals)]
-        pub static $name: $crate::types::GUID = $crate::types::GUID {
-            data1: $l,
-            data2: $w1,
-            data3: $w2,
-            data4: [$($bs),+]
-        };
-    };
-);
+#[macro_use]
+mod macros;
 
 #[allow(non_camel_case_types)]
 mod types {
@@ -117,14 +107,14 @@ mod dragon {
         dwEngineFeatures: u32
     }
 
-    DEFINE_GUID!(CLSID_DgnDictate, 0xdd100001, 0x6205, 0x11cf, 0xae, 0x61, 0x00, 0x00, 0xe8, 0xa2, 0x86, 0x47 );
-    DEFINE_GUID!(CLSID_DgnSite, 0xdd100006, 0x6205, 0x11cf, 0xae, 0x61, 0x00, 0x00, 0xe8, 0xa2, 0x86, 0x47);
+    define_guid!(pub CLSID_DgnDictate = 0xdd100001, 0x6205, 0x11cf, 0xae, 0x61, 0x00, 0x00, 0xe8, 0xa2, 0x86, 0x47);
+    define_guid!(pub CLSID_DgnSite = 0xdd100006, 0x6205, 0x11cf, 0xae, 0x61, 0x00, 0x00, 0xe8, 0xa2, 0x86, 0x47);
 }
 
 mod iunknown {
     use super::types::*;
 
-    DEFINE_GUID!(IID_IUnknown, 0x00000000, 0x0000, 0x0000, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46);
+    define_guid!(IID_IUnknown = 0x00000000, 0x0000, 0x0000, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46);
 
     #[repr(C)]
     pub struct IUnknown {
@@ -179,58 +169,14 @@ mod iunknown {
 mod iserviceprovider {
     use super::types::*;
     use super::iunknown::*;
-    use std::ops::Deref;
 
-    DEFINE_GUID!(IID_IServiceProvider, 0x6d5140c1, 0x7436, 0x11ce, 0x80, 0x34, 0x00, 0xaa, 0x00, 0x60, 0x09, 0xfa);
+    define_guid!(IID_IServiceProvider = 0x6d5140c1, 0x7436, 0x11ce, 0x80, 0x34, 0x00, 0xaa, 0x00, 0x60, 0x09, 0xfa);
 
-    #[repr(C)]
-    pub struct IServiceProvider {
-        vtable: *const IServiceProviderVtable
-    }
-
-    #[repr(C)]
-    #[allow(non_snake_case)]
-    pub struct IServiceProviderVtable {
-        base: <IUnknown as ComInterface>::Vtable,
-        QueryService: extern "stdcall" fn(*const IServiceProvider, *const GUID, *const IID, *mut RawComPtr) -> HRESULT
-    }
-
-    #[allow(non_snake_case)]
-    impl IServiceProvider {
-        pub unsafe fn QueryService(&self, guid: *const GUID, iid: *const IID, out: *mut RawComPtr) -> HRESULT {
-            ((*self.vtable).QueryService)(self, guid, iid, out)
-        }
-    }
-
-    impl AsRef<IServiceProvider> for IServiceProvider {
-        fn as_ref(&self) -> &IServiceProvider {
-            self
-        }
-    }
-
-    impl AsRef<IUnknown> for IServiceProvider {
-        fn as_ref(&self) -> &IUnknown {
-            let ptr: *const IServiceProvider = self;
-            let parent: *const IUnknown = ptr as *const IUnknown;
-            unsafe { &*parent }
-        }
-    }
-
-    unsafe impl ComInterface for IServiceProvider {
-        type Vtable = IServiceProviderVtable;
-
-        fn iid() -> IID {
-            IID_IServiceProvider
-        }
-    }
-
-    impl Deref for IServiceProvider {
-        type Target = IUnknown;
-
-        fn deref(&self) -> &IUnknown {
-            unsafe  {
-                &*(self as *const IServiceProvider as *const IUnknown)
-            }
+    com_interface! {
+        interface IServiceProvider : IUnknown {
+            iid: IID_IServiceProvider,
+            vtable: IServiceProviderVtable,
+            fn query_service(guid: *const GUID, iid: *const IID, v: *mut RawComPtr) -> HRESULT;
         }
     }
 }
@@ -240,46 +186,13 @@ mod isrcentral {
     use super::iunknown::*;
     use super::dragon::*;
 
-    DEFINE_GUID!(IID_ISRCentral, 0xB9BD3860, 0x44DB, 0x101B, 0x90, 0xA8, 0x00, 0xAA, 0x00, 0x3E, 0x4B, 0x50);
+    define_guid!(IID_ISRCentral = 0xB9BD3860, 0x44DB, 0x101B, 0x90, 0xA8, 0x00, 0xAA, 0x00, 0x3E, 0x4B, 0x50);
 
-    #[repr(C)]
-    pub struct ISRCentral {
-        vtable: *const ISRCentralVtable
-    }
-
-    #[repr(C)]
-    #[allow(non_snake_case)]
-    pub struct ISRCentralVtable {
-        base: <IUnknown as ComInterface>::Vtable,
-        ModeGet: extern "stdcall" fn(*const ISRCentral, *mut SRMODEINFO) -> HRESULT
-    }
-
-    #[allow(non_snake_case)]
-    impl ISRCentral {
-        pub unsafe fn ModeGet(&self, mode: *mut SRMODEINFO) -> HRESULT {
-            ((*self.vtable).ModeGet)(self, mode)
-        }
-    }
-
-    unsafe impl ComInterface for ISRCentral {
-        type Vtable = ISRCentralVtable;
-
-        fn iid() -> IID {
-            IID_ISRCentral
-        }
-    }
-
-    impl AsRef<ISRCentral> for ISRCentral {
-        fn as_ref(&self) -> &ISRCentral {
-            self
-        }
-    }
-
-    impl AsRef<IUnknown> for ISRCentral {
-        fn as_ref(&self) -> &IUnknown {
-            let ptr: *const ISRCentral = self;
-            let parent: *const IUnknown = ptr as *const IUnknown;
-            unsafe { &*parent }
+    com_interface! {
+        interface ISRCentral : IUnknown {
+            iid: IID_ISRCentral,
+            vtable: ISRCentralVtable,
+            fn mode_get(info: *mut SRMODEINFO) -> HRESULT;
         }
     }
 }
@@ -379,14 +292,14 @@ mod api {
         if let Some(obj) = create_instance::<IServiceProvider>(&CLSID_DgnSite, None, CLSCTX_LOCAL_SERVER) {
             let obj2 = unsafe {
                 let mut central: RawComPtr = ptr::null();
-                let result = obj.QueryService(&CLSID_DgnDictate, &IID_ISRCentral, &mut central);
+                let result = obj.query_service(&CLSID_DgnDictate, &ISRCentral::iid(), &mut central);
                 assert_eq!(result.0, 0);
                 raw_to_comptr::<ISRCentral>(central)
             };
 
             let mut info: SRMODEINFO = unsafe { mem::uninitialized() };
             unsafe {
-                assert_eq!(obj2.ModeGet(&mut info).0, 0);
+                assert_eq!(obj2.mode_get(&mut info).0, 0);
             }
 
             println!("{}", String::from_utf16_lossy(&(&info.szProductName)
