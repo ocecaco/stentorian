@@ -1,6 +1,4 @@
 #![allow(dead_code)]
-#![allow(unused_imports)]
-#![allow(unused_variables)]
 extern crate libc;
 
 #[macro_use(bitflags)]
@@ -9,7 +7,8 @@ extern crate bitflags;
 // copied from GitHub, maybe add license
 macro_rules! DEFINE_GUID (
     ($name:ident, $l:expr, $w1:expr, $w2:expr, $($bs:expr),+) => {
-        pub static $name: ::types::GUID = ::types::GUID {
+        #[allow(non_upper_case_globals)]
+        pub static $name: $crate::types::GUID = $crate::types::GUID {
             data1: $l,
             data2: $w1,
             data3: $w2,
@@ -19,16 +18,9 @@ macro_rules! DEFINE_GUID (
 );
 
 #[allow(non_camel_case_types)]
-#[allow(non_upper_case_globals)]
 mod types {
-    use libc::{c_void};
-    use std::ops::Deref;
-    use std::mem;
-    use std::ptr;
+    use libc::c_void;
 
-    DEFINE_GUID!(IID_IUnknown, 0x00000000, 0x0000, 0x0000, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46);
-    DEFINE_GUID!(CLSID_DgnSite, 0xdd100006, 0x6205, 0x11cf, 0xae, 0x61, 0x00, 0x00, 0xe8, 0xa2, 0x86, 0x47);
-    DEFINE_GUID!(IID_IServiceProvider, 0x6d5140c1, 0x7436, 0x11ce, 0x80, 0x34, 0x00, 0xaa, 0x00, 0x60, 0x09, 0xfa);
     bitflags! {
         #[repr(C)]
         pub flags COINIT: u32 {
@@ -70,113 +62,29 @@ mod types {
     }
 
     #[must_use]
+    #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
     #[repr(C)]
     pub struct HRESULT(pub i32);
 
     pub type ULONG = u32;
 
-    #[derive(Debug, Copy, Clone)]
+    #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
     #[repr(C)]
     pub struct GUID {
-        data1: u32,
-        data2: u16,
-        data3: u16,
-        data4: [u8; 8]
+        pub data1: u32,
+        pub data2: u16,
+        pub data3: u16,
+        pub data4: [u8; 8]
     }
 
     pub type IID = GUID;
     pub type CLSID = GUID;
 
     pub type RawComPtr = *const c_void;
+}
 
-    #[repr(C)]
-    pub struct IUnknown {
-        pub vtable: *const IUnknownVtable
-    }
-
-    #[repr(C)]
-    #[allow(non_snake_case)]
-    pub struct IUnknownVtable {
-        pub QueryInterface: extern "stdcall" fn(*const IUnknown, *const IID, *mut RawComPtr) -> HRESULT,
-        pub AddRef: extern "stdcall" fn(*const IUnknown) -> ULONG,
-        pub Release: extern "stdcall" fn(*const IUnknown) -> ULONG
-    }
-
-    #[allow(non_snake_case)]
-    impl IUnknown {
-        unsafe fn QueryInterface(&self, iid: *const IID, v: *mut RawComPtr) -> HRESULT {
-            ((*self.vtable).QueryInterface)(self, iid, v)
-        }
-
-        pub unsafe fn AddRef(&self) -> ULONG {
-            ((*self.vtable).AddRef)(self)
-        }
-
-        pub unsafe fn Release(&self) -> ULONG {
-            ((*self.vtable).Release)(self)
-        }
-    }
-
-    unsafe impl ComInterface for IUnknown {
-        fn iid() -> IID {
-           IID_IUnknown
-        }
-    }
-
-    impl AsRef<IUnknown> for IUnknown {
-        fn as_ref(&self) -> &IUnknown {
-            self
-        }
-    }
-
-    #[repr(C)]
-    pub struct IServiceProvider {
-        pub vtable: *const IServiceProviderVtable
-    }
-
-    #[repr(C)]
-    #[allow(non_snake_case)]
-    pub struct IServiceProviderVtable {
-        pub base: IUnknownVtable,
-        pub QueryService: extern "stdcall" fn(*const IServiceProvider, *const GUID, *const IID, *mut RawComPtr) -> HRESULT
-    }
-
-    #[allow(non_snake_case)]
-    impl IServiceProvider {
-        pub unsafe fn QueryService(&self, guid: *const GUID, iid: *const IID, out: *mut RawComPtr) -> HRESULT {
-            ((*self.vtable).QueryService)(self, guid, iid, out)
-        }
-    }
-
-    impl AsRef<IServiceProvider> for IServiceProvider {
-        fn as_ref(&self) -> &IServiceProvider {
-            self
-        }
-    }
-
-    impl AsRef<IUnknown> for IServiceProvider {
-        fn as_ref(&self) -> &IUnknown {
-            let ptr: *const IServiceProvider = self;
-            let parent: *const IUnknown = ptr as *const IUnknown;
-            unsafe { &*parent }
-        }
-    }
-
-    unsafe impl ComInterface for IServiceProvider {
-        fn iid() -> IID {
-            IID_IServiceProvider
-        }
-    }
-
-    impl Deref for IServiceProvider {
-        type Target = IUnknown;
-
-        fn deref(&self) -> &IUnknown {
-            unsafe  {
-                &*(self as *const IServiceProvider as *const IUnknown)
-            }
-        }
-    }
+mod dragon {
+    use super::types::*;
 
     type LANGID = u16;
 
@@ -209,19 +117,141 @@ mod types {
         dwEngineFeatures: u32
     }
 
-    DEFINE_GUID!(IID_ISRCentral, 0xB9BD3860, 0x44DB, 0x101B, 0x90, 0xA8, 0x00, 0xAA, 0x00, 0x3E, 0x4B, 0x50);
     DEFINE_GUID!(CLSID_DgnDictate, 0xdd100001, 0x6205, 0x11cf, 0xae, 0x61, 0x00, 0x00, 0xe8, 0xa2, 0x86, 0x47 );
+    DEFINE_GUID!(CLSID_DgnSite, 0xdd100006, 0x6205, 0x11cf, 0xae, 0x61, 0x00, 0x00, 0xe8, 0xa2, 0x86, 0x47);
+}
+
+mod iunknown {
+    use super::types::*;
+
+    DEFINE_GUID!(IID_IUnknown, 0x00000000, 0x0000, 0x0000, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46);
+
+    #[repr(C)]
+    pub struct IUnknown {
+        vtable: *const IUnknownVtable
+    }
+
+    #[allow(non_snake_case)]
+    #[repr(C)]
+    pub struct IUnknownVtable {
+        QueryInterface: extern "stdcall" fn(*const IUnknown, *const IID, *mut RawComPtr) -> HRESULT,
+        AddRef: extern "stdcall" fn(*const IUnknown) -> ULONG,
+        Release: extern "stdcall" fn(*const IUnknown) -> ULONG
+    }
+
+    #[allow(non_snake_case)]
+    impl IUnknown {
+        pub unsafe fn QueryInterface(&self, iid: *const IID, v: *mut RawComPtr) -> HRESULT {
+            ((*self.vtable).QueryInterface)(self, iid, v)
+        }
+
+        pub unsafe fn AddRef(&self) -> ULONG {
+            ((*self.vtable).AddRef)(self)
+        }
+
+        pub unsafe fn Release(&self) -> ULONG {
+            ((*self.vtable).Release)(self)
+        }
+    }
+
+    unsafe impl ComInterface for IUnknown {
+        type Vtable = IUnknownVtable;
+
+        fn iid() -> IID {
+            IID_IUnknown
+        }
+    }
+
+    impl AsRef<IUnknown> for IUnknown {
+        fn as_ref(&self) -> &IUnknown {
+            self
+        }
+    }
+
+    // unsafe to implement because it implies the type can safely be cast to IUnknown
+    pub unsafe trait ComInterface: AsRef<IUnknown> {
+        type Vtable;
+
+        fn iid() -> IID;
+    }
+}
+
+mod iserviceprovider {
+    use super::types::*;
+    use super::iunknown::*;
+    use std::ops::Deref;
+
+    DEFINE_GUID!(IID_IServiceProvider, 0x6d5140c1, 0x7436, 0x11ce, 0x80, 0x34, 0x00, 0xaa, 0x00, 0x60, 0x09, 0xfa);
+
+    #[repr(C)]
+    pub struct IServiceProvider {
+        vtable: *const IServiceProviderVtable
+    }
+
+    #[repr(C)]
+    #[allow(non_snake_case)]
+    pub struct IServiceProviderVtable {
+        base: <IUnknown as ComInterface>::Vtable,
+        QueryService: extern "stdcall" fn(*const IServiceProvider, *const GUID, *const IID, *mut RawComPtr) -> HRESULT
+    }
+
+    #[allow(non_snake_case)]
+    impl IServiceProvider {
+        pub unsafe fn QueryService(&self, guid: *const GUID, iid: *const IID, out: *mut RawComPtr) -> HRESULT {
+            ((*self.vtable).QueryService)(self, guid, iid, out)
+        }
+    }
+
+    impl AsRef<IServiceProvider> for IServiceProvider {
+        fn as_ref(&self) -> &IServiceProvider {
+            self
+        }
+    }
+
+    impl AsRef<IUnknown> for IServiceProvider {
+        fn as_ref(&self) -> &IUnknown {
+            let ptr: *const IServiceProvider = self;
+            let parent: *const IUnknown = ptr as *const IUnknown;
+            unsafe { &*parent }
+        }
+    }
+
+    unsafe impl ComInterface for IServiceProvider {
+        type Vtable = IServiceProviderVtable;
+
+        fn iid() -> IID {
+            IID_IServiceProvider
+        }
+    }
+
+    impl Deref for IServiceProvider {
+        type Target = IUnknown;
+
+        fn deref(&self) -> &IUnknown {
+            unsafe  {
+                &*(self as *const IServiceProvider as *const IUnknown)
+            }
+        }
+    }
+}
+
+mod isrcentral {
+    use super::types::*;
+    use super::iunknown::*;
+    use super::dragon::*;
+
+    DEFINE_GUID!(IID_ISRCentral, 0xB9BD3860, 0x44DB, 0x101B, 0x90, 0xA8, 0x00, 0xAA, 0x00, 0x3E, 0x4B, 0x50);
 
     #[repr(C)]
     pub struct ISRCentral {
-        pub vtable: *const ISRCentralVtable
+        vtable: *const ISRCentralVtable
     }
 
     #[repr(C)]
     #[allow(non_snake_case)]
     pub struct ISRCentralVtable {
-        pub base: IUnknownVtable,
-        pub ModeGet: extern "stdcall" fn(*const ISRCentral, *mut SRMODEINFO) -> HRESULT
+        base: <IUnknown as ComInterface>::Vtable,
+        ModeGet: extern "stdcall" fn(*const ISRCentral, *mut SRMODEINFO) -> HRESULT
     }
 
     #[allow(non_snake_case)]
@@ -232,6 +262,8 @@ mod types {
     }
 
     unsafe impl ComInterface for ISRCentral {
+        type Vtable = ISRCentralVtable;
+
         fn iid() -> IID {
             IID_ISRCentral
         }
@@ -250,13 +282,13 @@ mod types {
             unsafe { &*parent }
         }
     }
+}
 
-    // unsafe to implement because it implies the type can safely be cast to IUnknown ()
-    pub unsafe trait ComInterface: AsRef<IUnknown> {
-        fn iid() -> IID;
-    }
+mod comptr {
+    use super::iunknown::*;
+    use std::ops::Deref;
+    use std::ptr;
 
-    // TODO: is this the right bound? it also allows storing ComPtr itself, instead of just a raw pointer, since the proper trait is implemented
     pub struct ComPtr<T: ComInterface> {
         instance: *const T
     }
@@ -306,7 +338,11 @@ mod api {
     use libc::{c_void};
     use std::ptr;
     use std::mem;
-    use std::boxed::Box;
+    use super::dragon::*;
+    use super::iunknown::*;
+    use super::iserviceprovider::*;
+    use super::isrcentral::*;
+    use super::comptr::*;
 
     #[link(name = "ole32")]
     extern "system" {
@@ -314,14 +350,6 @@ mod api {
         fn CoUninitialize();
 
         fn CoCreateInstance(clsid: *const CLSID, unk_outer: RawComPtr, cls_context: CLSCTX, iid: *const IID, v: *mut RawComPtr) -> HRESULT;
-    }
-
-    struct Test<T: ComInterface> {
-        test: ComPtr<T>
-    }
-
-    fn testing<T: ComInterface>(ptr: ComPtr<T>) -> Box<Test<T>> {
-        Box::new(Test { test: ptr })
     }
 
     unsafe fn raw_to_comptr<T: ComInterface>(ptr: RawComPtr) -> ComPtr<T> {
