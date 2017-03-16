@@ -7,26 +7,24 @@ pub struct IUnknown {
     vtable: *const IUnknownVtable
 }
 
-#[allow(non_snake_case)]
 #[repr(C)]
 pub struct IUnknownVtable {
-    QueryInterface: extern "stdcall" fn(*const IUnknown, *const IID, *mut RawComPtr) -> HRESULT,
-    AddRef: extern "stdcall" fn(*const IUnknown) -> ULONG,
-    Release: extern "stdcall" fn(*const IUnknown) -> ULONG
+    pub query_interface: extern "stdcall" fn(*const IUnknown, *const IID, *mut RawComPtr) -> HRESULT,
+    pub add_ref: extern "stdcall" fn(*const IUnknown) -> ULONG,
+    pub release: extern "stdcall" fn(*const IUnknown) -> ULONG
 }
 
-#[allow(non_snake_case)]
 impl IUnknown {
-    pub unsafe fn QueryInterface(&self, iid: *const IID, v: *mut RawComPtr) -> HRESULT {
-        ((*self.vtable).QueryInterface)(self, iid, v)
+    pub unsafe fn query_interface(&self, iid: *const IID, v: *mut RawComPtr) -> HRESULT {
+        ((*self.vtable).query_interface)(self, iid, v)
     }
 
-    pub unsafe fn AddRef(&self) -> ULONG {
-        ((*self.vtable).AddRef)(self)
+    pub unsafe fn add_ref(&self) -> ULONG {
+        ((*self.vtable).add_ref)(self)
     }
 
-    pub unsafe fn Release(&self) -> ULONG {
-        ((*self.vtable).Release)(self)
+    pub unsafe fn release(&self) -> ULONG {
+        ((*self.vtable).release)(self)
     }
 }
 

@@ -1,4 +1,6 @@
+#![allow(unused_variables)]
 #![allow(dead_code)]
+
 extern crate libc;
 
 #[macro_use(bitflags)]
@@ -7,9 +9,11 @@ extern crate bitflags;
 #[macro_use]
 mod macros;
 
+mod bstr;
 mod comptr;
 mod iunknown;
 mod types;
+mod comobject;
 
 mod dragon {
     use super::types::*;
@@ -60,8 +64,8 @@ mod dragon {
 
     #[repr(C)]
     pub struct SDATA {
-        data: *const u8,
-        size: u32
+        pub data: *const u8,
+        pub size: u32
     }
 
     define_guid!(pub CLSID_DgnDictate = 0xdd100001, 0x6205, 0x11cf, 0xae, 0x61, 0x00, 0x00, 0xe8, 0xa2, 0x86, 0x47);
@@ -88,6 +92,7 @@ mod isrcentral {
     use super::types::*;
     use super::iunknown::*;
     use super::dragon::*;
+    use super::bstr::*;
     use libc::c_void;
 
     define_guid!(IID_ISRCentral = 0xB9BD3860, 0x44DB, 0x101B, 0x90, 0xA8, 0x00, 0xAA, 0x00, 0x3E, 0x4B, 0x50);
@@ -117,6 +122,16 @@ mod isrcentral {
             fn unarchive(a: RawComPtr) -> HRESULT;
         }
     }
+
+    define_guid!(IID_ISRGramCommon = 0xe8c3e160, 0xc743, 0x11cd, 0x80, 0xe5, 0x0, 0xaa, 0x0, 0x3e, 0x4b, 0x50);
+
+    com_interface! {
+        interface ISRGramCommon : IUnknown {
+            iid: IID_ISRGramCommon,
+            vtable: ISRGramCommonVtable,
+            fn activate(w: HWND, autopause: i32, rule_name: BStr) -> HRESULT;
+        }
+    }
 }
 
 
@@ -125,11 +140,17 @@ mod api {
     use libc::{c_void};
     use std::ptr;
     use std::mem;
+    use std::{thread, time};
     use super::dragon::*;
     use super::iunknown::*;
     use super::iserviceprovider::*;
     use super::isrcentral::*;
     use super::comptr::*;
+    use super::comobject::*;
+    use super::bstr::*;
+
+    use std::fs::File;
+    use std::io::Read;
 
     #[link(name = "ole32")]
     extern "system" {
@@ -157,11 +178,27 @@ mod api {
         }
     }
 
+    fn query_interface<U: ComInterface>(unk: &IUnknown) -> Option<ComPtr<U>> {
+        let mut ptr: RawComPtr = ptr::null();
+
+        let result = unsafe { unk.query_interface(&U::iid(), &mut ptr) };
+
+        if result.0 != 0 {
+            None
+        } else {
+            unsafe { Some(raw_to_comptr(ptr)) }
+        }
+    }
+
     pub fn test() {
         unsafe {
-            let result: HRESULT = CoInitializeEx(ptr::null(), COINIT_APARTMENTTHREADED);
+            let result: HRESULT = CoInitializeEx(ptr::null(), COINIT_MULTITHREADED);
             assert_eq!(result.0, 0);
         }
+
+        let mut file = File::open("C:\\Users\\Daniel\\Documents\\grammar_test.bin").unwrap();
+        let mut grammar: Vec<u8> = Vec::new();
+        file.read_to_end(&mut grammar).unwrap();
 
         if let Some(obj) = create_instance::<IServiceProvider>(&CLSID_DgnSite, None, CLSCTX_LOCAL_SERVER) {
             let obj2 = unsafe {
@@ -181,7 +218,36 @@ mod api {
                                                     .cloned()
                                                     .take_while(|&x| x != 0)
                                                     .collect::<Vec<u16>>()));
+
+            let grammar_slice: &[u8] = &grammar;
+            let mut control: RawComPtr = ptr::null();
+            let result = unsafe {
+                obj2.grammar_load(SRGRMFMT::SRGRMFMT_CFG,
+                                  SDATA {
+                                      data: grammar_slice.as_ptr(),
+                                      size: grammar_slice.len() as u32
+                                  },
+                                  make_test_object(),
+                                  ISRGramNotifySink::iid(),
+                                  &mut control)
+            };
+            assert_eq!(result.0, 0);
+
+            println!("hello");
+
+            let grammar_control = unsafe { raw_to_comptr::<IUnknown>(control) };
+            let grammar_control = query_interface::<ISRGramCommon>(&grammar_control).unwrap();
+            unsafe  {
+                let result = grammar_control.activate(ptr::null(), 0, BString::from("Mapping").as_ref());
+                assert_eq!(result.0 as u32, 0);
+            }
+
+            println!("hello");
         }
+
+        let duration = time::Duration::from_millis(10000);
+
+        thread::sleep(duration);
 
         unsafe {
             CoUninitialize();

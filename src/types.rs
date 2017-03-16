@@ -47,6 +47,10 @@ bitflags! {
 #[repr(C)]
 pub struct HRESULT(pub i32);
 
+pub type BOOL = i32;
+
+pub type HWND = *const c_void;
+
 pub type ULONG = u32;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]

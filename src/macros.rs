@@ -39,8 +39,8 @@ macro_rules! com_interface {
         #[doc(hidden)]
         #[repr(C)]
         pub struct $vtable {
-            base: <$base_iface as $crate::iunknown::ComInterface>::Vtable,
-            $($func: extern "stdcall" fn(*const $iface, $($t),*) -> $rt),*
+            pub base: <$base_iface as $crate::iunknown::ComInterface>::Vtable,
+            $(pub $func: extern "stdcall" fn(*const $iface, $($t),*) -> $rt),*
         }
 
         $(#[$iface_attr])*

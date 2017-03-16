@@ -20,7 +20,7 @@ impl<T: ComInterface> Drop for ComPtr<T> {
             self.instance = ptr::null();
             unsafe {
                 let unk = (&*temp).as_ref();
-                unk.Release();
+                unk.release();
             }
         }
     }
@@ -38,7 +38,7 @@ impl<T: ComInterface> Clone for ComPtr<T> {
     fn clone(&self) -> Self {
         let unk = self.as_ref();
         unsafe  {
-            unk.AddRef();
+            unk.add_ref();
         }
 
         ComPtr { instance: self.instance }
