@@ -6,6 +6,9 @@ extern crate libc;
 #[macro_use(bitflags)]
 extern crate bitflags;
 
+extern crate winapi;
+extern crate user32;
+
 #[macro_use]
 mod macros;
 
@@ -14,6 +17,7 @@ mod comptr;
 mod iunknown;
 mod types;
 mod comobject;
+mod comobject2;
 
 mod dragon {
     use super::types::*;
@@ -103,6 +107,12 @@ mod isrcentral {
             vtable: ISRCentralVtable,
             fn mode_get(info: *mut SRMODEINFO) -> HRESULT;
             fn grammar_load(fmt: SRGRMFMT, data: SDATA, sink: RawComPtr, iid: IID, control: *mut RawComPtr) -> HRESULT;
+            fn pause() -> HRESULT;
+            fn posn_get(posn: *mut u64) -> HRESULT;
+            fn resume() -> HRESULT;
+            fn to_filetime_todo() -> HRESULT;
+            fn register(sink: RawComPtr, iid: IID, key: *mut u32) -> HRESULT;
+            fn unregister(key: u32) -> HRESULT;
         }
     }
 
@@ -132,6 +142,21 @@ mod isrcentral {
             fn activate(w: HWND, autopause: i32, rule_name: BStr) -> HRESULT;
         }
     }
+
+    define_guid!(IID_ISRNotifySink = 0x090CD9B0, 0xDA1A, 0x11CD, 0xB3, 0xCA, 0x00, 0xAA, 0x00, 0x47, 0xBA, 0x4F);
+
+    com_interface! {
+        interface ISRNotifySink : IUnknown {
+            iid: IID_ISRNotifySink,
+            vtable: ISRNotifySinkVtable,
+            fn attrib_changed(a: u32) -> HRESULT;
+            fn interference(a: u64, b: u64, c: u64) -> HRESULT;
+            fn sound(a: u64, b: u64) -> HRESULT;
+            fn utterance_begin(a: u64) -> HRESULT;
+            fn utterance_end(a: u64, b: u64) -> HRESULT;
+            fn vu_meter(a: u64, b: u16) -> HRESULT;
+        }
+    }
 }
 
 
@@ -147,7 +172,11 @@ mod api {
     use super::isrcentral::*;
     use super::comptr::*;
     use super::comobject::*;
+    use super::comobject2;
     use super::bstr::*;
+
+    use winapi::winuser::MSG;
+    use user32::{GetMessageW, TranslateMessage, DispatchMessageW};
 
     use std::fs::File;
     use std::io::Read;
@@ -192,7 +221,7 @@ mod api {
 
     pub fn test() {
         unsafe {
-            let result: HRESULT = CoInitializeEx(ptr::null(), COINIT_MULTITHREADED);
+            let result: HRESULT = CoInitializeEx(ptr::null(), COINIT_APARTMENTTHREADED);
             assert_eq!(result.0, 0);
         }
 
@@ -218,6 +247,15 @@ mod api {
                                                     .cloned()
                                                     .take_while(|&x| x != 0)
                                                     .collect::<Vec<u16>>()));
+
+            let mut key = 0u32;
+            let result = unsafe {
+                obj2.register(comobject2::make_test_object(),
+                              ISRNotifySink::iid(),
+                              &mut key)
+            };
+            assert_eq!(result.0, 0);
+            println!("{}", key);
 
             let grammar_slice: &[u8] = &grammar;
             let mut control: RawComPtr = ptr::null();
@@ -245,10 +283,15 @@ mod api {
             println!("hello");
         }
 
-        let duration = time::Duration::from_millis(10000);
-
-        thread::sleep(duration);
-
+        let mut msg = unsafe { mem::uninitialized() };
+        while unsafe { GetMessageW(&mut msg, ptr::null_mut(), 0, 0) } > 0 {
+            println!("received message");
+            unsafe {
+                TranslateMessage(&mut msg);
+                DispatchMessageW(&mut msg);
+            }
+        }
+        
         unsafe {
             CoUninitialize();
         }
