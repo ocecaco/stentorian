@@ -98,3 +98,44 @@ macro_rules! com_interface {
         }
     )
 }
+
+macro_rules! offset_of {
+    ($t:ty, $f:ident) => {
+        unsafe { &(*(0 as *const $t)).$f as *const _ as usize }
+    }
+}
+
+macro_rules! com_stubs {
+    (
+        coclass $cls:ty {
+            $(
+                mod $prefix:ident in $field:ident {
+                    $(
+                        interface $iface:ty {
+                            $(
+                                fn $func:ident($($i:ident: $t:ty),*) -> $rt:ty;
+                            )*
+                        }
+                    )*
+                }
+            )*
+        }
+    ) => {
+        $(
+            mod $prefix {
+                use super::*;
+
+                $(
+                $(
+                    pub extern "stdcall" fn $func(this: *const $iface $(, $i: $t)*) -> $rt {
+                        let this = (this as usize - offset_of!($cls, $field)) as *const $cls;
+                        let this = unsafe { &*this };
+
+                        unsafe { this.$func($($i),*) }
+                    }
+                )*
+                )*
+            }
+        )*
+    }
+}
