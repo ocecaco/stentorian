@@ -6,7 +6,7 @@ use bstr::BStr;
 use std::sync::Mutex;
 use std::boxed::Box;
 
-pub fn make_engine_sink(engine: ComPtr<ISRCentral>) -> RawComPtr {
+pub fn make_engine_sink(engine: ComPtr<IDgnSREngineControl>) -> RawComPtr {
     let obj = Box::into_raw(Box::new(EngineSink::new(engine)));
 
     obj as RawComPtr
@@ -18,7 +18,7 @@ pub struct EngineSink {
     vtable2: *const IDgnGetSinkFlagsVtable,
     vtable3: *const IDgnSREngineNotifySinkVtable,
     ref_count: Mutex<u32>,
-    engine: ComPtr<ISRCentral>
+    engine: ComPtr<IDgnSREngineControl>,
 }
 
 #[allow(overflowing_literals)]
@@ -28,7 +28,7 @@ const E_NOINTERFACE: HRESULT = HRESULT(0x80004002 as i32);
 const E_POINTER: HRESULT = HRESULT(0x80004003 as i32);
 
 impl EngineSink {
-    fn new(engine: ComPtr<ISRCentral>) -> Self {
+    fn new(engine: ComPtr<IDgnSREngineControl>) -> Self {
         let unk_vtable1 = IUnknownVtable {
             query_interface: v1::query_interface,
             add_ref: v1::add_ref,
@@ -173,10 +173,10 @@ impl EngineSink {
         HRESULT(0)
     }
     
-    unsafe fn paused(&self, x: u64) -> HRESULT {
-        println!("engine line: {}", line!());
-        let result = self.engine.resume();
-        assert_eq!(result.0, 0);
+    unsafe fn paused(&self, cookie: u64) -> HRESULT {
+        println!("pause {}", cookie);
+        let result = self.engine.resume(cookie);
+        assert!(result.0 == 0);
         HRESULT(0)
     }
     

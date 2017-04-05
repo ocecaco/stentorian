@@ -6,12 +6,3 @@ authors = ["Daniël Louwrink <daniel.louwrink@gmail.com>"]
 [dependencies]
 libc = "0.2.21"
 bitflags = "0.8.0"
-
-[lib]
-name = "rustlink"
-crate-type = ["rlib", "dylib"]
-path = "src/lib.rs"
-
-[[bin]]
-name = "rustbin"
-path = "src/bin.rs"

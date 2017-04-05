@@ -50,6 +50,7 @@ mod dragon {
     }
 
     #[repr(C)]
+    #[derive(Debug, Copy, Clone)]
     pub enum SRGRMFMT {
         SRGRMFMT_CFG = 0x0000,
         SRGRMFMT_LIMITEDDOMAIN = 0x0001,
@@ -63,6 +64,7 @@ mod dragon {
     }
 
     #[repr(C)]
+    #[derive(Debug, Copy, Clone)]
     pub struct SDATA {
         pub data: *const u8,
         pub size: u32
@@ -310,32 +312,25 @@ mod api {
         unsafe  {
             let result = grammar_control.activate(ptr::null(), 0, BString::from("Mapping").as_ref());
             assert_eq!(result.0 as u32, 0);
-            let grammar_control = query_interface::<IDgnSRGramCommon>(&grammar_control).unwrap();
-            let result = grammar_control.special_grammar(0);
-            assert_eq!(result.0 as u32, 0);
         }
     }
 
-    fn create_engine_sink(engine: ComPtr<ISRCentral>) -> ComPtr<IDgnSREngineNotifySink> {
+    fn create_engine_sink(engine: ComPtr<IDgnSREngineControl>) -> ComPtr<IDgnSREngineNotifySink> {
         let sink = enginesink::make_engine_sink(engine);
         let sink = unsafe { raw_to_comptr::<ISRNotifySink>(sink) };
         let sink = query_interface::<IDgnSREngineNotifySink>(&sink).unwrap();
         sink
     }
 
-    pub fn test() {
-        unsafe {
-            let result: HRESULT = CoInitializeEx(ptr::null(), COINIT_MULTITHREADED);
-            assert_eq!(result.0, 0);
-        }
-
+    fn do_grammar_test() {
         let provider = create_instance::<IServiceProvider>(&CLSID_DgnSite, None, CLSCTX_LOCAL_SERVER).unwrap();
 
         let engine = get_engine(&provider);
+        let engine_control = query_interface::<IDgnSREngineControl>(&engine).unwrap();
         let product_name = get_product_name(&engine);
 
         let mut key = 0u32;
-        let sink = create_engine_sink(engine.clone());
+        let sink = create_engine_sink(engine_control);
         let result = unsafe {
             engine.register(&sink as &IDgnSREngineNotifySink as *const _ as RawComPtr,
                             IDgnSREngineNotifySink::iid(),
@@ -346,11 +341,23 @@ mod api {
         let grammar = read_test_grammar();
         test_grammar_load(&engine, &grammar);
         
-        thread::sleep(time::Duration::from_secs(10));
+        thread::sleep(time::Duration::from_secs(20));
+    }
+
+    pub fn test() {
+        unsafe {
+            let result: HRESULT = CoInitializeEx(ptr::null(), COINIT_MULTITHREADED);
+            assert_eq!(result.0, 0);
+        }
+
+        do_grammar_test();
+
+        unsafe {
+            CoUninitialize();
+        }
     }
 }
 
-#[no_mangle]
-pub fn test() {
+fn main() {
     api::test();
 }

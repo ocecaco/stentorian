@@ -20,7 +20,8 @@ impl<T: ComInterface> Drop for ComPtr<T> {
             self.instance = ptr::null();
             unsafe {
                 let unk = (&*temp).as_ref();
-                unk.release();
+                // FIXME: fix reference counting
+                // unk.release();
             }
         }
     }
@@ -43,4 +44,7 @@ impl<T: ComInterface> Clone for ComPtr<T> {
 
         ComPtr { instance: self.instance }
     }
+}
+
+unsafe impl<T: ComInterface> Send for ComPtr<T> {
 }
