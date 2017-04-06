@@ -12,6 +12,7 @@ mod bstr;
 mod comptr;
 mod iunknown;
 mod types;
+mod refcount;
 mod grammarsink;
 mod enginesink;
 

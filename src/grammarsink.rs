@@ -1,7 +1,7 @@
 use super::iunknown::*;
 use super::isrcentral::*;
 use super::types::*;
-use std::sync::Mutex;
+use refcount::*;
 use std::boxed::Box;
 use libc::c_void;
 
@@ -15,7 +15,7 @@ pub fn make_grammar_sink() -> RawComPtr {
 pub struct GrammarSink {
     vtable1: *const ISRGramNotifySinkVtable,
     vtable2: *const IDgnGetSinkFlagsVtable,
-    ref_count: Mutex<u32>
+    ref_count: RefCount
 }
 
 impl GrammarSink {
@@ -23,49 +23,28 @@ impl GrammarSink {
         GrammarSink {
             vtable1: &v1::VTABLE,
             vtable2: &v2::VTABLE,
-            ref_count: Mutex::new(1u32)
+            ref_count: RefCount::new(1)
         }
     }
 
     unsafe fn query_interface(&self, iid: *const IID, v: *mut RawComPtr) -> HRESULT {
-        if v.is_null() {
-            return E_POINTER;
+        query_interface! {
+            self, iid, v,
+            IUnknown => vtable1,
+            ISRGramNotifySink => vtable1,
+            IDgnGetSinkFlags => vtable2
         }
 
-        let iid = &*iid;
-
-        println!("grammar IID: {}", iid);
-
-        if *iid == IUnknown::iid() {
-            *v = &self.vtable1 as *const _ as RawComPtr;
-            self.add_ref();
-        } else if *iid == ISRGramNotifySink::iid() {
-            *v = &self.vtable1 as *const _ as RawComPtr;
-            self.add_ref();
-        } else if *iid == IDgnGetSinkFlags::iid() {
-            *v = &self.vtable2 as *const _ as RawComPtr;
-            self.add_ref();
-        } else {
-            println!("fail!");
-            return E_NOINTERFACE;
-        }
-
-        println!("success!");
+        self.ref_count.up();
         HRESULT(0)
     }
 
     unsafe fn add_ref(&self) -> u32 {
-        let mut guard = self.ref_count.lock().unwrap();
-        *guard += 1;
-        *guard
+        self.ref_count.up()
     }
 
     unsafe fn release(&self) -> u32 {
-        let result = {
-            let mut guard = self.ref_count.lock().unwrap();
-            *guard += 1;
-            *guard
-        };
+        let result = self.ref_count.down();
 
         if result == 0 {
             Box::from_raw(self as *const _ as *mut GrammarSink);
@@ -74,35 +53,35 @@ impl GrammarSink {
         result
     }
 
-    unsafe fn bookmark(&self, x: u32) -> HRESULT {
+    fn bookmark(&self, x: u32) -> HRESULT {
         println!("grammar line: {}", line!());
         HRESULT(0)
     }
-    unsafe fn paused(&self) -> HRESULT {
+    fn paused(&self) -> HRESULT {
         println!("grammar line: {}", line!());
         HRESULT(0)
     }
-    unsafe fn phrase_finish(&self, a: u32, b: u64, c: u64, phrase: *const c_void, results: RawComPtr) -> HRESULT {
+    fn phrase_finish(&self, a: u32, b: u64, c: u64, phrase: *const c_void, results: RawComPtr) -> HRESULT {
         println!("grammar line: {}", line!());
         HRESULT(0)
     }
-    unsafe fn phrase_hypothesis(&self, a: u32, b: u64, c: u64, phrase: *const c_void, results: RawComPtr) -> HRESULT {
+    fn phrase_hypothesis(&self, a: u32, b: u64, c: u64, phrase: *const c_void, results: RawComPtr) -> HRESULT {
         println!("grammar line: {}", line!());
         HRESULT(0)
     }
-    unsafe fn phrase_start(&self, a: u64) -> HRESULT {
+    fn phrase_start(&self, a: u64) -> HRESULT {
         println!("grammar line: {}", line!());
         HRESULT(0)
     }
-    unsafe fn reevaluate(&self, a: RawComPtr) -> HRESULT {
+    fn reevaluate(&self, a: RawComPtr) -> HRESULT {
         println!("grammar line: {}", line!());
         HRESULT(0)
     }
-    unsafe fn training(&self, a: u32) -> HRESULT {
+    fn training(&self, a: u32) -> HRESULT {
         println!("grammar line: {}", line!());
         HRESULT(0)
     }
-    unsafe fn unarchive(&self, a: RawComPtr) -> HRESULT {
+    fn unarchive(&self, a: RawComPtr) -> HRESULT {
         println!("grammar line: {}", line!());
         HRESULT(0)
     }
@@ -113,12 +92,6 @@ impl GrammarSink {
         HRESULT(0)
     }
 }
-
-#[allow(overflowing_literals)]
-const E_NOINTERFACE: HRESULT = HRESULT(0x80004002 as i32);
-
-#[allow(overflowing_literals)]
-const E_POINTER: HRESULT = HRESULT(0x80004003 as i32);
 
 coclass! {
     GrammarSink {

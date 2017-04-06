@@ -2,8 +2,8 @@ use super::iunknown::*;
 use super::isrcentral::*;
 use super::types::*;
 use super::comptr::ComPtr;
+use refcount::*;
 use bstr::BStr;
-use std::sync::Mutex;
 use std::boxed::Box;
 
 pub fn make_engine_sink(engine: ComPtr<IDgnSREngineControl>) -> RawComPtr {
@@ -17,15 +17,9 @@ pub struct EngineSink {
     vtable1: *const ISRNotifySinkVtable,
     vtable2: *const IDgnGetSinkFlagsVtable,
     vtable3: *const IDgnSREngineNotifySinkVtable,
-    ref_count: Mutex<u32>,
+    ref_count: RefCount,
     engine: ComPtr<IDgnSREngineControl>,
 }
-
-#[allow(overflowing_literals)]
-const E_NOINTERFACE: HRESULT = HRESULT(0x80004002 as i32);
-
-#[allow(overflowing_literals)]
-const E_POINTER: HRESULT = HRESULT(0x80004003 as i32);
 
 impl EngineSink {
     fn new(engine: ComPtr<IDgnSREngineControl>) -> Self {
@@ -33,53 +27,30 @@ impl EngineSink {
             vtable1: &v1::VTABLE,
             vtable2: &v2::VTABLE,
             vtable3: &v3::VTABLE,
-            ref_count: Mutex::new(1u32),
+            ref_count: RefCount::new(1),
             engine: engine
         }
     }
 
     unsafe fn query_interface(&self, iid: *const IID, v: *mut RawComPtr) -> HRESULT {
-        if v.is_null() {
-            return E_POINTER;
+        query_interface! {
+            self, iid, v,
+            IUnknown => vtable1,
+            ISRNotifySink => vtable1,
+            IDgnGetSinkFlags => vtable2,
+            IDgnSREngineNotifySink => vtable3
         }
 
-        let iid = &*iid;
-
-        println!("engine IID: {}", iid);
-
-        if *iid == IUnknown::iid() {
-            *v = &self.vtable1 as *const _ as RawComPtr;
-            self.add_ref();
-        } else if *iid == ISRNotifySink::iid() {
-            *v = &self.vtable1 as *const _ as RawComPtr;
-            self.add_ref();
-        } else if *iid == IDgnGetSinkFlags::iid() {
-            *v = &self.vtable2 as *const _ as RawComPtr;
-            self.add_ref();
-        } else if *iid == IDgnSREngineNotifySink::iid() {
-            *v = &self.vtable3 as *const _ as RawComPtr;
-            self.add_ref();
-        } else {
-            println!("fail");
-            return E_NOINTERFACE;
-        }
-
-        println!("success!");
+        self.ref_count.up();
         HRESULT(0)
     }
 
     unsafe fn add_ref(&self) -> u32 {
-        let mut guard = self.ref_count.lock().unwrap();
-        *guard += 1;
-        *guard
+        self.ref_count.up()
     }
 
     unsafe fn release(&self) -> u32 {
-        let result = {
-            let mut guard = self.ref_count.lock().unwrap();
-            *guard += 1;
-            *guard
-        };
+        let result = self.ref_count.down();
 
         if result == 0 {
             Box::from_raw(self as *const _ as *mut EngineSink);
@@ -88,32 +59,32 @@ impl EngineSink {
         result
     }
 
-    unsafe fn attrib_changed(&self, a: u32) -> HRESULT {
+    fn attrib_changed(&self, a: u32) -> HRESULT {
         println!("engine line: {}", line!());
         HRESULT(0)
     }
     
-    unsafe fn interference(&self, a: u64, b: u64, c: u64) -> HRESULT {
+    fn interference(&self, a: u64, b: u64, c: u64) -> HRESULT {
         println!("engine line: {}", line!());
         HRESULT(0)
     }
     
-    unsafe fn sound(&self, a: u64, b: u64) -> HRESULT {
+    fn sound(&self, a: u64, b: u64) -> HRESULT {
         println!("engine line: {}", line!());
         HRESULT(0)
     }
     
-    unsafe fn utterance_begin(&self, a: u64) -> HRESULT {
+    fn utterance_begin(&self, a: u64) -> HRESULT {
         println!("engine line: {}", line!());
         HRESULT(0)
     }
     
-    unsafe fn utterance_end(&self, a: u64, b: u64) -> HRESULT {
+    fn utterance_end(&self, a: u64, b: u64) -> HRESULT {
         println!("engine line: {}", line!());
         HRESULT(0)
     }
     
-    unsafe fn vu_meter(&self, a: u64, b: u16) -> HRESULT {
+    fn vu_meter(&self, a: u64, b: u16) -> HRESULT {
         println!("engine line: {}", line!());
         HRESULT(0)
     }
@@ -126,7 +97,7 @@ impl EngineSink {
     }
     
 
-    unsafe fn attrib_changed_2(&self, x: u32) -> HRESULT {
+    fn attrib_changed_2(&self, x: u32) -> HRESULT {
         println!("engine line: {}", line!());
         HRESULT(0)
     }
@@ -138,17 +109,17 @@ impl EngineSink {
         HRESULT(0)
     }
     
-    unsafe fn mimic_done(&self, x: u32, p: RawComPtr) -> HRESULT {
+    fn mimic_done(&self, x: u32, p: RawComPtr) -> HRESULT {
         println!("engine line: {}", line!());
         HRESULT(0)
     }
     
-    unsafe fn error_happened(&self, p: RawComPtr) -> HRESULT {
+    fn error_happened(&self, p: RawComPtr) -> HRESULT {
         println!("engine line: {}", line!());
         HRESULT(0)
     }
     
-    unsafe fn progress(&self, x: u32, s: BStr) -> HRESULT {
+    fn progress(&self, x: u32, s: BStr) -> HRESULT {
         println!("engine line: {}", line!());
         HRESULT(0)
     }

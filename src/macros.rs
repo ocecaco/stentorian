@@ -243,9 +243,35 @@ macro_rules! handle_functions {
                 let this = (this as usize - offset_of!($cls, $field)) as *const $cls;
                 let this = unsafe { &*this };
 
+                #[allow(unused_unsafe)]
                 unsafe { this.$func($($i),*) }
             }
         )*
     }
 }
 
+macro_rules! query_interface {
+    ($sel:ident, $iid:ident, $v:ident,
+     $iface:ident => $vtable:ident
+     $(
+         , $extra_iface:ident => $extra_vtable:ident
+     )*) => {
+        if $v.is_null() {
+            return ::types::E_POINTER;
+        }
+
+        let iid = &*$iid;
+
+        if *iid == $iface::iid() {
+            *$v = &$sel.$vtable as *const _ as RawComPtr;
+        }
+        $(
+            else if *iid == $extra_iface::iid() {
+                *$v = &$sel.$extra_vtable as *const _ as RawComPtr;
+            }
+        )*
+        else {
+            return ::types::E_NOINTERFACE;
+        }
+    }
+}

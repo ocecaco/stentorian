@@ -46,7 +46,9 @@ bitflags! {
 #[must_use]
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 #[repr(C)]
-pub struct HRESULT(pub i32);
+pub struct HRESULT(pub u32);
+pub const E_NOINTERFACE: HRESULT = HRESULT(0x80004002);
+pub const E_POINTER: HRESULT = HRESULT(0x80004003);
 
 pub type BOOL = i32;
 
