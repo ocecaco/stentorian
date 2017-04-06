@@ -29,52 +29,10 @@ const E_POINTER: HRESULT = HRESULT(0x80004003 as i32);
 
 impl EngineSink {
     fn new(engine: ComPtr<IDgnSREngineControl>) -> Self {
-        let unk_vtable1 = IUnknownVtable {
-            query_interface: v1::query_interface,
-            add_ref: v1::add_ref,
-            release: v1::release
-        };
-
-        let unk_vtable2 = IUnknownVtable {
-            query_interface: v2::query_interface,
-            add_ref: v2::add_ref,
-            release: v2::release
-        };
-
-        let unk_vtable3 = IUnknownVtable {
-            query_interface: v3::query_interface,
-            add_ref: v3::add_ref,
-            release: v3::release
-        };
-        
-        let vtable1 = ISRNotifySinkVtable {
-            base: unk_vtable1,
-            attrib_changed: v1::attrib_changed,
-            interference: v1::interference,
-            sound: v1::sound,
-            utterance_begin: v1::utterance_begin,
-            utterance_end: v1::utterance_end,
-            vu_meter: v1::vu_meter
-        };
-
-        let vtable2 = IDgnGetSinkFlagsVtable {
-            base: unk_vtable2,
-            sink_flags_get: v2::sink_flags_get
-        };
-
-        let vtable3 = IDgnSREngineNotifySinkVtable {
-            base: unk_vtable3,
-            attrib_changed_2: v3::attrib_changed_2,
-            paused: v3::paused,
-            mimic_done: v3::mimic_done,
-            error_happened: v3::error_happened,
-            progress: v3::progress
-        };
-
         EngineSink {
-            vtable1: Box::into_raw(Box::new(vtable1)),
-            vtable2: Box::into_raw(Box::new(vtable2)),
-            vtable3: Box::into_raw(Box::new(vtable3)),
+            vtable1: &v1::VTABLE,
+            vtable2: &v2::VTABLE,
+            vtable3: &v3::VTABLE,
             ref_count: Mutex::new(1u32),
             engine: engine
         }
@@ -196,16 +154,19 @@ impl EngineSink {
     }
 }
 
-com_stubs! {
-    coclass EngineSink {
+coclass! {
+    EngineSink {
         mod v1 in vtable1 {
-            interface IUnknown {
-                fn query_interface(iid: *const IID, v: *mut RawComPtr) -> HRESULT;
-                fn add_ref() -> ULONG;
-                fn release() -> ULONG;
-            }
+            vtable_name: VTABLE,
 
             interface ISRNotifySink {
+                vtable: ISRNotifySinkVtable,
+                interface IUnknown {
+                    vtable: IUnknownVtable,
+                    fn query_interface(iid: *const IID, v: *mut RawComPtr) -> HRESULT;
+                    fn add_ref() -> ULONG;
+                    fn release() -> ULONG;
+                },
                 fn attrib_changed(a: u32) -> HRESULT;
                 fn interference(a: u64, b: u64, c: u64) -> HRESULT;
                 fn sound(a: u64, b: u64) -> HRESULT;
@@ -213,29 +174,34 @@ com_stubs! {
                 fn utterance_end(a: u64, b: u64) -> HRESULT;
                 fn vu_meter(a: u64, b: u16) -> HRESULT;
             }
-
         }
 
         mod v2 in vtable2 {
-            interface IUnknown {
-                fn query_interface(iid: *const IID, v: *mut RawComPtr) -> HRESULT;
-                fn add_ref() -> ULONG;
-                fn release() -> ULONG;
-            }
+            vtable_name: VTABLE,
 
             interface IDgnGetSinkFlags {
+                vtable: IDgnGetSinkFlagsVtable,
+                interface IUnknown {
+                    vtable: IUnknownVtable,
+                    fn query_interface(iid: *const IID, v: *mut RawComPtr) -> HRESULT;
+                    fn add_ref() -> ULONG;
+                    fn release() -> ULONG;
+                },
                 fn sink_flags_get(flags: *mut u32) -> HRESULT;
             }
         }
 
         mod v3 in vtable3 {
-            interface IUnknown {
-                fn query_interface(iid: *const IID, v: *mut RawComPtr) -> HRESULT;
-                fn add_ref() -> ULONG;
-                fn release() -> ULONG;
-            }
+            vtable_name: VTABLE,
 
             interface IDgnSREngineNotifySink {
+                vtable: IDgnSREngineNotifySinkVtable,
+                interface IUnknown {
+                    vtable: IUnknownVtable,
+                    fn query_interface(iid: *const IID, v: *mut RawComPtr) -> HRESULT;
+                    fn add_ref() -> ULONG;
+                    fn release() -> ULONG;
+                },
                 fn attrib_changed_2(x: u32) -> HRESULT;
                 fn paused(x: u64) -> HRESULT;
                 fn mimic_done(x: u32, p: RawComPtr) -> HRESULT;

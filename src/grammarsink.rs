@@ -20,38 +20,9 @@ pub struct GrammarSink {
 
 impl GrammarSink {
     fn new() -> Self {
-        let unk_vtable1 = IUnknownVtable {
-            query_interface: v1::query_interface,
-            add_ref: v1::add_ref,
-            release: v1::release
-        };
-
-        let vtable1 = ISRGramNotifySinkVtable {
-            base: unk_vtable1,
-            bookmark: v1::bookmark,
-            paused: v1::paused,
-            phrase_finish: v1::phrase_finish,
-            phrase_hypothesis: v1::phrase_hypothesis,
-            phrase_start: v1::phrase_start,
-            reevaluate: v1::reevaluate,
-            training: v1::training,
-            unarchive: v1::unarchive
-        };
-
-        let unk_vtable2 = IUnknownVtable {
-            query_interface: v2::query_interface,
-            add_ref: v2::add_ref,
-            release: v2::release
-        };
-
-        let vtable2 = IDgnGetSinkFlagsVtable {
-            base: unk_vtable2,
-            sink_flags_get: v2::sink_flags_get
-        };
-
         GrammarSink {
-            vtable1: Box::into_raw(Box::new(vtable1)),
-            vtable2: Box::into_raw(Box::new(vtable2)),
+            vtable1: &v1::VTABLE,
+            vtable2: &v2::VTABLE,
             ref_count: Mutex::new(1u32)
         }
     }
@@ -149,16 +120,19 @@ const E_NOINTERFACE: HRESULT = HRESULT(0x80004002 as i32);
 #[allow(overflowing_literals)]
 const E_POINTER: HRESULT = HRESULT(0x80004003 as i32);
 
-com_stubs! {
-    coclass GrammarSink {
+coclass! {
+    GrammarSink {
         mod v1 in vtable1 {
-            interface IUnknown {
-                fn query_interface(iid: *const IID, v: *mut RawComPtr) -> HRESULT;
-                fn add_ref() -> ULONG;
-                fn release() -> ULONG;
-            }
-
+            vtable_name: VTABLE,
+            
             interface ISRGramNotifySink {
+                vtable: ISRGramNotifySinkVtable,
+                interface IUnknown {
+                    vtable: IUnknownVtable,
+                    fn query_interface(iid: *const IID, v: *mut RawComPtr) -> HRESULT;
+                    fn add_ref() -> ULONG;
+                    fn release() -> ULONG;
+                },
                 fn bookmark(x: u32) -> HRESULT;
                 fn paused() -> HRESULT;
                 fn phrase_finish(a: u32, b: u64, c: u64, phrase: *const c_void, results: RawComPtr) -> HRESULT;
@@ -171,13 +145,16 @@ com_stubs! {
         }
 
         mod v2 in vtable2 {
-            interface IUnknown {
-                fn query_interface(iid: *const IID, v: *mut RawComPtr) -> HRESULT;
-                fn add_ref() -> ULONG;
-                fn release() -> ULONG;
-            }
-
+            vtable_name: VTABLE,
+            
             interface IDgnGetSinkFlags {
+                vtable: IDgnGetSinkFlagsVtable,
+                interface IUnknown {
+                    vtable: IUnknownVtable,
+                    fn query_interface(iid: *const IID, v: *mut RawComPtr) -> HRESULT;
+                    fn add_ref() -> ULONG;
+                    fn release() -> ULONG;
+                },
                 fn sink_flags_get(flags: *mut u32) -> HRESULT;
             }
         }

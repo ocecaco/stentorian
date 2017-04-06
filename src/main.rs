@@ -293,7 +293,7 @@ mod api {
                                  .collect::<Vec<u16>>())
     }
 
-    fn test_grammar_load(engine: &ISRCentral, grammar: &[u8]) {
+    fn test_grammar_load(engine: &ISRCentral, grammar: &[u8]) -> ComPtr<ISRGramCommon> {
         let mut control: RawComPtr = ptr::null();
         let result = unsafe {
             engine.grammar_load(SRGRMFMT::SRGRMFMT_CFG,
@@ -313,6 +313,8 @@ mod api {
             let result = grammar_control.activate(ptr::null(), 0, BString::from("Mapping").as_ref());
             assert_eq!(result.0 as u32, 0);
         }
+
+        grammar_control
     }
 
     fn create_engine_sink(engine: ComPtr<IDgnSREngineControl>) -> ComPtr<IDgnSREngineNotifySink> {
@@ -339,7 +341,7 @@ mod api {
         assert_eq!(result.0, 0);
 
         let grammar = read_test_grammar();
-        test_grammar_load(&engine, &grammar);
+        let control = test_grammar_load(&engine, &grammar);
         
         thread::sleep(time::Duration::from_secs(20));
     }

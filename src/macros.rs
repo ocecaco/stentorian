@@ -38,11 +38,21 @@ macro_rules! com_interface {
         #[allow(missing_debug_implementations)]
         #[doc(hidden)]
         #[repr(C)]
+        #[derive(Copy)]
         pub struct $vtable {
             pub base: <$base_iface as $crate::iunknown::ComInterface>::Vtable,
             $(pub $func: extern "stdcall" fn(*const $iface, $($t),*) -> $rt),*
         }
 
+        impl Clone for $vtable {
+            fn clone(&self) -> Self {
+                $vtable {
+                    base: self.base
+                    $(,$func: self.$func)*
+                }
+            }
+        }
+        
         $(#[$iface_attr])*
         #[derive(Debug)]
         #[repr(C)]
@@ -105,18 +115,14 @@ macro_rules! offset_of {
     }
 }
 
-macro_rules! com_stubs {
+macro_rules! coclass {
     (
-        coclass $cls:ty {
+        $cls:ident {
             $(
                 mod $prefix:ident in $field:ident {
-                    $(
-                        interface $iface:ty {
-                            $(
-                                fn $func:ident($($i:ident: $t:ty),*) -> $rt:ty;
-                            )*
-                        }
-                    )*
+                    vtable_name: $vtable_name:ident,
+
+                    $($iface_definition:tt)*
                 }
             )*
         }
@@ -124,18 +130,122 @@ macro_rules! com_stubs {
         $(
             mod $prefix {
                 use super::*;
+                coclass_interface!($cls, $field, $($iface_definition)*);
 
-                $(
-                $(
-                    pub extern "stdcall" fn $func(this: *const $iface $(, $i: $t)*) -> $rt {
-                        let this = (this as usize - offset_of!($cls, $field)) as *const $cls;
-                        let this = unsafe { &*this };
-
-                        unsafe { this.$func($($i),*) }
-                    }
-                )*
-                )*
+                generate_vtable!($vtable_name, $($iface_definition)*);
             }
         )*
     }
 }
+
+macro_rules! generate_vtable {
+    (
+        $vtable_name:ident,
+
+        interface $iface:ident {
+            vtable: $vtable:ident,
+            $($rest:tt)*
+        }
+    ) => {
+        pub static $vtable_name: $vtable = coclass_vtable!(
+            interface $iface {
+                vtable: $vtable,
+                $($rest)*
+            }
+        );
+    }
+}
+
+macro_rules! coclass_vtable {
+    (
+        interface $iface:ident {
+            vtable: $vtable:ident,
+            interface $base:ident {
+                $($base_definition:tt)*
+            },
+            $(
+                fn $func:ident($($i:ident: $t:ty),*) -> $rt:ty;
+            )*
+        }
+    ) => {
+        $vtable {
+            base: coclass_vtable!(
+                interface $base {
+                    $($base_definition)*
+                }
+            ),
+            $($func: $func),*
+        }
+    };
+
+    (
+        interface $iface:ident {
+            vtable: $vtable:ident,
+            $(
+                fn $func:ident($($i:ident: $t:ty),*) -> $rt:ty;
+            )*
+        }
+    ) => {
+        $vtable {
+            $($func: $func),*
+        }
+    }
+}
+
+macro_rules! coclass_interface {
+    (
+        $cls:ident, $field:ident,
+
+        interface $iface:ident {
+            vtable: $vtable:ident,
+            interface $base:ident {
+                $($base_definition:tt)*
+            },
+            $($fs:tt)*
+        }
+    ) => {
+        handle_functions!($cls, $iface, $field, $($fs)*);
+
+        coclass_interface! {
+            $cls,
+            $field,
+
+            interface $base {
+                $($base_definition)*
+            }
+        }
+    };
+
+    (
+        $cls:ident, $field:ident,
+
+        interface $iface:ident {
+            vtable: $vtable:ident,
+            $($fs:tt)*
+        }
+    ) => {
+        handle_functions!($cls, $iface, $field, $($fs)*);
+    }
+}
+
+macro_rules! handle_functions {
+    (
+        $cls:ident,
+        $iface:ident,
+        $field:ident,
+        
+        $(
+            fn $func:ident($($i:ident: $t:ty),*) -> $rt:ty;
+        )*
+    ) => {
+        $(
+            extern "stdcall" fn $func(this: *const $iface $(, $i: $t)*) -> $rt {
+                let this = (this as usize - offset_of!($cls, $field)) as *const $cls;
+                let this = unsafe { &*this };
+
+                unsafe { this.$func($($i),*) }
+            }
+        )*
+    }
+}
+

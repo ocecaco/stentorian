@@ -8,10 +8,21 @@ pub struct IUnknown {
 }
 
 #[repr(C)]
+#[derive(Copy)]
 pub struct IUnknownVtable {
     pub query_interface: extern "stdcall" fn(*const IUnknown, *const IID, *mut RawComPtr) -> HRESULT,
     pub add_ref: extern "stdcall" fn(*const IUnknown) -> ULONG,
     pub release: extern "stdcall" fn(*const IUnknown) -> ULONG
+}
+
+impl Clone for IUnknownVtable {
+    fn clone(&self) -> Self {
+        IUnknownVtable {
+            query_interface: self.query_interface,
+            add_ref: self.add_ref,
+            release: self.release
+        }
+    }
 }
 
 impl IUnknown {
@@ -44,7 +55,7 @@ impl AsRef<IUnknown> for IUnknown {
 
 // unsafe to implement because it implies the type can safely be cast to IUnknown
 pub unsafe trait ComInterface: AsRef<IUnknown> {
-    type Vtable;
+    type Vtable: Copy + Clone;
 
     fn iid() -> IID;
 }
