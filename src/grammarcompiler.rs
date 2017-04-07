@@ -35,23 +35,38 @@ enum BasicType {
 }
 
 #[derive(Debug, Copy, Clone)]
-enum RuleToken {
-    Nested(NestedPosition, NestedType),
-    Basic(BasicType, u32)
+struct WordId(u32);
+
+#[derive(Debug, Copy, Clone)]
+struct RuleId(u32);
+
+#[derive(Debug, Copy, Clone)]
+struct ListId(u32);
+
+impl From<u32> for WordId {
+    fn from(v: u32) -> Self {
+        WordId(v)
+    }
 }
 
-impl RuleToken {
-    fn word(id: u32) -> Self {
-        RuleToken::Basic(BasicType::Word, id)
+impl From<u32> for RuleId {
+    fn from(v: u32) -> Self {
+        RuleId(v)
     }
+}
 
-    fn rule(id: u32) -> Self {
-        RuleToken::Basic(BasicType::Rule, id)
+impl From<u32> for ListId {
+    fn from(v: u32) -> Self {
+        ListId(v)
     }
+}
 
-    fn list(id: u32) -> Self {
-        RuleToken::Basic(BasicType::List, id)
-    }
+#[derive(Debug, Copy, Clone)]
+enum RuleToken {
+    Nested(NestedPosition, NestedType),
+    Word(WordId),
+    Rule(RuleId),
+    List(ListId)
 }
 
 const SEQUENCE_START: RuleToken = RuleToken::Nested(NestedPosition::Start, NestedType::Sequence);
@@ -72,9 +87,14 @@ struct Grammar {
 }
 
 #[derive(Debug, Clone)]
+enum RuleVisibility {
+    Exported,
+    Local
+}
+
+#[derive(Debug, Clone)]
 enum Rule {
-    ExportedRule(Element),
-    LocalRule(Element),
+    DefinedRule(RuleVisibility, Element),
     ImportedRule
 }
 
@@ -89,61 +109,106 @@ enum Element {
     List(String)
 }
 
-struct Void {
+struct Interner<'a, U> {
+    name_to_id: HashMap<&'a str, U>,
+    names: Vec<&'a str>,
 }
 
-struct Interner<T> {
-    name_to_id: HashMap<String, u32>,
-    names: Vec<String>,
-    values: Vec<T>
-}
-
-impl<T> Interner<T> {
+impl<'a, U: From<u32> + Copy> Interner<'a, U> {
     fn new() -> Self {
         Interner {
             name_to_id: HashMap::new(),
             names: Vec::new(),
-            values: Vec::new()
         }
     }
     
-    fn intern(&mut self, s: String, v: T) -> u32 {
-        if let Some(&id) = self.name_to_id.get(&s) {
+    fn intern(&mut self, s: &'a str) -> U {
+        if let Some(&id) = self.name_to_id.get(s) {
             id
         } else {
-            let id = (self.names.len() + 1) as u32;
-            self.name_to_id.insert(s.clone(), id);
             self.names.push(s);
-            self.values.push(v);
+
+            let id = U::from(self.names.len() as u32);
+            self.name_to_id.insert(s, id);
             id
         }
     }
 
-    fn done(self) -> (HashMap<String, u32>, Vec<String>, Vec<T>) {
-        (self.name_to_id, self.names, self.values)
+    fn done(self) -> (HashMap<&'a str, U>, Vec<&'a str>) {
+        (self.name_to_id, self.names)
     }
 }
 
-struct GrammarCompiler {
-    buffer: Vec<u8>,
-    rule_name_to_id: HashMap<String, u32>,
-    words: Interner<Void>,
-    lists: Interner<Void>
+fn serialize_rule_tokens(tokens: &[RuleToken]) -> Vec<u8> {
+    fn handle_token(token: &RuleToken) -> (u16, u32) {
+        match *token {
+            RuleToken::Nested(pos, ty) => {
+                (pos as u16, ty as u32)
+            },
+            RuleToken::Word(word_id) => {
+                (BasicType::Word as u16, word_id.0)
+            }
+            RuleToken::Rule(rule_id) => {
+                (BasicType::Rule as u16, rule_id.0)
+            }
+            RuleToken::List(list_id) => {
+                (BasicType::List as u16, list_id.0)
+            }
+        }
+    }
+    
+    let mut result = Vec::new();
+
+    for t in tokens.iter() {
+        let (a, b) = handle_token(t);
+        let probability = 0u16;
+        
+        result.write_u16::<LittleEndian>(a).unwrap();
+        result.write_u16::<LittleEndian>(probability).unwrap();
+        result.write_u32::<LittleEndian>(b).unwrap();
+    }
+
+    result
 }
 
-impl GrammarCompiler {
-    fn new(rule_name_to_id: HashMap<String, u32>,
-           words: Interner<Void>,
-           lists: Interner<Void>) -> Self {
+
+struct GrammarCompiler<'a> {
+    grammar: &'a Grammar,
+    buffer: Vec<u8>,
+    rule_name_to_id: HashMap<&'a str, RuleId>,
+    words: Interner<'a, WordId>,
+    lists: Interner<'a, ListId>
+}
+
+impl<'a> GrammarCompiler<'a> {
+    fn new(grammar: &'a Grammar,
+           rule_name_to_id: HashMap<&'a str, RuleId>) -> Self {
         GrammarCompiler {
+            grammar: grammar,
             buffer: Vec::new(),
             rule_name_to_id: rule_name_to_id,
-            words: words,
-            lists: lists
+            words: Interner::new(),
+            lists: Interner::new()
         }
     }
 
-    fn compile_element(&mut self, element: &Element, output: &mut Vec<RuleToken>) {
+    fn compile(&mut self) -> Vec<u8> {
+        Vec::new()
+    }
+
+
+    fn compile_rule(&mut self, rule: &'a Rule) -> Option<Vec<RuleToken>> {
+        match *rule {
+            Rule::DefinedRule(_, ref element) => {
+                let mut tokens = Vec::new();
+                self.compile_element(element, &mut tokens);
+                Some(tokens)
+            },
+            Rule::ImportedRule => None
+        }
+    }
+
+    fn compile_element(&mut self, element: &'a Element, output: &mut Vec<RuleToken>) {
         match *element {
             Element::Sequence(ref children) => {
                 output.push(SEQUENCE_START);
@@ -170,50 +235,47 @@ impl GrammarCompiler {
                 output.push(OPTIONAL_END);
             },
             Element::Literal(ref word) => {
-                let id = self.words.intern(word.clone(), Void {});
-                output.push(RuleToken::word(id));
+                let id = self.words.intern(word);
+                output.push(RuleToken::Word(id));
             }
             Element::Rule(ref name) => {
                 // TODO: handle missing rule
-                let id = self.rule_name_to_id.get(name).unwrap();
-                output.push(RuleToken::rule(*id));
+                let id = self.rule_name_to_id.get::<str>(name).unwrap();
+                output.push(RuleToken::Rule(*id));
             }
             Element::List(ref name) => {
-                let id = self.lists.intern(name.clone(), Void {});
-                output.push(RuleToken::list(id));
+                let id = self.lists.intern(name);
+                output.push(RuleToken::List(id));
             }
         }
     }
 }
 
-fn compile_grammar(mut grammar: Grammar) -> Vec<u8> {
+fn compile_grammar(grammar: &Grammar) -> Vec<u8> {
     let mut exported_rules = Vec::new();
     let mut imported_rules = Vec::new();
 
-    let mut rule_interner = Interner::new();
+    let mut all_rules = Vec::new();
+    let mut rule_name_to_id = HashMap::new();
 
-    for (name, rule) in grammar.rules.drain() {
-        let rule_list = match rule {
-            Rule::ExportedRule(_) => Some(&mut exported_rules),
-            Rule::LocalRule(_) => None,
-            Rule::ImportedRule => Some(&mut imported_rules)
+    for (name, rule) in &grammar.rules {
+        all_rules.push(rule);
+        let id = all_rules.len();
+        rule_name_to_id.insert(name, id);
+
+        let rule_list = match *rule {
+            Rule::DefinedRule(RuleVisibility::Exported, _) => exported_rules.push((id, name)),
+            Rule::DefinedRule(RuleVisibility::Local, _) => (),
+            Rule::ImportedRule => imported_rules.push((id, name)),
         };
-        
-        let id = rule_interner.intern(name.clone(), rule);
-
-        if let Some(rules) = rule_list {
-            rules.push((id, name));
-        }
     }
 
-    let (rule_name_to_id, _, all_rules) = rule_interner.done();
-    
     Vec::new()
 }
 
 fn compile_id_chunk<T: Write>(output: &mut T,
                               chunk_type: ChunkType,
-                              entries: Vec<(u32, String)>) {
+                              entries: Vec<(u32, &str)>) {
     let mut chunk = Vec::new();
     
     for (id, name) in entries {
