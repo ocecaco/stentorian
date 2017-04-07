@@ -5,9 +5,14 @@ extern crate libc;
 #[macro_use(bitflags)]
 extern crate bitflags;
 
+extern crate byteorder;
+
+extern crate encoding;
+
 #[macro_use]
 mod macros;
 
+mod comutil;
 mod bstr;
 mod comptr;
 mod iunknown;
@@ -15,6 +20,7 @@ mod types;
 mod refcount;
 mod grammarsink;
 mod enginesink;
+mod grammarcompiler;
 
 mod dragon {
     use super::types::*;
@@ -69,6 +75,54 @@ mod dragon {
     pub struct SDATA {
         pub data: *const u8,
         pub size: u32
+    }
+
+    #[repr(C)]
+    #[derive(Debug, Copy, Clone)]
+    pub enum VOICEPARTOFSPEECH {
+        VPS_UNKNOWN = 0,
+        VPS_NOUN = 1,
+        VPS_VERB = 2,
+        VPS_ADVERB = 3,
+        VPS_ADJECTIVE = 4,
+        VPS_PROPERNOUN = 5,
+        VPS_PRONOUN = 6,
+        VPS_CONJUNCTION = 7,
+        VPS_CARDINAL = 8,
+        VPS_ORDINAL = 9,
+        VPS_DETERMINER = 10,
+        VPS_QUANTIFIER = 11,
+        VPS_PUNCTUATION = 12,
+        VPS_CONTRACTION = 13,
+        VPS_INTERJECTION = 14,
+        VPS_ABBREVIATION = 15,
+        VPS_PREPOSITION = 16
+    }
+
+    #[allow(non_snake_case)]
+    #[repr(C)]
+    #[derive(Debug, Copy, Clone)]
+    pub struct SRRESWORDNODE {
+        dwNextWordNode: u32,
+        dwUpAlternateWordNode: u32,
+        dwDownAlternateWordNode: u32,
+        dwPreviousWordNode: u32,
+        dwPhonemeNode: u32,
+        qwStartTime: u64,
+        qwEndTime: u64,
+        dwWordScore: u32,
+        wVolume: u16,
+        wPitch: u16,
+        pos: VOICEPARTOFSPEECH,
+        pub dwCFGParse: u32,
+        dwCue: u32,
+    }
+
+    #[repr(C)]
+    pub struct SRWORD {
+        pub size: u32,
+        pub word_number: u32,
+        pub buffer: [u16; 128]
     }
 
     define_guid!(pub CLSID_DgnDictate = 0xdd100001, 0x6205, 0x11cf, 0xae, 0x61, 0x00, 0x00, 0xe8, 0xa2, 0x86, 0x47);
@@ -206,6 +260,19 @@ mod isrcentral {
             fn resume(cookie: u64) -> HRESULT;
         }
     }
+
+    define_guid!(IID_ISRResGraph = 0x090CD9AA, 0xDA1A, 0x11CD, 0xB3, 0xCA, 0x0, 0xAA, 0x0, 0x47, 0xBA, 0x4F);
+
+    com_interface! {
+        interface ISRResGraph : IUnknown {
+            iid: IID_ISRResGraph,
+            vtable: ISRResGraphVtable,
+            fn best_path_phoneme(choice: u32, path: *mut u32, max_path_size: u32, actual_path_size: *mut u32) -> HRESULT;
+            fn best_path_word(choice: u32, path: *mut u32, max_path_size: u32, actual_path_size: *mut u32) -> HRESULT;
+            fn get_phoneme_node(idx: u32, phoneme_node: *const c_void, a: *const c_void, b: *const c_void) -> HRESULT;
+            fn get_word_node(idx: u32, word_node: *mut SRRESWORDNODE, word: *mut SRWORD, max_word_size: u32, size_needed: *mut u32) -> HRESULT;
+        }
+    }
 }
 
 
@@ -227,44 +294,8 @@ mod api {
     use std::fs::File;
     use std::io::Read;
 
-    #[link(name = "ole32")]
-    extern "system" {
-        fn CoInitializeEx(reserved: *const c_void, coinit: COINIT) -> HRESULT;
-        fn CoUninitialize();
-
-        fn CoCreateInstance(clsid: *const CLSID, unk_outer: RawComPtr, cls_context: CLSCTX, iid: *const IID, v: *mut RawComPtr) -> HRESULT;
-    }
-
-    unsafe fn raw_to_comptr<T: ComInterface>(ptr: RawComPtr) -> ComPtr<T> {
-        let interface_ptr: *const T = ptr as *const T;
-        ComPtr::from_raw(interface_ptr)
-    }
-
-    // TODO: Ensure initialization has been called
-    fn create_instance<U>(clsid: &CLSID, unk_outer: Option<&IUnknown>, cls_context: CLSCTX) -> Option<ComPtr<U>> where U: ComInterface {
-        let mut ptr: RawComPtr = ptr::null();
-        let outer: *const IUnknown = if let Some(x) = unk_outer { x } else { ptr::null() };
-        let result = unsafe { CoCreateInstance(clsid, outer as RawComPtr, cls_context, &U::iid(), &mut ptr) };
-
-        if result.0 != 0 {
-            None
-        } else {
-            unsafe { Some(raw_to_comptr(ptr)) }
-        }
-    }
-
-    fn query_interface<U: ComInterface>(unk: &IUnknown) -> Option<ComPtr<U>> {
-        let mut ptr: RawComPtr = ptr::null();
-
-        let result = unsafe { unk.query_interface(&U::iid(), &mut ptr) };
-
-        if result.0 != 0 {
-            None
-        } else {
-            unsafe { Some(raw_to_comptr(ptr)) }
-        }
-    }
-
+    use comutil::*;
+    
     fn read_test_grammar() -> Vec<u8> {
         let mut file = File::open("C:\\Users\\Daniel\\Documents\\grammar_test.bin").unwrap();
         let mut grammar: Vec<u8> = Vec::new();
@@ -277,9 +308,10 @@ mod api {
             let mut central: RawComPtr = ptr::null();
             let result = provider.query_service(&CLSID_DgnDictate, &ISRCentral::iid(), &mut central);
             assert_eq!(result.0, 0);
-            raw_to_comptr::<ISRCentral>(central)
+            raw_to_comptr::<ISRCentral>(central, true)
         }
     }
+
 
     fn get_product_name(engine: &ISRCentral) -> String {
         let mut info: SRMODEINFO = unsafe { mem::uninitialized() };
@@ -287,11 +319,7 @@ mod api {
             assert_eq!(engine.mode_get(&mut info).0, 0);
         }
 
-        String::from_utf16_lossy(&(&info.szProductName)
-                                 .iter()
-                                 .cloned()
-                                 .take_while(|&x| x != 0)
-                                 .collect::<Vec<u16>>())
+        string_from_slice(&info.szProductName)
     }
 
     fn test_grammar_load(engine: &ISRCentral, grammar: &[u8]) -> ComPtr<ISRGramCommon> {
@@ -308,7 +336,7 @@ mod api {
         };
         assert_eq!(result.0, 0);
 
-        let grammar_control = unsafe { raw_to_comptr::<IUnknown>(control) };
+        let grammar_control = unsafe { raw_to_comptr::<IUnknown>(control, true) };
         let grammar_control = query_interface::<ISRGramCommon>(&grammar_control).unwrap();
         unsafe  {
             let result = grammar_control.activate(ptr::null(), 0, BString::from("Mapping").as_ref());
@@ -320,7 +348,7 @@ mod api {
 
     fn create_engine_sink(engine: ComPtr<IDgnSREngineControl>) -> ComPtr<IDgnSREngineNotifySink> {
         let sink = enginesink::make_engine_sink(engine);
-        let sink = unsafe { raw_to_comptr::<ISRNotifySink>(sink) };
+        let sink = unsafe { raw_to_comptr::<ISRNotifySink>(sink, true) };
         let sink = query_interface::<IDgnSREngineNotifySink>(&sink).unwrap();
         sink
     }

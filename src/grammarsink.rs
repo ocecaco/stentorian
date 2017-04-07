@@ -3,7 +3,11 @@ use super::isrcentral::*;
 use super::types::*;
 use refcount::*;
 use std::boxed::Box;
+use std::mem;
 use libc::c_void;
+
+use comutil::*;
+use dragon::*;
 
 pub fn make_grammar_sink() -> RawComPtr {
     let obj = Box::into_raw(Box::new(GrammarSink::new()));
@@ -61,8 +65,35 @@ impl GrammarSink {
         println!("grammar line: {}", line!());
         HRESULT(0)
     }
-    fn phrase_finish(&self, a: u32, b: u64, c: u64, phrase: *const c_void, results: RawComPtr) -> HRESULT {
-        println!("grammar line: {}", line!());
+    unsafe fn phrase_finish(&self, a: u32, b: u64, c: u64, phrase: *const c_void, results: RawComPtr) -> HRESULT {
+        println!("finish");
+        let results = raw_to_comptr::<IUnknown>(results, false);
+        let results = query_interface::<ISRResGraph>(&results).unwrap();
+
+        type Path = [u32; 512];
+        let mut path: Path = [0u32; 512];
+        let mut actual_path_size: u32 = 0;
+
+        let rc = results.best_path_word(0, &mut path[0], mem::size_of::<Path>() as u32, &mut actual_path_size);
+        assert!(rc.0 == 0);
+
+        // bytes to number of elements
+        let actual_path_size = actual_path_size / mem::size_of::<u32>() as u32;
+
+        let mut word_node: SRRESWORDNODE = mem::uninitialized();
+        let mut word: SRWORD = mem::uninitialized();
+        let mut size_needed = 0u32;
+
+        let mut words = Vec::new();
+        for i in 0..actual_path_size {
+            let rc = results.get_word_node(path[i as usize], &mut word_node, &mut word, mem::size_of::<SRWORD>() as u32, &mut size_needed);
+            assert!(rc.0 == 0);
+
+            words.push((string_from_slice(&word.buffer), word_node.dwCFGParse));
+        }
+
+        println!("{:?}", words);
+
         HRESULT(0)
     }
     fn phrase_hypothesis(&self, a: u32, b: u64, c: u64, phrase: *const c_void, results: RawComPtr) -> HRESULT {

@@ -3,6 +3,15 @@
 use libc::c_void;
 use std::fmt;
 
+pub fn string_from_slice(s: &[u16]) -> String {
+    String::from_utf16_lossy(&s
+                             .iter()
+                             .cloned()
+                             .take_while(|&x| x != 0)
+                             .collect::<Vec<u16>>())
+}
+
+
 bitflags! {
     #[repr(C)]
     pub flags COINIT: u32 {
