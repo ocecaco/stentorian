@@ -21,6 +21,7 @@ mod refcount;
 mod grammarsink;
 mod enginesink;
 mod grammarcompiler;
+mod grammar;
 
 mod dragon {
     use super::types::*;
