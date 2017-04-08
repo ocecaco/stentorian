@@ -87,6 +87,9 @@ mod rulecompiler {
                     let id = self.lists.intern(name);
                     output.push(RuleToken::List(id));
                 }
+                Element::Capture(_, ref child) => {
+                    self.compile_element(child, output);
+                }
             }
         }
     }

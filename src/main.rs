@@ -22,6 +22,7 @@ mod grammarsink;
 mod enginesink;
 mod grammarcompiler;
 mod grammar;
+mod resultparser;
 
 mod dragon {
     use super::types::*;
@@ -279,7 +280,6 @@ mod isrcentral {
 
 mod api {
     use types::*;
-    use libc::{c_void};
     use std::ptr;
     use std::mem;
     use std::{thread, time};
@@ -296,6 +296,12 @@ mod api {
     use std::io::Read;
 
     use comutil::*;
+
+    use grammar::*;
+    use grammarcompiler::*;
+    use resultparser;
+
+    use std::collections::BTreeMap;
     
     fn read_test_grammar() -> Vec<u8> {
         let mut file = File::open("C:\\Users\\Daniel\\Documents\\grammar_test.bin").unwrap();
@@ -370,8 +376,35 @@ mod api {
         };
         assert_eq!(result.0, 0);
 
-        let grammar = read_test_grammar();
-        let control = test_grammar_load(&engine, &grammar);
+        let elements = vec![Element::Rule("A".to_owned()), Element::Rule("B".to_owned())];
+        let elements = elements.into_boxed_slice();
+        let rule1 = Rule::DefinedRule(RuleVisibility::Exported, Element::Sequence(elements));
+
+        let elements = vec![Element::Literal("hello".to_owned()), Element::Literal("world".to_owned())];
+        let elements = elements.into_boxed_slice();
+        let rule2 = Rule::DefinedRule(RuleVisibility::Local, Element::Alternative(elements));
+
+        let elements = vec![Element::Literal("one".to_owned()), Element::Literal("two".to_owned())];
+        let elements = elements.into_boxed_slice();
+        let alternative = Element::Repetition(
+            Box::new(Element::Capture("test".to_owned(),
+                                      Box::new(Element::Alternative(elements)))));
+        let compiled2 = resultparser::compile(&alternative);
+        for (i, ins) in compiled2.iter().enumerate() {
+            println!("{}: {:?}", i, ins);
+        }
+        let rule3 = Rule::DefinedRule(RuleVisibility::Local, alternative);
+
+        let mut rules = BTreeMap::new();
+        rules.insert("Mapping".to_owned(), rule1);
+        rules.insert("A".to_owned(), rule2);
+        rules.insert("B".to_owned(), rule3);
+        let grammar = Grammar {
+            rules: rules
+        };
+        let compiled = compile_grammar(&grammar);
+        let control = test_grammar_load(&engine, &compiled);
+
         
         thread::sleep(time::Duration::from_secs(20));
     }

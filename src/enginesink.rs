@@ -60,67 +60,55 @@ impl EngineSink {
     }
 
     fn attrib_changed(&self, a: u32) -> HRESULT {
-        println!("engine line: {}", line!());
         HRESULT(0)
     }
     
     fn interference(&self, a: u64, b: u64, c: u64) -> HRESULT {
-        println!("engine line: {}", line!());
         HRESULT(0)
     }
     
     fn sound(&self, a: u64, b: u64) -> HRESULT {
-        println!("engine line: {}", line!());
         HRESULT(0)
     }
     
     fn utterance_begin(&self, a: u64) -> HRESULT {
-        println!("engine line: {}", line!());
         HRESULT(0)
     }
     
     fn utterance_end(&self, a: u64, b: u64) -> HRESULT {
-        println!("engine line: {}", line!());
         HRESULT(0)
     }
     
     fn vu_meter(&self, a: u64, b: u16) -> HRESULT {
-        println!("engine line: {}", line!());
         HRESULT(0)
     }
     
 
     unsafe fn sink_flags_get(&self, flags: *mut u32) -> HRESULT {
-        println!("engine flags");
         *flags = 0x248;
         HRESULT(0)
     }
     
 
     fn attrib_changed_2(&self, x: u32) -> HRESULT {
-        println!("engine line: {}", line!());
         HRESULT(0)
     }
     
     unsafe fn paused(&self, cookie: u64) -> HRESULT {
-        println!("pause {}", cookie);
         let result = self.engine.resume(cookie);
         assert!(result.0 == 0);
         HRESULT(0)
     }
     
     fn mimic_done(&self, x: u32, p: RawComPtr) -> HRESULT {
-        println!("engine line: {}", line!());
         HRESULT(0)
     }
     
     fn error_happened(&self, p: RawComPtr) -> HRESULT {
-        println!("engine line: {}", line!());
         HRESULT(0)
     }
     
     fn progress(&self, x: u32, s: BStr) -> HRESULT {
-        println!("engine line: {}", line!());
         HRESULT(0)
     }
 }

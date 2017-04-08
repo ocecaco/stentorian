@@ -23,6 +23,7 @@ pub enum Element {
     Alternative(Box<[Element]>),
     Repetition(Box<Element>),
     Optional(Box<Element>),
+    Capture(String, Box<Element>),
     Literal(String),
     Rule(String),
     List(String)

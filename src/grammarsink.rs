@@ -58,15 +58,12 @@ impl GrammarSink {
     }
 
     fn bookmark(&self, x: u32) -> HRESULT {
-        println!("grammar line: {}", line!());
         HRESULT(0)
     }
     fn paused(&self) -> HRESULT {
-        println!("grammar line: {}", line!());
         HRESULT(0)
     }
     unsafe fn phrase_finish(&self, a: u32, b: u64, c: u64, phrase: *const c_void, results: RawComPtr) -> HRESULT {
-        println!("finish");
         let results = raw_to_comptr::<IUnknown>(results, false);
         let results = query_interface::<ISRResGraph>(&results).unwrap();
 
@@ -97,28 +94,22 @@ impl GrammarSink {
         HRESULT(0)
     }
     fn phrase_hypothesis(&self, a: u32, b: u64, c: u64, phrase: *const c_void, results: RawComPtr) -> HRESULT {
-        println!("grammar line: {}", line!());
         HRESULT(0)
     }
     fn phrase_start(&self, a: u64) -> HRESULT {
-        println!("grammar line: {}", line!());
         HRESULT(0)
     }
     fn reevaluate(&self, a: RawComPtr) -> HRESULT {
-        println!("grammar line: {}", line!());
         HRESULT(0)
     }
     fn training(&self, a: u32) -> HRESULT {
-        println!("grammar line: {}", line!());
         HRESULT(0)
     }
     fn unarchive(&self, a: RawComPtr) -> HRESULT {
-        println!("grammar line: {}", line!());
         HRESULT(0)
     }
 
     unsafe fn sink_flags_get(&self, flags: *mut u32) -> HRESULT {
-        println!("grammar flags");
         *flags = 0xf1ff;
         HRESULT(0)
     }
