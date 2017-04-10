@@ -384,15 +384,13 @@ mod api {
         let elements = elements.into_boxed_slice();
         let rule2 = Rule::DefinedRule(RuleVisibility::Local, Element::Alternative(elements));
 
-        let elements = vec![Element::Literal("one".to_owned()), Element::Literal("two".to_owned())];
+        let elements = vec![Element::Literal("one".to_owned()),
+                            Element::Literal("two".to_owned()),
+                            Element::Literal("three".to_owned())];
         let elements = elements.into_boxed_slice();
         let alternative = Element::Repetition(
             Box::new(Element::Capture("test".to_owned(),
                                       Box::new(Element::Alternative(elements)))));
-        let compiled2 = resultparser::compile(&alternative);
-        for (i, ins) in compiled2.iter().enumerate() {
-            println!("{}: {:?}", i, ins);
-        }
         let rule3 = Rule::DefinedRule(RuleVisibility::Local, alternative);
 
         let mut rules = BTreeMap::new();

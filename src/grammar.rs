@@ -5,7 +5,7 @@ pub struct Grammar {
     pub rules: BTreeMap<String, Rule>
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum RuleVisibility {
     Exported,
     Local
