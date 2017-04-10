@@ -15,6 +15,7 @@ mod rulecompiler {
     use grammar::*;
     use byteorder::{LittleEndian, WriteBytesExt};
     use std::collections::HashMap;
+    use std::collections::hash_map::Entry;
 
     type IdNamePairs<'a> = Vec<(u32, &'a str)>;
 
@@ -38,8 +39,10 @@ mod rulecompiler {
         }
         
         pub fn compile_rule(&mut self, id: RuleId, name: &'a str, rule: &'a Rule) -> Option<Vec<u8>> {
-            // TODO: check for duplicate rule name
-            self.rule_name_to_id.insert(name, id);
+            match self.rule_name_to_id.entry(name) {
+                Entry::Occupied(_) => panic!("duplicate rule name"),
+                Entry::Vacant(entry) => entry.insert(id)
+            };
             
             match *rule {
                 Rule::DefinedRule(_, ref element) => {
