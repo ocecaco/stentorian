@@ -1,8 +1,6 @@
-use std::collections::BTreeMap;
-
 #[derive(Debug, Clone)]
 pub struct Grammar {
-    pub rules: BTreeMap<String, Rule>
+    pub rules: Box<[(String, Rule)]>
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]

@@ -62,6 +62,7 @@ macro_rules! com_interface {
 
         impl $iface {
             $($(#[$fn_attr])*
+            #[allow(dead_code)]
             pub unsafe fn $func(&self, $($i: $t),*) -> $rt {
                 ((*self.vtable).$func)(self $(,$i)*)
             })*

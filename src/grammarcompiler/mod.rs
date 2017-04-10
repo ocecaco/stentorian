@@ -124,7 +124,7 @@ fn preprocess<'a>(grammar: &'a Grammar) -> PreprocessResult<'a> {
     let mut all_rules = Vec::new();
     let mut rule_name_to_id = HashMap::new();
 
-    for (id, (name, rule)) in (1u32..).zip(&grammar.rules) {
+    for (id, &(ref name, ref rule)) in (1u32..).zip(grammar.rules.iter()) {
         let rule_id = id.into();
         let name: &str = name;
         

@@ -281,7 +281,6 @@ mod isrcentral {
 mod api {
     use types::*;
     use std::ptr;
-    use std::mem;
     use std::{thread, time};
     use super::dragon::*;
     use super::iunknown::*;
@@ -292,24 +291,11 @@ mod api {
     use super::enginesink;
     use super::bstr::*;
 
-    use std::fs::File;
-    use std::io::Read;
-
     use comutil::*;
 
     use grammar::*;
     use grammarcompiler::*;
-    use resultparser;
-
-    use std::collections::BTreeMap;
     
-    fn read_test_grammar() -> Vec<u8> {
-        let mut file = File::open("C:\\Users\\Daniel\\Documents\\grammar_test.bin").unwrap();
-        let mut grammar: Vec<u8> = Vec::new();
-        file.read_to_end(&mut grammar).unwrap();
-        grammar
-    }
-
     fn get_engine(provider: &IServiceProvider) -> ComPtr<ISRCentral> {
         unsafe {
             let mut central: RawComPtr = ptr::null();
@@ -317,16 +303,6 @@ mod api {
             assert_eq!(result.0, 0);
             raw_to_comptr::<ISRCentral>(central, true)
         }
-    }
-
-
-    fn get_product_name(engine: &ISRCentral) -> String {
-        let mut info: SRMODEINFO = unsafe { mem::uninitialized() };
-        unsafe {
-            assert_eq!(engine.mode_get(&mut info).0, 0);
-        }
-
-        string_from_slice(&info.szProductName)
     }
 
     fn test_grammar_load(engine: &ISRCentral, grammar: &[u8]) -> ComPtr<ISRGramCommon> {
@@ -365,7 +341,6 @@ mod api {
 
         let engine = get_engine(&provider);
         let engine_control = query_interface::<IDgnSREngineControl>(&engine).unwrap();
-        let product_name = get_product_name(&engine);
 
         let mut key = 0u32;
         let sink = create_engine_sink(engine_control);
@@ -393,10 +368,11 @@ mod api {
                                       Box::new(Element::Alternative(elements)))));
         let rule3 = Rule::DefinedRule(RuleVisibility::Local, alternative);
 
-        let mut rules = BTreeMap::new();
-        rules.insert("Mapping".to_owned(), rule1);
-        rules.insert("A".to_owned(), rule2);
-        rules.insert("B".to_owned(), rule3);
+        let mut rules = Vec::new();
+        rules.push(("A".to_owned(), rule2));
+        rules.push(("B".to_owned(), rule3));
+        rules.push(("Mapping".to_owned(), rule1));
+        let rules = rules.into_boxed_slice();
         let grammar = Grammar {
             rules: rules
         };
