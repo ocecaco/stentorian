@@ -96,7 +96,7 @@ impl EngineSink {
     
     unsafe fn paused(&self, cookie: u64) -> HRESULT {
         let result = self.engine.resume(cookie);
-        assert!(result.0 == 0);
+        assert_eq!(result.0, 0);
         HRESULT(0)
     }
     

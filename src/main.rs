@@ -60,6 +60,7 @@ mod dragon {
 
     #[repr(C)]
     #[derive(Debug, Copy, Clone)]
+    #[allow(non_camel_case_types)]
     pub enum SRGRMFMT {
         SRGRMFMT_CFG = 0x0000,
         SRGRMFMT_LIMITEDDOMAIN = 0x0001,
@@ -81,6 +82,7 @@ mod dragon {
 
     #[repr(C)]
     #[derive(Debug, Copy, Clone)]
+    #[allow(non_camel_case_types)]
     pub enum VOICEPARTOFSPEECH {
         VPS_UNKNOWN = 0,
         VPS_NOUN = 1,
@@ -332,8 +334,7 @@ mod api {
     fn create_engine_sink(engine: ComPtr<IDgnSREngineControl>) -> ComPtr<IDgnSREngineNotifySink> {
         let sink = enginesink::make_engine_sink(engine);
         let sink = unsafe { raw_to_comptr::<ISRNotifySink>(sink, true) };
-        let sink = query_interface::<IDgnSREngineNotifySink>(&sink).unwrap();
-        sink
+        query_interface::<IDgnSREngineNotifySink>(&sink).unwrap()
     }
 
     fn do_grammar_test() {

@@ -7,12 +7,9 @@ fn find_label_locations(instructions: &[Instruction]) -> HashMap<LabelName, usiz
     let mut locations = HashMap::new();
     
     for (i, ins) in instructions.iter().enumerate() {
-        match *ins {
-            Instruction::Label(name) => {
-                // TODO: check for duplicates
-                locations.insert(name, i);
-            }
-            _ => ()
+        if let Instruction::Label(name) = *ins {
+            // TODO: check for duplicates
+            locations.insert(name, i);
         }
     }
 
@@ -21,11 +18,8 @@ fn find_label_locations(instructions: &[Instruction]) -> HashMap<LabelName, usiz
 
 fn relabel(instructions: &mut [Instruction], locations: &HashMap<LabelName, usize>) {
     fn relabel_target(t: &mut JumpTarget, locations: &HashMap<LabelName, usize>) {
-        match *t {
-            JumpTarget::Symbolic(name) => {
-                *t = JumpTarget::Concrete(locations[&name]);
-            }
-            _ => ()
+        if let JumpTarget::Symbolic(name) = *t {
+            *t = JumpTarget::Concrete(locations[&name]);
         }
     }
 
@@ -73,10 +67,8 @@ impl Compiler {
     fn compile_rules(&mut self, rules: &[Rule]) {
         let mut exported_rules = Vec::new();
         for (i, r) in (1u32..).zip(rules.iter()) {
-            match *r {
-                Rule::DefinedRule(RuleVisibility::Exported, _) =>
-                    exported_rules.push(i),
-                _ => ()
+            if let Rule::DefinedRule(RuleVisibility::Exported, _) = *r {
+                exported_rules.push(i);
             }
         }
 

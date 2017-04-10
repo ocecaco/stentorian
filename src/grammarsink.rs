@@ -72,7 +72,7 @@ impl GrammarSink {
         let mut actual_path_size: u32 = 0;
 
         let rc = results.best_path_word(0, &mut path[0], mem::size_of::<Path>() as u32, &mut actual_path_size);
-        assert!(rc.0 == 0);
+        assert_eq!(rc.0, 0);
 
         // bytes to number of elements
         let actual_path_size = actual_path_size / mem::size_of::<u32>() as u32;
@@ -84,7 +84,7 @@ impl GrammarSink {
         let mut words = Vec::new();
         for i in 0..actual_path_size {
             let rc = results.get_word_node(path[i as usize], &mut word_node, &mut word, mem::size_of::<SRWORD>() as u32, &mut size_needed);
-            assert!(rc.0 == 0);
+            assert_eq!(rc.0, 0);
 
             words.push((string_from_slice(&word.buffer), word_node.dwCFGParse));
         }

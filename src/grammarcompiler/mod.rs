@@ -1,5 +1,4 @@
 use byteorder::{LittleEndian, WriteBytesExt};
-use std::collections::HashMap;
 use encoding::{Encoding, EncoderTrap};
 use encoding::all::WINDOWS_1252;
 use std::mem;
@@ -17,26 +16,31 @@ mod rulecompiler {
     use byteorder::{LittleEndian, WriteBytesExt};
     use std::collections::HashMap;
 
-    pub struct RuleCompiler<'b, 'a: 'b> {
-        rule_name_to_id: &'b HashMap<&'a str, RuleId>,
+    type IdNamePairs<'a> = Vec<(u32, &'a str)>;
+
+    pub struct RuleCompiler<'a> {
+        rule_name_to_id: HashMap<&'a str, RuleId>,
         words: Interner<'a, WordId>,
         lists: Interner<'a, ListId>,
     }
 
-    impl<'b, 'a: 'b> RuleCompiler<'a, 'b> {
-        pub fn new(rule_name_to_id: &'b HashMap<&'a str, RuleId>) -> Self {
+    impl<'a> RuleCompiler<'a> {
+        pub fn new() -> Self {
             RuleCompiler {
-                rule_name_to_id: rule_name_to_id,
+                rule_name_to_id: HashMap::new(),
                 words: Interner::new(),
                 lists: Interner::new()
             }
         }
         
-        pub fn done(self) -> (Vec<(u32, &'a str)>, Vec<(u32, &'a str)>) {
+        pub fn done(self) -> (IdNamePairs<'a>, IdNamePairs<'a>) {
             (self.words.done(), self.lists.done())
         }
         
-        pub fn compile_rule(&mut self, rule: &'a Rule) -> Option<Vec<u8>> {
+        pub fn compile_rule(&mut self, id: RuleId, name: &'a str, rule: &'a Rule) -> Option<Vec<u8>> {
+            // TODO: check for duplicate rule name
+            self.rule_name_to_id.insert(name, id);
+            
             match *rule {
                 Rule::DefinedRule(_, ref element) => {
                     let mut tokens = Vec::new();
@@ -80,6 +84,7 @@ mod rulecompiler {
                 }
                 Element::Rule(ref name) => {
                     // TODO: handle missing rule
+                    #[allow(get_unwrap)]
                     let id = self.rule_name_to_id.get::<str>(name).unwrap();
                     output.push(RuleToken::Rule(*id));
                 }
@@ -113,36 +118,32 @@ mod rulecompiler {
 struct PreprocessResult<'a> {
     exported_rules: Vec<(u32, &'a str)>,
     imported_rules: Vec<(u32, &'a str)>,
-    all_rules: Vec<(RuleId, &'a Rule)>,
-    rule_name_to_id: HashMap<&'a str, RuleId>
+    all_rules: Vec<(RuleId, &'a str, &'a Rule)>,
 }
 
-fn preprocess<'a>(grammar: &'a Grammar) -> PreprocessResult<'a> {
+fn preprocess(grammar: &Grammar) -> PreprocessResult {
     let mut exported_rules = Vec::new();
     let mut imported_rules = Vec::new();
 
     let mut all_rules = Vec::new();
-    let mut rule_name_to_id = HashMap::new();
 
     for (id, &(ref name, ref rule)) in (1u32..).zip(grammar.rules.iter()) {
         let rule_id = id.into();
         let name: &str = name;
         
-        all_rules.push((rule_id, rule));
-        rule_name_to_id.insert(name, rule_id);
+        all_rules.push((rule_id, name, rule));
 
-        let rule_list = match *rule {
+        match *rule {
             Rule::DefinedRule(RuleVisibility::Exported, _) => exported_rules.push((id, name)),
             Rule::DefinedRule(RuleVisibility::Local, _) => (),
             Rule::ImportedRule => imported_rules.push((id, name)),
-        };
+        }
     }
 
     PreprocessResult {
         exported_rules: exported_rules,
         imported_rules: imported_rules,
         all_rules: all_rules,
-        rule_name_to_id: rule_name_to_id
     }
 }
 
@@ -150,11 +151,11 @@ fn preprocess<'a>(grammar: &'a Grammar) -> PreprocessResult<'a> {
 pub fn compile_grammar(grammar: &Grammar) -> Vec<u8> {
     let preprocess_result = preprocess(grammar);
 
-    let mut compiler = RuleCompiler::new(&preprocess_result.rule_name_to_id);
+    let mut compiler = RuleCompiler::new();
 
     let mut rule_chunk = Vec::new();
-    for &(id, r) in preprocess_result.all_rules.iter() {
-        if let Some(compiled_rule) = compiler.compile_rule(r) {
+    for &(id, name, r) in &preprocess_result.all_rules {
+        if let Some(compiled_rule) = compiler.compile_rule(id, name, r) {
             write_entry(&mut rule_chunk, id.into(), compiled_rule);
         }
     }
