@@ -2,6 +2,14 @@ use std::collections::HashMap;
 use grammar::*;
 use super::instructions::*;
 
+pub fn compile_grammar_matcher(grammar: &Grammar) -> Vec<Instruction> {
+    let compiler = Compiler::new();
+    let mut instructions = compiler.compile_rules(&grammar.rules);
+    let locations = find_label_locations(&instructions);
+    relabel(&mut instructions, &locations);
+    instructions
+}
+
 
 fn find_label_locations(instructions: &[Instruction]) -> HashMap<LabelName, usize> {
     let mut locations = HashMap::new();
@@ -33,6 +41,9 @@ fn relabel(instructions: &mut [Instruction], locations: &HashMap<LabelName, usiz
                     relabel_target(t, locations);
                 }
             }
+            Instruction::RuleCall(ref mut target) => {
+                relabel_target(target, locations);
+            }
             Instruction::Label(_) => {
                 *i = Instruction::NoOp;
             }
@@ -42,6 +53,7 @@ fn relabel(instructions: &mut [Instruction], locations: &HashMap<LabelName, usiz
 }
 
 struct Compiler {
+    rule_name_to_label: HashMap<String, (u32, Option<LabelName>)>,
     label_counter: u32,
     instructions: Vec<Instruction>
 }
@@ -49,6 +61,7 @@ struct Compiler {
 impl Compiler {
     fn new() -> Self {
         Compiler {
+            rule_name_to_label: HashMap::new(),
             label_counter: 0,
             instructions: Vec::new()
         }
@@ -64,33 +77,56 @@ impl Compiler {
         LabelName(self.label_counter)
     }
 
-    fn compile_rules(&mut self, rules: &[Rule]) {
-        let mut exported_rules = Vec::new();
-        for (i, r) in (1u32..).zip(rules.iter()) {
-            if let Rule::DefinedRule(RuleVisibility::Exported, _) = *r {
-                exported_rules.push(i);
+    fn compile_rules(mut self, rules: &[(String, Rule)]) -> Vec<Instruction> {
+        let mut with_labels = Vec::new();
+        let mut labels = Vec::new();
+        for (i, &(ref name, ref r)) in (1u32..).zip(rules.iter()) {
+            match *r {
+                Rule::DefinedRule(RuleVisibility::Exported, _) => {
+                    let n = self.new_label();
+                    labels.push(n);
+                    with_labels.push((i, name, r, Some(n)));
+                }
+                Rule::DefinedRule(RuleVisibility::Local, _) => {
+                    let n = self.new_label();
+                    with_labels.push((i, name, r, Some(n)));
+                }
+                Rule::ImportedRule => with_labels.push((i, name, r, None))
             }
         }
 
-        // TODO: Generate alternative for top-level rules
+        let labels = labels.iter()
+            .map(|&n| JumpTarget::Symbolic(n))
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
+        self.emit(Instruction::Split(labels));
 
-        for (i, r) in (1u32..).zip(rules.iter()) {
-            self.compile_single_rule(i, r)
+        for &(i, name, r, label) in &with_labels {
+            self.rule_name_to_label.insert(name.clone(), (i, label));
+            
+            if let Rule::DefinedRule(ref visibility, ref element) = *r {
+                self.compile_single_rule(i, *visibility, element, label);
+            }
         }
 
-        let locations = find_label_locations(&self.instructions);
-        relabel(&mut self.instructions, &locations);
+        self.instructions
     }
 
-    fn compile_single_rule(&mut self, rule_id: u32, rule: &Rule) {
-        if let Rule::DefinedRule(ref visibility, ref element) = *rule {
-            match *visibility {
-                RuleVisibility::Exported => self.emit(Instruction::TopLevelRule(rule_id)),
-                RuleVisibility::Local => ()
-            }
-            self.compile_element(element);
-            self.emit(Instruction::Match);
+    fn compile_single_rule(&mut self,
+                           rule_id: u32,
+                           visibility: RuleVisibility,
+                           element: &Element,
+                           start_label: Option<LabelName>) {
+        if let Some(n) = start_label {
+            self.emit(Instruction::Label(n));
         }
+        
+        match visibility {
+            RuleVisibility::Exported => self.emit(Instruction::TopLevelRule(rule_id)),
+            RuleVisibility::Local => ()
+        }
+        self.compile_element(element);
+        self.emit(Instruction::Match);
     }
 
     fn compile_element(&mut self, element: &Element) {
@@ -167,7 +203,8 @@ impl Compiler {
                 self.emit(Instruction::Literal(word.clone()));
             }
             Element::Rule(ref name) => {
-                self.emit(Instruction::Rule(name.clone()));
+                let target = JumpTarget::Symbolic(self.rule_name_to_label[name].1.unwrap());
+                self.emit(Instruction::RuleCall(target));
             }
             Element::List(ref name) => {
                 self.emit(Instruction::List(name.clone()));

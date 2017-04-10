@@ -3,7 +3,7 @@ pub struct Grammar {
     pub rules: Box<[(String, Rule)]>
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone)]
 pub enum RuleVisibility {
     Exported,
     Local

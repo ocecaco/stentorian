@@ -17,7 +17,7 @@ pub enum Instruction {
     NoOp,
     CaptureStart(String),
     CaptureStop(String),
-    Rule(String),
+    RuleCall(JumpTarget),
     Jump(JumpTarget),
     Split(Box<[JumpTarget]>)
 }

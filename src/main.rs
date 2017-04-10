@@ -297,6 +297,8 @@ mod api {
 
     use grammar::*;
     use grammarcompiler::*;
+
+    use resultparser;
     
     fn get_engine(provider: &IServiceProvider) -> ComPtr<ISRCentral> {
         unsafe {
@@ -377,6 +379,14 @@ mod api {
         let grammar = Grammar {
             rules: rules
         };
+        let test5 = resultparser::compiler::compile_grammar_matcher(&grammar);
+        for (i, x) in test5.iter().enumerate() {
+            if let resultparser::instructions::Instruction::NoOp = *x {
+                println!("{}:", i);
+            } else {
+                println!("{}: {:?}", i, x);
+            }
+        }
         let compiled = compile_grammar(&grammar);
         let control = test_grammar_load(&engine, &compiled);
 
