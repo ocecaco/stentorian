@@ -47,7 +47,7 @@ fn relabel(instructions: &mut [Instruction], locations: &HashMap<LabelName, usiz
             Instruction::Label(_) => {
                 *i = Instruction::NoOp;
             }
-            _ => ()
+            _ => (),
         }
     }
 }
@@ -55,7 +55,7 @@ fn relabel(instructions: &mut [Instruction], locations: &HashMap<LabelName, usiz
 struct Compiler {
     rule_name_to_label: HashMap<String, (u32, Option<LabelName>)>,
     label_counter: u32,
-    instructions: Vec<Instruction>
+    instructions: Vec<Instruction>,
 }
 
 impl Compiler {
@@ -63,7 +63,7 @@ impl Compiler {
         Compiler {
             rule_name_to_label: HashMap::new(),
             label_counter: 0,
-            instructions: Vec::new()
+            instructions: Vec::new(),
         }
     }
 
@@ -91,11 +91,12 @@ impl Compiler {
                     let n = self.new_label();
                     with_labels.push((i, name, r, Some(n)));
                 }
-                Rule::ImportedRule => with_labels.push((i, name, r, None))
+                Rule::ImportedRule => with_labels.push((i, name, r, None)),
             }
         }
 
-        let labels = labels.iter()
+        let labels = labels
+            .iter()
             .map(|&n| JumpTarget::Symbolic(n))
             .collect::<Vec<_>>()
             .into_boxed_slice();
@@ -123,7 +124,7 @@ impl Compiler {
 
         match visibility {
             RuleVisibility::Exported => self.emit(Instruction::TopLevelRule(rule_id)),
-            RuleVisibility::Local => ()
+            RuleVisibility::Local => (),
         }
         self.compile_element(element);
         self.emit(Instruction::Match);
@@ -142,7 +143,8 @@ impl Compiler {
                     labels.push(self.new_label());
                 }
 
-                let jump_targets = labels.iter()
+                let jump_targets = labels
+                    .iter()
                     .map(|&name| JumpTarget::Symbolic(name))
                     .collect::<Vec<_>>()
                     .into_boxed_slice();
@@ -212,4 +214,3 @@ impl Compiler {
         }
     }
 }
-

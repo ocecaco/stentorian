@@ -37,7 +37,7 @@ mod dragon {
     #[repr(C)]
     pub struct LANGUAGE {
         LanguageID: LANGID,
-        szDialect: [u16; LANG_LEN]
+        szDialect: [u16; LANG_LEN],
     }
 
     #[allow(non_snake_case)]
@@ -55,7 +55,7 @@ mod dragon {
         dwGrammars: u32,
         dwFeatures: u32,
         dwInterfaces: u32,
-        dwEngineFeatures: u32
+        dwEngineFeatures: u32,
     }
 
     #[repr(C)]
@@ -70,14 +70,14 @@ mod dragon {
         SRGRMFMT_DICTATIONNATIVE = 0x8002,
         SRGRMFMT_DRAGONNATIVE1 = 0x8101,
         SRGRMFMT_DRAGONNATIVE2 = 0x8102,
-        SRGRMFMT_DRAGONNATIVE3 = 0x8103
+        SRGRMFMT_DRAGONNATIVE3 = 0x8103,
     }
 
     #[repr(C)]
     #[derive(Debug, Copy, Clone)]
     pub struct SDATA {
         pub data: *const u8,
-        pub size: u32
+        pub size: u32,
     }
 
     #[repr(C)]
@@ -100,7 +100,7 @@ mod dragon {
         VPS_CONTRACTION = 13,
         VPS_INTERJECTION = 14,
         VPS_ABBREVIATION = 15,
-        VPS_PREPOSITION = 16
+        VPS_PREPOSITION = 16,
     }
 
     #[allow(non_snake_case)]
@@ -126,11 +126,32 @@ mod dragon {
     pub struct SRWORD {
         pub size: u32,
         pub word_number: u32,
-        pub buffer: [u16; 128]
+        pub buffer: [u16; 128],
     }
 
-    define_guid!(pub CLSID_DgnDictate = 0xdd100001, 0x6205, 0x11cf, 0xae, 0x61, 0x00, 0x00, 0xe8, 0xa2, 0x86, 0x47);
-    define_guid!(pub CLSID_DgnSite = 0xdd100006, 0x6205, 0x11cf, 0xae, 0x61, 0x00, 0x00, 0xe8, 0xa2, 0x86, 0x47);
+    define_guid!(pub CLSID_DgnDictate = 0xdd100001,
+                 0x6205,
+                 0x11cf,
+                 0xae,
+                 0x61,
+                 0x00,
+                 0x00,
+                 0xe8,
+                 0xa2,
+                 0x86,
+                 0x47);
+
+    define_guid!(pub CLSID_DgnSite = 0xdd100006,
+                 0x6205,
+                 0x11cf,
+                 0xae,
+                 0x61,
+                 0x00,
+                 0x00,
+                 0xe8,
+                 0xa2,
+                 0x86,
+                 0x47);
 }
 
 
@@ -138,7 +159,17 @@ mod iserviceprovider {
     use super::types::*;
     use super::iunknown::*;
 
-    define_guid!(IID_IServiceProvider = 0x6d5140c1, 0x7436, 0x11ce, 0x80, 0x34, 0x00, 0xaa, 0x00, 0x60, 0x09, 0xfa);
+    define_guid!(IID_IServiceProvider = 0x6d5140c1,
+                 0x7436,
+                 0x11ce,
+                 0x80,
+                 0x34,
+                 0x00,
+                 0xaa,
+                 0x00,
+                 0x60,
+                 0x09,
+                 0xfa);
 
     com_interface! {
         interface IServiceProvider : IUnknown {
@@ -156,14 +187,28 @@ mod isrcentral {
     use super::bstr::*;
     use libc::c_void;
 
-    define_guid!(IID_ISRCentral = 0xB9BD3860, 0x44DB, 0x101B, 0x90, 0xA8, 0x00, 0xAA, 0x00, 0x3E, 0x4B, 0x50);
+    define_guid!(IID_ISRCentral = 0xB9BD3860,
+                 0x44DB,
+                 0x101B,
+                 0x90,
+                 0xA8,
+                 0x00,
+                 0xAA,
+                 0x00,
+                 0x3E,
+                 0x4B,
+                 0x50);
 
     com_interface! {
         interface ISRCentral : IUnknown {
             iid: IID_ISRCentral,
             vtable: ISRCentralVtable,
             fn mode_get(info: *mut SRMODEINFO) -> HRESULT;
-            fn grammar_load(fmt: SRGRMFMT, data: SDATA, sink: RawComPtr, iid: IID, control: *mut RawComPtr) -> HRESULT;
+            fn grammar_load(fmt: SRGRMFMT,
+                            data: SDATA,
+                            sink: RawComPtr,
+                            iid: IID,
+                            control: *mut RawComPtr) -> HRESULT;
             fn pause() -> HRESULT;
             fn posn_get(posn: *mut u64) -> HRESULT;
             fn resume() -> HRESULT;
@@ -173,7 +218,17 @@ mod isrcentral {
         }
     }
 
-    define_guid!(IID_ISRGramNotifySink = 0xf106bfa0, 0xc743, 0x11cd, 0x80, 0xe5, 0x0, 0xaa, 0x0, 0x3e, 0x4b, 0x50);
+    define_guid!(IID_ISRGramNotifySink = 0xf106bfa0,
+                 0xc743,
+                 0x11cd,
+                 0x80,
+                 0xe5,
+                 0x0,
+                 0xaa,
+                 0x0,
+                 0x3e,
+                 0x4b,
+                 0x50);
 
     com_interface! {
         interface ISRGramNotifySink : IUnknown {
@@ -181,8 +236,16 @@ mod isrcentral {
             vtable: ISRGramNotifySinkVtable,
             fn bookmark(x: u32) -> HRESULT;
             fn paused() -> HRESULT;
-            fn phrase_finish(a: u32, b: u64, c: u64, phrase: *const c_void, results: RawComPtr) -> HRESULT;
-            fn phrase_hypothesis(a: u32, b: u64, c: u64, phrase: *const c_void, results: RawComPtr) -> HRESULT;
+            fn phrase_finish(a: u32,
+                             b: u64,
+                             c: u64,
+                             phrase: *const c_void,
+                             results: RawComPtr) -> HRESULT;
+            fn phrase_hypothesis(a: u32,
+                                 b: u64,
+                                 c: u64,
+                                 phrase: *const c_void,
+                                 results: RawComPtr) -> HRESULT;
             fn phrase_start(a: u64) -> HRESULT;
             fn reevaluate(a: RawComPtr) -> HRESULT;
             fn training(a: u32) -> HRESULT;
@@ -190,7 +253,17 @@ mod isrcentral {
         }
     }
 
-    define_guid!(IID_ISRGramCommon = 0xe8c3e160, 0xc743, 0x11cd, 0x80, 0xe5, 0x0, 0xaa, 0x0, 0x3e, 0x4b, 0x50);
+    define_guid!(IID_ISRGramCommon = 0xe8c3e160,
+                 0xc743,
+                 0x11cd,
+                 0x80,
+                 0xe5,
+                 0x0,
+                 0xaa,
+                 0x0,
+                 0x3e,
+                 0x4b,
+                 0x50);
 
     com_interface! {
         interface ISRGramCommon : IUnknown {
@@ -200,7 +273,17 @@ mod isrcentral {
         }
     }
 
-    define_guid!(IID_IDgnSRGramCommon = 0xdd108006, 0x6205, 0x11cf, 0xae, 0x61, 0x00, 0x00, 0xe8, 0xa2, 0x86, 0x47);
+    define_guid!(IID_IDgnSRGramCommon = 0xdd108006,
+                 0x6205,
+                 0x11cf,
+                 0xae,
+                 0x61,
+                 0x00,
+                 0x00,
+                 0xe8,
+                 0xa2,
+                 0x86,
+                 0x47);
 
     com_interface! {
         interface IDgnSRGramCommon : IUnknown {
@@ -211,7 +294,17 @@ mod isrcentral {
         }
     }
 
-    define_guid!(IID_ISRNotifySink = 0x090CD9B0, 0xDA1A, 0x11CD, 0xB3, 0xCA, 0x00, 0xAA, 0x00, 0x47, 0xBA, 0x4F);
+    define_guid!(IID_ISRNotifySink = 0x090CD9B0,
+                 0xDA1A,
+                 0x11CD,
+                 0xB3,
+                 0xCA,
+                 0x00,
+                 0xAA,
+                 0x00,
+                 0x47,
+                 0xBA,
+                 0x4F);
 
     com_interface! {
         interface ISRNotifySink : IUnknown {
@@ -226,7 +319,17 @@ mod isrcentral {
         }
     }
 
-    define_guid!(IID_IDgnGetSinkFlags = 0xdd108010, 0x6205, 0x11cf, 0xae, 0x61, 0x00, 0x00, 0xe8, 0xa2, 0x86, 0x47);
+    define_guid!(IID_IDgnGetSinkFlags = 0xdd108010,
+                 0x6205,
+                 0x11cf,
+                 0xae,
+                 0x61,
+                 0x00,
+                 0x00,
+                 0xe8,
+                 0xa2,
+                 0x86,
+                 0x47);
 
     com_interface! {
         interface IDgnGetSinkFlags : IUnknown {
@@ -236,7 +339,17 @@ mod isrcentral {
         }
     }
 
-    define_guid!(IID_IDgnSREngineNotifySink = 0xdd109001, 0x6205, 0x11cf, 0xae, 0x61, 0x00, 0x00, 0xe8, 0xa2, 0x86, 0x47);
+    define_guid!(IID_IDgnSREngineNotifySink = 0xdd109001,
+                 0x6205,
+                 0x11cf,
+                 0xae,
+                 0x61,
+                 0x00,
+                 0x00,
+                 0xe8,
+                 0xa2,
+                 0x86,
+                 0x47);
 
     com_interface! {
         interface IDgnSREngineNotifySink : IUnknown {
@@ -250,7 +363,17 @@ mod isrcentral {
         }
     }
 
-    define_guid!(IID_IDgnSREngineControl = 0xdd109000, 0x6205, 0x11cf, 0xae, 0x61, 0x00, 0x00, 0xe8, 0xa2, 0x86, 0x47);
+    define_guid!(IID_IDgnSREngineControl = 0xdd109000,
+                 0x6205,
+                 0x11cf,
+                 0xae,
+                 0x61,
+                 0x00,
+                 0x00,
+                 0xe8,
+                 0xa2,
+                 0x86,
+                 0x47);
 
     com_interface! {
         interface IDgnSREngineControl : IUnknown {
@@ -265,16 +388,39 @@ mod isrcentral {
         }
     }
 
-    define_guid!(IID_ISRResGraph = 0x090CD9AA, 0xDA1A, 0x11CD, 0xB3, 0xCA, 0x0, 0xAA, 0x0, 0x47, 0xBA, 0x4F);
+    define_guid!(IID_ISRResGraph = 0x090CD9AA,
+                 0xDA1A,
+                 0x11CD,
+                 0xB3,
+                 0xCA,
+                 0x0,
+                 0xAA,
+                 0x0,
+                 0x47,
+                 0xBA,
+                 0x4F);
 
     com_interface! {
         interface ISRResGraph : IUnknown {
             iid: IID_ISRResGraph,
             vtable: ISRResGraphVtable,
-            fn best_path_phoneme(choice: u32, path: *mut u32, max_path_size: u32, actual_path_size: *mut u32) -> HRESULT;
-            fn best_path_word(choice: u32, path: *mut u32, max_path_size: u32, actual_path_size: *mut u32) -> HRESULT;
-            fn get_phoneme_node(idx: u32, phoneme_node: *const c_void, a: *const c_void, b: *const c_void) -> HRESULT;
-            fn get_word_node(idx: u32, word_node: *mut SRRESWORDNODE, word: *mut SRWORD, max_word_size: u32, size_needed: *mut u32) -> HRESULT;
+            fn best_path_phoneme(choice: u32,
+                                 path: *mut u32,
+                                 max_path_size: u32,
+                                 actual_path_size: *mut u32) -> HRESULT;
+            fn best_path_word(choice: u32,
+                              path: *mut u32,
+                              max_path_size: u32,
+                              actual_path_size: *mut u32) -> HRESULT;
+            fn get_phoneme_node(idx: u32,
+                                phoneme_node: *const c_void,
+                                a: *const c_void,
+                                b: *const c_void) -> HRESULT;
+            fn get_word_node(idx: u32,
+                             word_node: *mut SRRESWORDNODE,
+                             word: *mut SRWORD,
+                             max_word_size: u32,
+                             size_needed: *mut u32) -> HRESULT;
         }
     }
 }
@@ -303,7 +449,8 @@ mod api {
     fn get_engine(provider: &IServiceProvider) -> ComPtr<ISRCentral> {
         unsafe {
             let mut central: RawComPtr = ptr::null();
-            let result = provider.query_service(&CLSID_DgnDictate, &ISRCentral::iid(), &mut central);
+            let result =
+                provider.query_service(&CLSID_DgnDictate, &ISRCentral::iid(), &mut central);
             assert_eq!(result.0, 0);
             raw_to_comptr::<ISRCentral>(central, true)
         }
@@ -315,7 +462,7 @@ mod api {
             engine.grammar_load(SRGRMFMT::SRGRMFMT_CFG,
                                 SDATA {
                                     data: grammar.as_ptr(),
-                                    size: grammar.len() as u32
+                                    size: grammar.len() as u32,
                                 },
                                 make_grammar_sink(),
                                 ISRGramNotifySink::iid(),
@@ -325,8 +472,9 @@ mod api {
 
         let grammar_control = unsafe { raw_to_comptr::<IUnknown>(control, true) };
         let grammar_control = query_interface::<ISRGramCommon>(&grammar_control).unwrap();
-        unsafe  {
-            let result = grammar_control.activate(ptr::null(), 0, BString::from("Mapping").as_ref());
+        unsafe {
+            let result =
+                grammar_control.activate(ptr::null(), 0, BString::from("Mapping").as_ref());
             assert_eq!(result.0 as u32, 0);
         }
 
@@ -340,7 +488,8 @@ mod api {
     }
 
     fn do_grammar_test() {
-        let provider = create_instance::<IServiceProvider>(&CLSID_DgnSite, None, CLSCTX_LOCAL_SERVER).unwrap();
+        let provider =
+            create_instance::<IServiceProvider>(&CLSID_DgnSite, None, CLSCTX_LOCAL_SERVER).unwrap();
 
         let engine = get_engine(&provider);
         let engine_control = query_interface::<IDgnSREngineControl>(&engine).unwrap();
@@ -358,7 +507,8 @@ mod api {
         let elements = elements.into_boxed_slice();
         let rule1 = Rule::DefinedRule(RuleVisibility::Exported, Element::Sequence(elements));
 
-        let elements = vec![Element::Literal("hello".to_owned()), Element::Literal("world".to_owned())];
+        let elements = vec![Element::Literal("hello".to_owned()),
+                            Element::Literal("world".to_owned())];
         let elements = elements.into_boxed_slice();
         let rule2 = Rule::DefinedRule(RuleVisibility::Local, Element::Alternative(elements));
 
@@ -376,9 +526,7 @@ mod api {
         rules.push(("Mapping".to_owned(), rule3));
         rules.push(("B".to_owned(), rule1));
         let rules = rules.into_boxed_slice();
-        let grammar = Grammar {
-            rules: rules
-        };
+        let grammar = Grammar { rules: rules };
         let test5 = resultparser::compiler::compile_grammar_matcher(&grammar);
         for (i, x) in test5.iter().enumerate() {
             if let resultparser::instructions::Instruction::NoOp = *x {

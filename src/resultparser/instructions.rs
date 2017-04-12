@@ -4,7 +4,7 @@ pub struct LabelName(pub u32);
 #[derive(Debug, Copy, Clone)]
 pub enum JumpTarget {
     Symbolic(LabelName),
-    Concrete(usize)
+    Concrete(usize),
 }
 
 #[derive(Debug, Clone)]
@@ -19,5 +19,5 @@ pub enum Instruction {
     CaptureStop(String),
     RuleCall(JumpTarget),
     Jump(JumpTarget),
-    Split(Box<[JumpTarget]>)
+    Split(Box<[JumpTarget]>),
 }

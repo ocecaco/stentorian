@@ -3,7 +3,7 @@ use std::ops::Deref;
 use std::ptr;
 
 pub struct ComPtr<T: ComInterface> {
-    instance: *const T
+    instance: *const T,
 }
 
 impl<T: ComInterface> ComPtr<T> {
@@ -45,5 +45,4 @@ impl<T: ComInterface> Clone for ComPtr<T> {
     }
 }
 
-unsafe impl<T: ComInterface> Send for ComPtr<T> {
-}
+unsafe impl<T: ComInterface> Send for ComPtr<T> {}

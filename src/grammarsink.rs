@@ -19,7 +19,7 @@ pub fn make_grammar_sink() -> RawComPtr {
 pub struct GrammarSink {
     vtable1: *const ISRGramNotifySinkVtable,
     vtable2: *const IDgnGetSinkFlagsVtable,
-    ref_count: RefCount
+    ref_count: RefCount,
 }
 
 impl GrammarSink {
@@ -27,7 +27,7 @@ impl GrammarSink {
         GrammarSink {
             vtable1: &v1::VTABLE,
             vtable2: &v2::VTABLE,
-            ref_count: RefCount::new(1)
+            ref_count: RefCount::new(1),
         }
     }
 
@@ -63,7 +63,13 @@ impl GrammarSink {
     fn paused(&self) -> HRESULT {
         HRESULT(0)
     }
-    unsafe fn phrase_finish(&self, a: u32, b: u64, c: u64, phrase: *const c_void, results: RawComPtr) -> HRESULT {
+    unsafe fn phrase_finish(&self,
+                            a: u32,
+                            b: u64,
+                            c: u64,
+                            phrase: *const c_void,
+                            results: RawComPtr)
+                            -> HRESULT {
         let results = raw_to_comptr::<IUnknown>(results, false);
         let results = query_interface::<ISRResGraph>(&results).unwrap();
 
@@ -71,7 +77,10 @@ impl GrammarSink {
         let mut path: Path = [0u32; 512];
         let mut actual_path_size: u32 = 0;
 
-        let rc = results.best_path_word(0, &mut path[0], mem::size_of::<Path>() as u32, &mut actual_path_size);
+        let rc = results.best_path_word(0,
+                                        &mut path[0],
+                                        mem::size_of::<Path>() as u32,
+                                        &mut actual_path_size);
         assert_eq!(rc.0, 0);
 
         // bytes to number of elements
@@ -83,7 +92,11 @@ impl GrammarSink {
 
         let mut words = Vec::new();
         for i in 0..actual_path_size {
-            let rc = results.get_word_node(path[i as usize], &mut word_node, &mut word, mem::size_of::<SRWORD>() as u32, &mut size_needed);
+            let rc = results.get_word_node(path[i as usize],
+                                           &mut word_node,
+                                           &mut word,
+                                           mem::size_of::<SRWORD>() as u32,
+                                           &mut size_needed);
             assert_eq!(rc.0, 0);
 
             words.push((string_from_slice(&word.buffer), word_node.dwCFGParse));
@@ -93,7 +106,13 @@ impl GrammarSink {
 
         HRESULT(0)
     }
-    fn phrase_hypothesis(&self, a: u32, b: u64, c: u64, phrase: *const c_void, results: RawComPtr) -> HRESULT {
+    fn phrase_hypothesis(&self,
+                         a: u32,
+                         b: u64,
+                         c: u64,
+                         phrase: *const c_void,
+                         results: RawComPtr)
+                         -> HRESULT {
         HRESULT(0)
     }
     fn phrase_start(&self, a: u64) -> HRESULT {
@@ -130,8 +149,16 @@ coclass! {
                 },
                 fn bookmark(x: u32) -> HRESULT;
                 fn paused() -> HRESULT;
-                fn phrase_finish(a: u32, b: u64, c: u64, phrase: *const c_void, results: RawComPtr) -> HRESULT;
-                fn phrase_hypothesis(a: u32, b: u64, c: u64, phrase: *const c_void, results: RawComPtr) -> HRESULT;
+                fn phrase_finish(a: u32,
+                                 b: u64,
+                                 c: u64,
+                                 phrase: *const c_void,
+                                 results: RawComPtr) -> HRESULT;
+                fn phrase_hypothesis(a: u32,
+                                     b: u64,
+                                     c: u64,
+                                     phrase: *const c_void,
+                                     results: RawComPtr) -> HRESULT;
                 fn phrase_start(a: u64) -> HRESULT;
                 fn reevaluate(a: RawComPtr) -> HRESULT;
                 fn training(a: u32) -> HRESULT;

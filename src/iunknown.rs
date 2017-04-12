@@ -1,18 +1,31 @@
 use super::types::*;
 
-define_guid!(IID_IUnknown = 0x00000000, 0x0000, 0x0000, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46);
+define_guid!(IID_IUnknown = 0x00000000,
+             0x0000,
+             0x0000,
+             0xC0,
+             0x00,
+             0x00,
+             0x00,
+             0x00,
+             0x00,
+             0x00,
+             0x46);
 
 #[repr(C)]
 pub struct IUnknown {
-    vtable: *const IUnknownVtable
+    vtable: *const IUnknownVtable,
 }
 
 #[repr(C)]
 #[derive(Copy)]
+#[cfg_attr(rustfmt, rustfmt_skip)]
 pub struct IUnknownVtable {
-    pub query_interface: extern "stdcall" fn(*const IUnknown, *const IID, *mut RawComPtr) -> HRESULT,
+    pub query_interface: extern "stdcall" fn(*const IUnknown,
+                                             *const IID,
+                                             *mut RawComPtr) -> HRESULT,
     pub add_ref: extern "stdcall" fn(*const IUnknown) -> ULONG,
-    pub release: extern "stdcall" fn(*const IUnknown) -> ULONG
+    pub release: extern "stdcall" fn(*const IUnknown) -> ULONG,
 }
 
 impl Clone for IUnknownVtable {
@@ -20,7 +33,7 @@ impl Clone for IUnknownVtable {
         IUnknownVtable {
             query_interface: self.query_interface,
             add_ref: self.add_ref,
-            release: self.release
+            release: self.release,
         }
     }
 }

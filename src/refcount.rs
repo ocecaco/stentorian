@@ -1,12 +1,12 @@
 use std::sync::Mutex;
 
 pub struct RefCount {
-    counter: Mutex<u32>
+    counter: Mutex<u32>,
 }
 
 impl RefCount {
     pub fn new(initial: u32) -> Self {
-        RefCount { counter: Mutex::new(initial)}
+        RefCount { counter: Mutex::new(initial) }
     }
 
     pub fn up(&self) -> u32 {

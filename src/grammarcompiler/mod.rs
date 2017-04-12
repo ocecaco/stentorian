@@ -30,7 +30,7 @@ mod rulecompiler {
             RuleCompiler {
                 rule_name_to_id: HashMap::new(),
                 words: Interner::new(),
-                lists: Interner::new()
+                lists: Interner::new(),
             }
         }
 
@@ -38,10 +38,14 @@ mod rulecompiler {
             (self.words.done(), self.lists.done())
         }
 
-        pub fn compile_rule(&mut self, id: RuleId, name: &'a str, rule: &'a Rule) -> Option<Vec<u8>> {
+        pub fn compile_rule(&mut self,
+                            id: RuleId,
+                            name: &'a str,
+                            rule: &'a Rule)
+                            -> Option<Vec<u8>> {
             match self.rule_name_to_id.entry(name) {
                 Entry::Occupied(_) => panic!("duplicate rule name"),
-                Entry::Vacant(entry) => entry.insert(id)
+                Entry::Vacant(entry) => entry.insert(id),
             };
 
             match *rule {
@@ -50,8 +54,8 @@ mod rulecompiler {
                     self.compile_element(element, &mut tokens);
                     let element_data = serialize_rule_tokens(&tokens);
                     Some(element_data)
-                },
-                Rule::ImportedRule => None
+                }
+                Rule::ImportedRule => None,
             }
         }
 
@@ -63,24 +67,24 @@ mod rulecompiler {
                         self.compile_element(c, output);
                     }
                     output.push(SEQUENCE_END);
-                },
+                }
                 Element::Alternative(ref children) => {
                     output.push(ALTERNATIVE_START);
                     for c in children.iter() {
                         self.compile_element(c, output);
                     }
                     output.push(ALTERNATIVE_END);
-                },
+                }
                 Element::Repetition(ref child) => {
                     output.push(REPETITION_START);
                     self.compile_element(child, output);
                     output.push(REPETITION_END);
-                },
+                }
                 Element::Optional(ref child) => {
                     output.push(OPTIONAL_START);
                     self.compile_element(child, output);
                     output.push(OPTIONAL_END);
-                },
+                }
                 Element::Literal(ref word) => {
                     let id = self.words.intern(word);
                     output.push(RuleToken::Word(id));
@@ -191,23 +195,27 @@ enum ChunkType {
     Imports = 5,
     Lists = 6,
     Words = 2,
-    Rules = 3
+    Rules = 3,
 }
 
-fn write_chunk(output: &mut Vec<u8>,
-               chunk_type: ChunkType,
-               mut data: Vec<u8>) {
-    output.write_u32::<LittleEndian>(chunk_type as u32).unwrap();
-    output.write_u32::<LittleEndian>(data.len() as u32).unwrap();
+fn write_chunk(output: &mut Vec<u8>, chunk_type: ChunkType, mut data: Vec<u8>) {
+    output
+        .write_u32::<LittleEndian>(chunk_type as u32)
+        .unwrap();
+    output
+        .write_u32::<LittleEndian>(data.len() as u32)
+        .unwrap();
     output.append(&mut data);
 }
 
 fn write_entry(output: &mut Vec<u8>, id: u32, mut data: Vec<u8>) {
-        let total_length = 2 * mem::size_of::<u32>() + data.len();
+    let total_length = 2 * mem::size_of::<u32>() + data.len();
 
-        output.write_u32::<LittleEndian>(total_length as u32).unwrap();
-        output.write_u32::<LittleEndian>(id).unwrap();
-        output.append(&mut data);
+    output
+        .write_u32::<LittleEndian>(total_length as u32)
+        .unwrap();
+    output.write_u32::<LittleEndian>(id).unwrap();
+    output.append(&mut data);
 }
 
 fn compile_id_chunk(entries: &[(u32, &str)]) -> Vec<u8> {

@@ -28,7 +28,7 @@ impl EngineSink {
             vtable2: &v2::VTABLE,
             vtable3: &v3::VTABLE,
             ref_count: RefCount::new(1),
-            engine: engine
+            engine: engine,
         }
     }
 

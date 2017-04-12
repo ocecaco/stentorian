@@ -4,11 +4,10 @@ use libc::c_void;
 use std::fmt;
 
 pub fn string_from_slice(s: &[u16]) -> String {
-    String::from_utf16_lossy(&s
-                             .iter()
-                             .cloned()
-                             .take_while(|&x| x != 0)
-                             .collect::<Vec<u16>>())
+    String::from_utf16_lossy(&s.iter()
+                                  .cloned()
+                                  .take_while(|&x| x != 0)
+                                  .collect::<Vec<u16>>())
 }
 
 
@@ -71,12 +70,13 @@ pub struct GUID {
     pub data1: u32,
     pub data2: u16,
     pub data3: u16,
-    pub data4: [u8; 8]
+    pub data4: [u8; 8],
 }
 
 impl fmt::Display for GUID {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:08x}-{:04x}-{:04x}-{:02x}{:02x}-{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
+        write!(f,
+               "{:08x}-{:04x}-{:04x}-{:02x}{:02x}-{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
                self.data1,
                self.data2,
                self.data3,

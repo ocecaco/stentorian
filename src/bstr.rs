@@ -7,12 +7,12 @@ extern "system" {
 }
 
 pub struct BString {
-    ptr: *const u16
+    ptr: *const u16,
 }
 
 #[repr(C)]
 pub struct BStr {
-    ptr: *const u16
+    ptr: *const u16,
 }
 
 impl BString {
@@ -29,7 +29,9 @@ impl BStr {
 
 impl Drop for BString {
     fn drop(&mut self) {
-        unsafe { SysFreeString(self.ptr); }
+        unsafe {
+            SysFreeString(self.ptr);
+        }
     }
 }
 

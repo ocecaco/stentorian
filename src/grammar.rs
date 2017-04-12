@@ -1,18 +1,18 @@
 #[derive(Debug, Clone)]
 pub struct Grammar {
-    pub rules: Box<[(String, Rule)]>
+    pub rules: Box<[(String, Rule)]>,
 }
 
 #[derive(Debug, Copy, Clone)]
 pub enum RuleVisibility {
     Exported,
-    Local
+    Local,
 }
 
 #[derive(Debug, Clone)]
 pub enum Rule {
     DefinedRule(RuleVisibility, Element),
-    ImportedRule
+    ImportedRule,
 }
 
 #[derive(Debug, Clone)]
@@ -24,5 +24,5 @@ pub enum Element {
     Capture(String, Box<Element>),
     Literal(String),
     Rule(String),
-    List(String)
+    List(String),
 }

@@ -26,7 +26,8 @@ impl<'a, U: From<u32> + Into<u32> + Copy> Interner<'a, U> {
     }
 
     pub fn done(self) -> Vec<(u32, &'a str)> {
-        self.names.iter()
+        self.names
+            .iter()
             .map(|&(id, s)| (U::into(id), s))
             .collect()
     }
