@@ -354,7 +354,7 @@ mod api {
         };
         assert_eq!(result.0, 0);
 
-        let elements = vec![Element::Rule("A".to_owned()), Element::Rule("B".to_owned())];
+        let elements = vec![Element::Rule("A".to_owned()), Element::Rule("A".to_owned())];
         let elements = elements.into_boxed_slice();
         let rule1 = Rule::DefinedRule(RuleVisibility::Exported, Element::Sequence(elements));
 
@@ -369,12 +369,12 @@ mod api {
         let alternative = Element::Repetition(
             Box::new(Element::Capture("test".to_owned(),
                                       Box::new(Element::Alternative(elements)))));
-        let rule3 = Rule::DefinedRule(RuleVisibility::Local, alternative);
+        let rule3 = Rule::DefinedRule(RuleVisibility::Exported, alternative);
 
         let mut rules = Vec::new();
         rules.push(("A".to_owned(), rule2));
-        rules.push(("B".to_owned(), rule3));
-        rules.push(("Mapping".to_owned(), rule1));
+        rules.push(("Mapping".to_owned(), rule3));
+        rules.push(("B".to_owned(), rule1));
         let rules = rules.into_boxed_slice();
         let grammar = Grammar {
             rules: rules
@@ -391,7 +391,7 @@ mod api {
         let control = test_grammar_load(&engine, &compiled);
 
         
-        thread::sleep(time::Duration::from_secs(20));
+        thread::sleep(time::Duration::from_secs(120));
     }
 
     pub fn test() {
@@ -408,6 +408,6 @@ mod api {
     }
 }
 
-fn main() {
+pub fn main() {
     api::test();
 }
