@@ -101,7 +101,7 @@ impl<'a, 'b: 'c, 'c> Thread<'a, 'b, 'c> {
                 Instruction::Split(ref targets) => {
                     let (first, rest) = targets.split_first().unwrap();
 
-                    for t in rest {
+                    for t in rest.iter().rev() {
                         if let JumpTarget::Concrete(address) = *t {
                             let mut branch = self.clone();
                             branch.program_pointer = address;
