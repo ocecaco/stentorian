@@ -503,7 +503,7 @@ mod api {
         };
         assert_eq!(result.0, 0);
 
-        let elements = vec![Element::Rule("A".to_owned()), Element::Rule("A".to_owned())];
+        let elements = vec![Element::Rule("A".to_owned()), Element::Rule("B".to_owned())];
         let elements = elements.into_boxed_slice();
         let rule1 = Rule::DefinedRule(RuleVisibility::Exported, Element::Sequence(elements));
 
@@ -516,18 +516,20 @@ mod api {
                             Element::Literal("two".to_owned()),
                             Element::Literal("three".to_owned())];
         let elements = elements.into_boxed_slice();
-        let alternative = Element::Repetition(
-            Box::new(Element::Capture("test".to_owned(),
+        let alternative = Element::Capture("test".to_owned(),
+            Box::new(Element::Repetition(
                                       Box::new(Element::Alternative(elements)))));
-        let rule3 = Rule::DefinedRule(RuleVisibility::Exported, alternative);
+        let rule3 = Rule::DefinedRule(RuleVisibility::Local, alternative);
 
         let mut rules = Vec::new();
         rules.push(("A".to_owned(), rule2));
-        rules.push(("Mapping".to_owned(), rule3));
-        rules.push(("B".to_owned(), rule1));
+        rules.push(("B".to_owned(), rule3));
+        rules.push(("Mapping".to_owned(), rule1));
         let rules = rules.into_boxed_slice();
         let grammar = Grammar { rules: rules };
         let test5 = resultparser::compiler::compile_grammar_matcher(&grammar);
+        let result = resultparser::vm::perform_match(&test5, &["hello", "one", "two", "three"]);
+        println!("{:?}", result);
         for (i, x) in test5.iter().enumerate() {
             if let resultparser::instructions::Instruction::NoOp = *x {
                 println!("{}:", i);
