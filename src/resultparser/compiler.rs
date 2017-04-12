@@ -13,7 +13,7 @@ pub fn compile_grammar_matcher(grammar: &Grammar) -> Vec<Instruction> {
 
 fn find_label_locations(instructions: &[Instruction]) -> HashMap<LabelName, usize> {
     let mut locations = HashMap::new();
-    
+
     for (i, ins) in instructions.iter().enumerate() {
         if let Instruction::Label(name) = *ins {
             // TODO: check for duplicates
@@ -73,7 +73,7 @@ impl Compiler {
 
     fn new_label(&mut self) -> LabelName {
         self.label_counter += 1;
-        
+
         LabelName(self.label_counter)
     }
 
@@ -103,7 +103,7 @@ impl Compiler {
 
         for &(i, name, r, label) in &with_labels {
             self.rule_name_to_label.insert(name.clone(), (i, label));
-            
+
             if let Rule::DefinedRule(ref visibility, ref element) = *r {
                 self.compile_single_rule(i, *visibility, element, label);
             }
@@ -120,7 +120,7 @@ impl Compiler {
         if let Some(n) = start_label {
             self.emit(Instruction::Label(n));
         }
-        
+
         match visibility {
             RuleVisibility::Exported => self.emit(Instruction::TopLevelRule(rule_id)),
             RuleVisibility::Local => ()
@@ -146,7 +146,7 @@ impl Compiler {
                     .map(|&name| JumpTarget::Symbolic(name))
                     .collect::<Vec<_>>()
                     .into_boxed_slice();
-                
+
                 self.emit(Instruction::Split(jump_targets));
 
                 let end = self.new_label();
@@ -191,7 +191,7 @@ impl Compiler {
                 self.emit(Instruction::Label(yes_label));
 
                 self.compile_element(child);
-                
+
                 self.emit(Instruction::Label(no_label));
             }
             Element::Capture(ref name, ref child) => {

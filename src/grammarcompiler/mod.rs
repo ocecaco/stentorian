@@ -33,17 +33,17 @@ mod rulecompiler {
                 lists: Interner::new()
             }
         }
-        
+
         pub fn done(self) -> (IdNamePairs<'a>, IdNamePairs<'a>) {
             (self.words.done(), self.lists.done())
         }
-        
+
         pub fn compile_rule(&mut self, id: RuleId, name: &'a str, rule: &'a Rule) -> Option<Vec<u8>> {
             match self.rule_name_to_id.entry(name) {
                 Entry::Occupied(_) => panic!("duplicate rule name"),
                 Entry::Vacant(entry) => entry.insert(id)
             };
-            
+
             match *rule {
                 Rule::DefinedRule(_, ref element) => {
                     let mut tokens = Vec::new();
@@ -108,7 +108,7 @@ mod rulecompiler {
         for t in tokens.iter() {
             let (a, b) = t.convert();
             let probability = 0u16;
-            
+
             result.write_u16::<LittleEndian>(a).unwrap();
             result.write_u16::<LittleEndian>(probability).unwrap();
             result.write_u32::<LittleEndian>(b).unwrap();
@@ -133,7 +133,7 @@ fn preprocess(grammar: &Grammar) -> PreprocessResult {
     for (id, &(ref name, ref rule)) in (1u32..).zip(grammar.rules.iter()) {
         let rule_id = id.into();
         let name: &str = name;
-        
+
         all_rules.push((rule_id, name, rule));
 
         match *rule {
@@ -171,7 +171,7 @@ pub fn compile_grammar(grammar: &Grammar) -> Vec<u8> {
 
     let export_chunk = compile_id_chunk(&preprocess_result.exported_rules);
     let import_chunk = compile_id_chunk(&preprocess_result.imported_rules);
-    
+
     let mut output = Vec::new();
     output.write_u32::<LittleEndian>(0).unwrap();
     output.write_u32::<LittleEndian>(0).unwrap();
@@ -217,9 +217,9 @@ fn compile_id_chunk(entries: &[(u32, &str)]) -> Vec<u8> {
             v.push(0u8);
         }
     }
-    
+
     let mut chunk = Vec::new();
-    
+
     for &(id, name) in entries.iter() {
         // TODO: is this the proper encoding?
         let mut encoded = WINDOWS_1252.encode(name, EncoderTrap::Strict).unwrap();

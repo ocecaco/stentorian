@@ -52,7 +52,7 @@ macro_rules! com_interface {
                 }
             }
         }
-        
+
         $(#[$iface_attr])*
         #[derive(Debug)]
         #[repr(C)]
@@ -234,7 +234,7 @@ macro_rules! handle_functions {
         $cls:ident,
         $iface:ident,
         $field:ident,
-        
+
         $(
             fn $func:ident($($i:ident: $t:ty),*) -> $rt:ty;
         )*

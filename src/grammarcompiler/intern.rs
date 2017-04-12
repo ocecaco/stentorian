@@ -12,7 +12,7 @@ impl<'a, U: From<u32> + Into<u32> + Copy> Interner<'a, U> {
             names: Vec::new(),
         }
     }
-    
+
     pub fn intern(&mut self, s: &'a str) -> U {
         if let Some(&id) = self.name_to_id.get(s) {
             id

@@ -119,7 +119,7 @@ coclass! {
     GrammarSink {
         mod v1 in vtable1 {
             vtable_name: VTABLE,
-            
+
             interface ISRGramNotifySink {
                 vtable: ISRGramNotifySinkVtable,
                 interface IUnknown {
@@ -141,7 +141,7 @@ coclass! {
 
         mod v2 in vtable2 {
             vtable_name: VTABLE,
-            
+
             interface IDgnGetSinkFlags {
                 vtable: IDgnGetSinkFlagsVtable,
                 interface IUnknown {

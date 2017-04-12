@@ -174,7 +174,7 @@ mod isrcentral {
     }
 
     define_guid!(IID_ISRGramNotifySink = 0xf106bfa0, 0xc743, 0x11cd, 0x80, 0xe5, 0x0, 0xaa, 0x0, 0x3e, 0x4b, 0x50);
-    
+
     com_interface! {
         interface ISRGramNotifySink : IUnknown {
             iid: IID_ISRGramNotifySink,
@@ -299,7 +299,7 @@ mod api {
     use grammarcompiler::*;
 
     use resultparser;
-    
+
     fn get_engine(provider: &IServiceProvider) -> ComPtr<ISRCentral> {
         unsafe {
             let mut central: RawComPtr = ptr::null();
@@ -390,7 +390,7 @@ mod api {
         let compiled = compile_grammar(&grammar);
         let control = test_grammar_load(&engine, &compiled);
 
-        
+
         thread::sleep(time::Duration::from_secs(120));
     }
 
