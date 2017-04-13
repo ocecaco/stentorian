@@ -82,16 +82,14 @@ impl Compiler {
         let mut labels = Vec::new();
         for (i, r) in (1u32..).zip(rules.iter()) {
             match r.definition {
-                RuleDefinition::Defined(RuleVisibility::Exported, _) => {
+                Some(ref def) => {
                     let n = self.new_label();
-                    labels.push(n);
+                    if def.exported {
+                        labels.push(n);
+                    }
                     with_labels.push((i, r, Some(n)));
                 }
-                RuleDefinition::Defined(RuleVisibility::Local, _) => {
-                    let n = self.new_label();
-                    with_labels.push((i, r, Some(n)));
-                }
-                RuleDefinition::Imported => with_labels.push((i, r, None)),
+                None => with_labels.push((i, r, None)),
             }
         }
 
@@ -105,8 +103,8 @@ impl Compiler {
         for &(i, r, label) in &with_labels {
             self.rule_name_to_label.insert(r.name.clone(), (i, label));
 
-            if let RuleDefinition::Defined(ref visibility, ref element) = r.definition {
-                self.compile_single_rule(i, *visibility, element, label);
+            if let Some(ref definition) = r.definition {
+                self.compile_single_rule(i, definition, label);
             }
         }
 
@@ -115,29 +113,28 @@ impl Compiler {
 
     fn compile_single_rule(&mut self,
                            rule_id: u32,
-                           visibility: RuleVisibility,
-                           element: &Element,
+                           definition: &RuleDefinition,
                            start_label: Option<LabelName>) {
         if let Some(n) = start_label {
             self.emit(Instruction::Label(n));
         }
 
-        match visibility {
-            RuleVisibility::Exported => self.emit(Instruction::TopLevelRule(rule_id)),
-            RuleVisibility::Local => (),
+        if definition.exported {
+            self.emit(Instruction::TopLevelRule(rule_id));
         }
-        self.compile_element(element);
+
+        self.compile_element(&definition.element);
         self.emit(Instruction::Match);
     }
 
     fn compile_element(&mut self, element: &Element) {
         match *element {
-            Element::Sequence(ref children) => {
+            Element::Sequence { ref children } => {
                 for c in children.iter() {
                     self.compile_element(c);
                 }
             }
-            Element::Alternative(ref children) => {
+            Element::Alternative { ref children } => {
                 let mut labels = Vec::new();
                 for _ in 0..children.len() {
                     labels.push(self.new_label());
@@ -162,7 +159,7 @@ impl Compiler {
 
                 self.emit(Instruction::Label(end));
             }
-            Element::Repetition(ref child) => {
+            Element::Repetition { ref child } => {
                 let loop_label = self.new_label();
                 let child_label = self.new_label();
                 let done_label = self.new_label();
@@ -182,7 +179,7 @@ impl Compiler {
 
                 self.emit(Instruction::Label(done_label));
             }
-            Element::Optional(ref child) => {
+            Element::Optional { ref child } => {
                 let yes_label = self.new_label();
                 let no_label = self.new_label();
 
@@ -196,19 +193,19 @@ impl Compiler {
 
                 self.emit(Instruction::Label(no_label));
             }
-            Element::Capture(ref name, ref child) => {
-                self.emit(Instruction::CaptureStart(name.clone()));
+            Element::Capture { ref key, ref child } => {
+                self.emit(Instruction::CaptureStart(key.clone()));
                 self.compile_element(child);
-                self.emit(Instruction::CaptureStop(name.clone()));
+                self.emit(Instruction::CaptureStop(key.clone()));
             }
-            Element::Literal(ref word) => {
-                self.emit(Instruction::Literal(word.clone()));
+            Element::Word { ref text } => {
+                self.emit(Instruction::Literal(text.clone()));
             }
-            Element::RuleRef(ref name) => {
+            Element::RuleRef { ref name } => {
                 let target = JumpTarget::Symbolic(self.rule_name_to_label[name].1.unwrap());
                 self.emit(Instruction::RuleCall(target));
             }
-            Element::List(ref name) => {
+            Element::List { ref name } => {
                 self.emit(Instruction::List(name.clone()));
             }
         }

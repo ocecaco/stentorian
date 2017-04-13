@@ -38,67 +38,62 @@ mod rulecompiler {
             (self.words.done(), self.lists.done())
         }
 
-        pub fn compile_rule(&mut self,
-                            id: RuleId,
-                            rule: &'a Rule)
-                            -> Option<Vec<u8>> {
-            match self.rule_name_to_id.entry(&rule.name) {
+        pub fn declare_rule(&mut self, id: RuleId, name: &'a str) {
+            match self.rule_name_to_id.entry(name) {
                 Entry::Occupied(_) => panic!("duplicate rule name"),
                 Entry::Vacant(entry) => entry.insert(id),
             };
+        }
 
-            match rule.definition {
-                RuleDefinition::Defined(_, ref element) => {
-                    let mut tokens = Vec::new();
-                    self.compile_element(element, &mut tokens);
-                    let element_data = serialize_rule_tokens(&tokens);
-                    Some(element_data)
-                }
-                RuleDefinition::Imported => None,
-            }
+        pub fn compile_rule_definition(&mut self,
+                            definition: &'a RuleDefinition)
+                                       -> Vec<u8> {
+            let mut tokens = Vec::new();
+            self.compile_element(&definition.element, &mut tokens);
+            serialize_rule_tokens(&tokens)
         }
 
         fn compile_element(&mut self, element: &'a Element, output: &mut Vec<RuleToken>) {
             match *element {
-                Element::Sequence(ref children) => {
+                Element::Sequence { ref children } => {
                     output.push(SEQUENCE_START);
                     for c in children.iter() {
                         self.compile_element(c, output);
                     }
                     output.push(SEQUENCE_END);
                 }
-                Element::Alternative(ref children) => {
+                Element::Alternative { ref children } => {
                     output.push(ALTERNATIVE_START);
                     for c in children.iter() {
                         self.compile_element(c, output);
                     }
                     output.push(ALTERNATIVE_END);
                 }
-                Element::Repetition(ref child) => {
+                Element::Repetition { ref child } => {
                     output.push(REPETITION_START);
                     self.compile_element(child, output);
                     output.push(REPETITION_END);
                 }
-                Element::Optional(ref child) => {
+                Element::Optional { ref child } => {
                     output.push(OPTIONAL_START);
                     self.compile_element(child, output);
                     output.push(OPTIONAL_END);
                 }
-                Element::Literal(ref word) => {
-                    let id = self.words.intern(word);
+                Element::Word { ref text } => {
+                    let id = self.words.intern(text);
                     output.push(RuleToken::Word(id));
                 }
-                Element::RuleRef(ref name) => {
+                Element::RuleRef { ref name } => {
                     // TODO: handle missing rule
                     #[allow(get_unwrap)]
                     let id = self.rule_name_to_id.get::<str>(name).unwrap();
                     output.push(RuleToken::Rule(*id));
                 }
-                Element::List(ref name) => {
+                Element::List { ref name } => {
                     let id = self.lists.intern(name);
                     output.push(RuleToken::List(id));
                 }
-                Element::Capture(_, ref child) => {
+                Element::Capture { ref child, .. } => {
                     self.compile_element(child, output);
                 }
             }
@@ -140,10 +135,10 @@ fn preprocess(grammar: &Grammar) -> PreprocessResult {
         all_rules.push((rule_id, rule));
 
         match rule.definition {
-            RuleDefinition::Defined(RuleVisibility::Exported, _) =>
+            Some(ref r) if r.exported =>
                 exported_rules.push((id, name)),
-            RuleDefinition::Defined(RuleVisibility::Local, _) => (),
-            RuleDefinition::Imported =>
+            Some(_) => (),
+            None =>
                 imported_rules.push((id, name)),
         }
     }
@@ -163,9 +158,11 @@ pub fn compile_grammar(grammar: &Grammar) -> Vec<u8> {
 
     let mut rule_chunk = Vec::new();
     for &(id, r) in &preprocess_result.all_rules {
-        if let Some(compiled_rule) = compiler.compile_rule(id, r) {
-            write_entry(&mut rule_chunk, id.into(), compiled_rule);
+        if let Some(ref definition) = r.definition {
+            let compiled = compiler.compile_rule_definition(definition);
+            write_entry(&mut rule_chunk, id.into(), compiled);
         }
+        compiler.declare_rule(id, &r.name);
     }
     let rule_chunk = rule_chunk;
 

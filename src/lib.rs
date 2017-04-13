@@ -10,6 +10,11 @@ extern crate byteorder;
 extern crate encoding;
 
 #[macro_use]
+extern crate serde_derive;
+extern crate serde;
+extern crate serde_json;
+
+#[macro_use]
 mod macros;
 
 mod comutil;
@@ -445,6 +450,8 @@ mod api {
 
     use std::io;
 
+    use serde_json;
+
     use resultparser;
 
     fn get_engine(provider: &IServiceProvider) -> ComPtr<ISRCentral> {
@@ -488,6 +495,32 @@ mod api {
         query_interface::<IDgnSREngineNotifySink>(&sink).unwrap()
     }
 
+    fn make_test_grammar() -> Grammar {
+        let data = r#"
+{
+    "rules": [
+        {
+            "name": "Mapping",
+            "definition": {
+                "exported": true,
+                "element": {
+                    "type": "sequence",
+                    "children": [
+                        {"type": "word", "text": "hello"},
+                        {"type": "word", "text": "testing"},
+                        {"type": "word", "text": "beautiful"},
+                        {"type": "word", "text": "soup"}
+                    ]
+                }
+            }
+        }
+    ]
+}
+"#;
+
+        serde_json::from_str(data).unwrap()
+    }
+
     fn do_grammar_test() {
         let provider =
             create_instance::<IServiceProvider>(&CLSID_DgnSite, None, CLSCTX_LOCAL_SERVER).unwrap();
@@ -504,21 +537,21 @@ mod api {
         };
         assert_eq!(result.0, 0);
 
-        // let grammar = make_test_grammar();
+        let grammar = make_test_grammar();
 
-        // let matcher = resultparser::compiler::compile_grammar_matcher(&grammar);
-        // let result = resultparser::vm::perform_match(&matcher, &["hello", "one", "three", "world"]);
-        // println!("{:?}", result);
-        // for (i, x) in matcher.iter().enumerate() {
-        //     if let resultparser::instructions::Instruction::NoOp = *x {
-        //         println!("{}:", i);
-        //     } else {
-        //         println!("{}: {:?}", i, x);
-        //     }
-        // }
+        let matcher = resultparser::compiler::compile_grammar_matcher(&grammar);
+        let result = resultparser::vm::perform_match(&matcher, &["hello", "one", "three", "world"]);
+        println!("{:?}", result);
+        for (i, x) in matcher.iter().enumerate() {
+            if let resultparser::instructions::Instruction::NoOp = *x {
+                println!("{}:", i);
+            } else {
+                println!("{}: {:?}", i, x);
+            }
+        }
 
-        // let compiled = compile_grammar(&grammar);
-        // let control = test_grammar_load(&engine, &compiled);
+        let compiled = compile_grammar(&grammar);
+        let control = test_grammar_load(&engine, &compiled);
 
         let mut input = String::new();
         io::stdin().read_line(&mut input).unwrap();
