@@ -77,21 +77,21 @@ impl Compiler {
         LabelName(self.label_counter)
     }
 
-    fn compile_rules(mut self, rules: &[(String, Rule)]) -> Vec<Instruction> {
+    fn compile_rules(mut self, rules: &[Rule]) -> Vec<Instruction> {
         let mut with_labels = Vec::new();
         let mut labels = Vec::new();
-        for (i, &(ref name, ref r)) in (1u32..).zip(rules.iter()) {
-            match *r {
-                Rule::DefinedRule(RuleVisibility::Exported, _) => {
+        for (i, r) in (1u32..).zip(rules.iter()) {
+            match r.definition {
+                RuleDefinition::Defined(RuleVisibility::Exported, _) => {
                     let n = self.new_label();
                     labels.push(n);
-                    with_labels.push((i, name, r, Some(n)));
+                    with_labels.push((i, r, Some(n)));
                 }
-                Rule::DefinedRule(RuleVisibility::Local, _) => {
+                RuleDefinition::Defined(RuleVisibility::Local, _) => {
                     let n = self.new_label();
-                    with_labels.push((i, name, r, Some(n)));
+                    with_labels.push((i, r, Some(n)));
                 }
-                Rule::ImportedRule => with_labels.push((i, name, r, None)),
+                RuleDefinition::Imported => with_labels.push((i, r, None)),
             }
         }
 
@@ -102,10 +102,10 @@ impl Compiler {
             .into_boxed_slice();
         self.emit(Instruction::Split(labels));
 
-        for &(i, name, r, label) in &with_labels {
-            self.rule_name_to_label.insert(name.clone(), (i, label));
+        for &(i, r, label) in &with_labels {
+            self.rule_name_to_label.insert(r.name.clone(), (i, label));
 
-            if let Rule::DefinedRule(ref visibility, ref element) = *r {
+            if let RuleDefinition::Defined(ref visibility, ref element) = r.definition {
                 self.compile_single_rule(i, *visibility, element, label);
             }
         }
@@ -204,7 +204,7 @@ impl Compiler {
             Element::Literal(ref word) => {
                 self.emit(Instruction::Literal(word.clone()));
             }
-            Element::Rule(ref name) => {
+            Element::RuleRef(ref name) => {
                 let target = JumpTarget::Symbolic(self.rule_name_to_label[name].1.unwrap());
                 self.emit(Instruction::RuleCall(target));
             }

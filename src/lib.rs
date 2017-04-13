@@ -488,36 +488,6 @@ mod api {
         query_interface::<IDgnSREngineNotifySink>(&sink).unwrap()
     }
 
-    fn make_test_grammar() -> Grammar {
-        let elements = vec![Element::Literal("hello".to_owned()),
-                            Element::Literal("world".to_owned())];
-        let elements = elements.into_boxed_slice();
-        let a = Rule::DefinedRule(RuleVisibility::Local, Element::Alternative(elements));
-
-        let elements = vec![Element::Literal("one".to_owned()),
-                            Element::Literal("two".to_owned()),
-                            Element::Literal("three".to_owned())];
-        let elements = elements.into_boxed_slice();
-        let alternative = Element::Capture("test".to_owned(),
-                                           Box::new(Element::Repetition(
-                                               Box::new(Element::Alternative(elements)))));
-        let b = Rule::DefinedRule(RuleVisibility::Local, alternative);
-
-        let elements = vec![Element::Rule("A".to_owned()),
-                            Element::Rule("B".to_owned()),
-                            Element::Rule("A".to_owned())];
-        let elements = elements.into_boxed_slice();
-        let mapping = Rule::DefinedRule(RuleVisibility::Exported, Element::Sequence(elements));
-
-        let mut rules = Vec::new();
-        rules.push(("A".to_owned(), a));
-        rules.push(("B".to_owned(), b));
-        rules.push(("Mapping".to_owned(), mapping));
-        let rules = rules.into_boxed_slice();
-
-        Grammar { rules: rules }
-    }
-
     fn do_grammar_test() {
         let provider =
             create_instance::<IServiceProvider>(&CLSID_DgnSite, None, CLSCTX_LOCAL_SERVER).unwrap();
@@ -534,21 +504,21 @@ mod api {
         };
         assert_eq!(result.0, 0);
 
-        let grammar = make_test_grammar();
+        // let grammar = make_test_grammar();
 
-        let matcher = resultparser::compiler::compile_grammar_matcher(&grammar);
-        let result = resultparser::vm::perform_match(&matcher, &["hello", "one", "three", "world"]);
-        println!("{:?}", result);
-        for (i, x) in matcher.iter().enumerate() {
-            if let resultparser::instructions::Instruction::NoOp = *x {
-                println!("{}:", i);
-            } else {
-                println!("{}: {:?}", i, x);
-            }
-        }
+        // let matcher = resultparser::compiler::compile_grammar_matcher(&grammar);
+        // let result = resultparser::vm::perform_match(&matcher, &["hello", "one", "three", "world"]);
+        // println!("{:?}", result);
+        // for (i, x) in matcher.iter().enumerate() {
+        //     if let resultparser::instructions::Instruction::NoOp = *x {
+        //         println!("{}:", i);
+        //     } else {
+        //         println!("{}: {:?}", i, x);
+        //     }
+        // }
 
-        let compiled = compile_grammar(&grammar);
-        let control = test_grammar_load(&engine, &compiled);
+        // let compiled = compile_grammar(&grammar);
+        // let control = test_grammar_load(&engine, &compiled);
 
         let mut input = String::new();
         io::stdin().read_line(&mut input).unwrap();

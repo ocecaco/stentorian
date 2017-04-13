@@ -40,22 +40,21 @@ mod rulecompiler {
 
         pub fn compile_rule(&mut self,
                             id: RuleId,
-                            name: &'a str,
                             rule: &'a Rule)
                             -> Option<Vec<u8>> {
-            match self.rule_name_to_id.entry(name) {
+            match self.rule_name_to_id.entry(&rule.name) {
                 Entry::Occupied(_) => panic!("duplicate rule name"),
                 Entry::Vacant(entry) => entry.insert(id),
             };
 
-            match *rule {
-                Rule::DefinedRule(_, ref element) => {
+            match rule.definition {
+                RuleDefinition::Defined(_, ref element) => {
                     let mut tokens = Vec::new();
                     self.compile_element(element, &mut tokens);
                     let element_data = serialize_rule_tokens(&tokens);
                     Some(element_data)
                 }
-                Rule::ImportedRule => None,
+                RuleDefinition::Imported => None,
             }
         }
 
@@ -89,7 +88,7 @@ mod rulecompiler {
                     let id = self.words.intern(word);
                     output.push(RuleToken::Word(id));
                 }
-                Element::Rule(ref name) => {
+                Element::RuleRef(ref name) => {
                     // TODO: handle missing rule
                     #[allow(get_unwrap)]
                     let id = self.rule_name_to_id.get::<str>(name).unwrap();
@@ -125,7 +124,7 @@ mod rulecompiler {
 struct PreprocessResult<'a> {
     exported_rules: Vec<(u32, &'a str)>,
     imported_rules: Vec<(u32, &'a str)>,
-    all_rules: Vec<(RuleId, &'a str, &'a Rule)>,
+    all_rules: Vec<(RuleId, &'a Rule)>,
 }
 
 fn preprocess(grammar: &Grammar) -> PreprocessResult {
@@ -134,16 +133,18 @@ fn preprocess(grammar: &Grammar) -> PreprocessResult {
 
     let mut all_rules = Vec::new();
 
-    for (id, &(ref name, ref rule)) in (1u32..).zip(grammar.rules.iter()) {
+    for (id, rule) in (1u32..).zip(grammar.rules.iter()) {
         let rule_id = id.into();
-        let name: &str = name;
+        let name: &str = &rule.name;
 
-        all_rules.push((rule_id, name, rule));
+        all_rules.push((rule_id, rule));
 
-        match *rule {
-            Rule::DefinedRule(RuleVisibility::Exported, _) => exported_rules.push((id, name)),
-            Rule::DefinedRule(RuleVisibility::Local, _) => (),
-            Rule::ImportedRule => imported_rules.push((id, name)),
+        match rule.definition {
+            RuleDefinition::Defined(RuleVisibility::Exported, _) =>
+                exported_rules.push((id, name)),
+            RuleDefinition::Defined(RuleVisibility::Local, _) => (),
+            RuleDefinition::Imported =>
+                imported_rules.push((id, name)),
         }
     }
 
@@ -161,8 +162,8 @@ pub fn compile_grammar(grammar: &Grammar) -> Vec<u8> {
     let mut compiler = RuleCompiler::new();
 
     let mut rule_chunk = Vec::new();
-    for &(id, name, r) in &preprocess_result.all_rules {
-        if let Some(compiled_rule) = compiler.compile_rule(id, name, r) {
+    for &(id, r) in &preprocess_result.all_rules {
+        if let Some(compiled_rule) = compiler.compile_rule(id, r) {
             write_entry(&mut rule_chunk, id.into(), compiled_rule);
         }
     }
