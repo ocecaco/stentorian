@@ -142,5 +142,36 @@ mod api {
     // }
 }
 
+use engine::*;
+use components::*;
+use std::ptr;
+
+fn test() {
+    let engine = Engine::connect();
+    let receiver = engine.register(SEND_BEGIN_UTTERANCE | SEND_PAUSED);
+
+    for _ in 0..3 {
+        match receiver.recv().unwrap() {
+            EngineEvent::Paused(cookie) => {
+                println!("paused");
+                engine.resume(cookie);
+            },
+            _ => {
+                println!("something else");
+            },
+        }
+    }
+}
+
 pub fn main() {
+    unsafe {
+        let result = CoInitializeEx(ptr::null(), COINIT_MULTITHREADED);
+        assert_eq!(result.0, 0);
+    }
+
+    test();
+
+    unsafe {
+        CoUninitialize();
+    }
 }

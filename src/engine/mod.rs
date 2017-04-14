@@ -6,12 +6,41 @@ use interfaces::*;
 use self::interfaces::*;
 use std::ptr;
 use dragon::*;
-use self::event::*;
 use self::enginesink::*;
 
 mod interfaces;
 mod enginesink;
-mod event;
+
+pub use self::enginesink::PauseCookie;
+
+bitflags! {
+    pub flags EngineSinkFlags: u32 {
+        const SEND_BEGIN_UTTERANCE = 0x01,
+        const SEND_END_UTTERANCE = 0x02,
+        const SEND_VU_METER = 0x04,
+        const SEND_ATTRIBUTE = 0x08,
+        const SEND_INTERFERENCE = 0x10,
+        const SEND_SOUND = 0x20,
+        const SEND_PAUSED = 0x40,
+        const SEND_ERROR = 0x80,
+        const SEND_PROGRESS = 0x100,
+        const SEND_MIMIC_DONE = 0x200,
+    }
+}
+
+#[derive(Debug)]
+pub enum EngineEvent {
+    AttributeChanged,
+    Interference,
+    Sound,
+    UtteranceBegin,
+    UtteranceEnd,
+    VuMeter,
+    Paused(PauseCookie),
+    MimicDone,
+    ErrorHappened,
+    Progress,
+}
 
 pub struct Engine {
     central: ComPtr<ISRCentral>,
@@ -51,11 +80,18 @@ impl Engine {
         }
     }
 
+    pub fn resume(&self, cookie: PauseCookie) {
+        unsafe {
+            let result = self.engine_control.resume(cookie.into());
+            assert_eq!(result.0, 0);
+        }
+    }
+
     pub fn register(&self, flags: EngineSinkFlags) -> EngineEventReceiver {
         let (sink, rx) = EngineSink::new(flags);
         let mut key = 0;
         unsafe {
-            let result = self.central.register(sink,
+            let result = self.central.register(&sink as &IUnknown as *const _ as RawComPtr,
                                                IDgnSREngineNotifySink::iid(),
                                                &mut key);
             assert_eq!(result.0, 0);

@@ -2,11 +2,12 @@ use std::sync::mpsc::{Sender, Receiver};
 use std::sync::mpsc;
 use std::sync::Mutex;
 use components::*;
+use components::comptr::*;
 use components::refcount::*;
 use components::bstr::BStr;
 use super::interfaces::*;
 use interfaces::*;
-use super::event::*;
+use super::{EngineEvent, EngineSinkFlags};
 use std::boxed::Box;
 
 #[repr(C)]
@@ -20,7 +21,7 @@ pub struct EngineSink {
 }
 
 impl EngineSink {
-    pub fn new(flags: EngineSinkFlags) -> (RawComPtr, Receiver<EngineEvent>) {
+    pub fn new(flags: EngineSinkFlags) -> (ComPtr<IUnknown>, Receiver<EngineEvent>) {
         let (tx, rx) = mpsc::channel();
 
         let sink = EngineSink {
@@ -32,7 +33,9 @@ impl EngineSink {
             events: Mutex::new(Some(tx)),
         };
 
-        (Box::into_raw(Box::new(sink)) as RawComPtr, rx)
+        let raw = Box::into_raw(Box::new(sink)) as RawComPtr;
+        let unk = unsafe { raw_to_comptr(raw, true) };
+        (unk, rx)
     }
 
     fn send_event(&self, event: EngineEvent) {
@@ -72,7 +75,6 @@ impl EngineSink {
         let result = self.ref_count.down();
 
         if result == 0 {
-            println!("destroying engine sink");
             Box::from_raw(self as *const _ as *mut EngineSink);
         }
 
@@ -116,6 +118,7 @@ impl EngineSink {
     }
 
     unsafe fn paused(&self, cookie: u64) -> HRESULT {
+        self.send_event(EngineEvent::Paused(PauseCookie(cookie)));
         HRESULT(0)
     }
 
