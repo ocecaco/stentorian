@@ -1,4 +1,5 @@
-use super::isrcentral::*;
+use super::interfaces::*;
+use interfaces::*;
 use components::*;
 use components::refcount::*;
 use std::boxed::Box;
@@ -6,8 +7,6 @@ use std::mem;
 use dragon::*;
 
 use std::os::raw::c_void;
-
-
 
 pub fn make_grammar_sink() -> RawComPtr {
     let obj = Box::into_raw(Box::new(GrammarSink::new()));

@@ -7,6 +7,7 @@ authors = ["Daniël Louwrink <daniel.louwrink@gmail.com>"]
 components = { path = "../components" }
 byteorder = "1.0.0"
 encoding = "0.2.33"
+bitflags = "0.8.2"
 
 serde = "0.9.13"
 serde_derive = "0.9.13"

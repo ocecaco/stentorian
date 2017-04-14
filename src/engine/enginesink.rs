@@ -1,15 +1,13 @@
-use super::isrcentral::*;
+use std::sync::mpsc::{Sender, Receiver};
+use std::sync::mpsc;
+use std::sync::Mutex;
 use components::*;
-use components::comptr::ComPtr;
 use components::refcount::*;
 use components::bstr::BStr;
+use super::interfaces::*;
+use interfaces::*;
+use super::event::*;
 use std::boxed::Box;
-
-pub fn make_engine_sink(engine: ComPtr<IDgnSREngineControl>) -> RawComPtr {
-    let obj = Box::into_raw(Box::new(EngineSink::new(engine)));
-
-    obj as RawComPtr
-}
 
 #[repr(C)]
 pub struct EngineSink {
@@ -17,17 +15,39 @@ pub struct EngineSink {
     vtable2: *const IDgnGetSinkFlagsVtable,
     vtable3: *const IDgnSREngineNotifySinkVtable,
     ref_count: RefCount,
-    engine: ComPtr<IDgnSREngineControl>,
+    flags: EngineSinkFlags,
+    events: Mutex<Option<Sender<EngineEvent>>>,
 }
 
 impl EngineSink {
-    fn new(engine: ComPtr<IDgnSREngineControl>) -> Self {
-        EngineSink {
+    pub fn new(flags: EngineSinkFlags) -> (RawComPtr, Receiver<EngineEvent>) {
+        let (tx, rx) = mpsc::channel();
+
+        let sink = EngineSink {
             vtable1: &v1::VTABLE,
             vtable2: &v2::VTABLE,
             vtable3: &v3::VTABLE,
             ref_count: RefCount::new(1),
-            engine: engine,
+            flags: flags,
+            events: Mutex::new(Some(tx)),
+        };
+
+        (Box::into_raw(Box::new(sink)) as RawComPtr, rx)
+    }
+
+    fn send_event(&self, event: EngineEvent) {
+        let mut events = self.events.lock().unwrap();
+
+        let result = if let Some(ref e) = *events {
+            Some(e.send(event))
+        } else {
+            None
+        };
+
+        if let Some(r) = result {
+            if r.is_err() {
+                *events = None;
+            }
         }
     }
 
@@ -52,6 +72,7 @@ impl EngineSink {
         let result = self.ref_count.down();
 
         if result == 0 {
+            println!("destroying engine sink");
             Box::from_raw(self as *const _ as *mut EngineSink);
         }
 
@@ -59,6 +80,7 @@ impl EngineSink {
     }
 
     fn attrib_changed(&self, a: u32) -> HRESULT {
+        self.send_event(EngineEvent::AttributeChanged);
         HRESULT(0)
     }
 
@@ -84,7 +106,7 @@ impl EngineSink {
 
 
     unsafe fn sink_flags_get(&self, flags: *mut u32) -> HRESULT {
-        *flags = 0x248;
+        *flags = self.flags.bits();
         HRESULT(0)
     }
 
@@ -94,8 +116,6 @@ impl EngineSink {
     }
 
     unsafe fn paused(&self, cookie: u64) -> HRESULT {
-        let result = self.engine.resume(cookie);
-        assert_eq!(result.0, 0);
         HRESULT(0)
     }
 
@@ -109,6 +129,15 @@ impl EngineSink {
 
     fn progress(&self, x: u32, s: BStr) -> HRESULT {
         HRESULT(0)
+    }
+}
+
+#[derive(Debug)]
+pub struct PauseCookie(u64);
+
+impl From<PauseCookie> for u64 {
+    fn from(cookie: PauseCookie) -> u64 {
+        cookie.0
     }
 }
 
