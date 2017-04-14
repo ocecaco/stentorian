@@ -1,13 +1,13 @@
-use super::iunknown::*;
 use super::isrcentral::*;
-use super::types::*;
-use refcount::*;
+use components::*;
+use components::refcount::*;
 use std::boxed::Box;
 use std::mem;
-use libc::c_void;
-
-use comutil::*;
 use dragon::*;
+
+use std::os::raw::c_void;
+
+
 
 pub fn make_grammar_sink() -> RawComPtr {
     let obj = Box::into_raw(Box::new(GrammarSink::new()));
@@ -132,6 +132,13 @@ impl GrammarSink {
         *flags = 0xf1ff;
         HRESULT(0)
     }
+}
+
+fn string_from_slice(s: &[u16]) -> String {
+    String::from_utf16_lossy(&s.iter()
+                                  .cloned()
+                                  .take_while(|&x| x != 0)
+                                  .collect::<Vec<u16>>())
 }
 
 coclass! {

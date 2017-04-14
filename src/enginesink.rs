@@ -1,9 +1,8 @@
-use super::iunknown::*;
 use super::isrcentral::*;
-use super::types::*;
-use super::comptr::ComPtr;
-use refcount::*;
-use bstr::BStr;
+use components::*;
+use components::comptr::ComPtr;
+use components::refcount::*;
+use components::bstr::BStr;
 use std::boxed::Box;
 
 pub fn make_engine_sink(engine: ComPtr<IDgnSREngineControl>) -> RawComPtr {

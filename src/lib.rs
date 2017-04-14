@@ -1,12 +1,7 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
-extern crate libc;
-
-#[macro_use(bitflags)]
-extern crate bitflags;
 
 extern crate byteorder;
-
 extern crate encoding;
 
 #[macro_use]
@@ -15,14 +10,8 @@ extern crate serde;
 extern crate serde_json;
 
 #[macro_use]
-mod macros;
+extern crate components;
 
-mod comutil;
-mod bstr;
-mod comptr;
-mod iunknown;
-mod types;
-mod refcount;
 mod grammarsink;
 mod enginesink;
 mod grammarcompiler;
@@ -30,7 +19,7 @@ mod grammar;
 mod resultparser;
 
 mod dragon {
-    use super::types::*;
+    use components::*;
 
     type LANGID = u16;
 
@@ -161,8 +150,7 @@ mod dragon {
 
 
 mod iserviceprovider {
-    use super::types::*;
-    use super::iunknown::*;
+    use components::*;
 
     define_guid!(IID_IServiceProvider = 0x6d5140c1,
                  0x7436,
@@ -186,11 +174,10 @@ mod iserviceprovider {
 }
 
 mod isrcentral {
-    use super::types::*;
-    use super::iunknown::*;
+    use components::*;
+    use components::bstr::*;
     use super::dragon::*;
-    use super::bstr::*;
-    use libc::c_void;
+    use std::os::raw::c_void;
 
     define_guid!(IID_ISRCentral = 0xB9BD3860,
                  0x44DB,
@@ -432,18 +419,15 @@ mod isrcentral {
 
 
 mod api {
-    use types::*;
+    use components::*;
     use std::ptr;
     use super::dragon::*;
-    use super::iunknown::*;
     use super::iserviceprovider::*;
     use super::isrcentral::*;
-    use super::comptr::*;
+    use components::comptr::*;
     use super::grammarsink::*;
     use super::enginesink;
-    use super::bstr::*;
-
-    use comutil::*;
+    use components::bstr::*;
 
     use grammar::*;
     use grammarcompiler::*;

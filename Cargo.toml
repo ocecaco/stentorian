@@ -4,8 +4,7 @@ version = "0.1.0"
 authors = ["Daniël Louwrink <daniel.louwrink@gmail.com>"]
 
 [dependencies]
-libc = "0.2.21"
-bitflags = "0.8.0"
+components = { path = "../components" }
 byteorder = "1.0.0"
 encoding = "0.2.33"
 
