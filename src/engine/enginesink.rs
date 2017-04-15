@@ -1,6 +1,4 @@
-use std::sync::mpsc::{Sender, Receiver};
-use std::sync::mpsc;
-use std::sync::Mutex;
+use std::sync::mpsc::Sender;
 use components::*;
 use components::comptr::*;
 use components::refcount::*;
@@ -9,6 +7,7 @@ use super::interfaces::*;
 use interfaces::*;
 use super::{EngineEvent, EngineSinkFlags};
 use std::boxed::Box;
+use super::events::{EventSender, ConvertSender};
 
 #[repr(C)]
 pub struct EngineSink {
@@ -17,15 +16,15 @@ pub struct EngineSink {
     vtable3: &'static IDgnSREngineNotifySinkVtable,
     ref_count: RefCount,
     flags: EngineSinkFlags,
-    events: Mutex<Option<Sender<EngineEvent>>>,
+    events: Box<EventSender<EngineEvent> + Sync>,
 }
 
 impl EngineSink {
-    pub fn new(flags: EngineSinkFlags) -> (ComPtr<IUnknown>, Receiver<EngineEvent>) {
+    pub fn new<T>(flags: EngineSinkFlags, sender: Sender<T>)
+                  -> ComPtr<IUnknown>
+        where T: From<EngineEvent> + Send + 'static {
         fn ensure_sync<T: Sync>(_: &T) {
         }
-
-        let (tx, rx) = mpsc::channel();
 
         let sink = EngineSink {
             vtable1: &v1::VTABLE,
@@ -33,30 +32,14 @@ impl EngineSink {
             vtable3: &v3::VTABLE,
             ref_count: RefCount::new(1),
             flags: flags,
-            events: Mutex::new(Some(tx)),
+            events: Box::new(ConvertSender::new(sender)),
         };
 
         ensure_sync(&sink);
 
         let raw = Box::into_raw(Box::new(sink)) as RawComPtr;
         let unk = unsafe { raw_to_comptr(raw, true) };
-        (unk, rx)
-    }
-
-    fn send_event(&self, event: EngineEvent) {
-        let mut events = self.events.lock().unwrap();
-
-        let result = if let Some(ref e) = *events {
-            Some(e.send(event))
-        } else {
-            None
-        };
-
-        if let Some(r) = result {
-            if r.is_err() {
-                *events = None;
-            }
-        }
+        unk
     }
 
     unsafe fn query_interface(&self, iid: *const IID, v: *mut RawComPtr) -> HRESULT {
@@ -87,32 +70,32 @@ impl EngineSink {
     }
 
     fn attrib_changed(&self, a: u32) -> HRESULT {
-        self.send_event(EngineEvent::AttributeChanged);
+        self.events.send(EngineEvent::AttributeChanged);
         HRESULT(0)
     }
 
     fn interference(&self, a: u64, b: u64, c: u64) -> HRESULT {
-        self.send_event(EngineEvent::Interference);
+        self.events.send(EngineEvent::Interference);
         HRESULT(0)
     }
 
     fn sound(&self, a: u64, b: u64) -> HRESULT {
-        self.send_event(EngineEvent::Sound);
+        self.events.send(EngineEvent::Sound);
         HRESULT(0)
     }
 
     fn utterance_begin(&self, a: u64) -> HRESULT {
-        self.send_event(EngineEvent::UtteranceBegin);
+        self.events.send(EngineEvent::UtteranceBegin);
         HRESULT(0)
     }
 
     fn utterance_end(&self, a: u64, b: u64) -> HRESULT {
-        self.send_event(EngineEvent::UtteranceEnd);
+        self.events.send(EngineEvent::UtteranceEnd);
         HRESULT(0)
     }
 
     fn vu_meter(&self, a: u64, b: u16) -> HRESULT {
-        self.send_event(EngineEvent::VuMeter);
+        self.events.send(EngineEvent::VuMeter);
         HRESULT(0)
     }
 
@@ -124,27 +107,27 @@ impl EngineSink {
 
 
     fn attrib_changed_2(&self, x: u32) -> HRESULT {
-        self.send_event(EngineEvent::AttributeChanged);
+        self.events.send(EngineEvent::AttributeChanged);
         HRESULT(0)
     }
 
     unsafe fn paused(&self, cookie: u64) -> HRESULT {
-        self.send_event(EngineEvent::Paused(PauseCookie(cookie)));
+        self.events.send(EngineEvent::Paused(PauseCookie(cookie)));
         HRESULT(0)
     }
 
     fn mimic_done(&self, x: u32, p: RawComPtr) -> HRESULT {
-        self.send_event(EngineEvent::MimicDone);
+        self.events.send(EngineEvent::MimicDone);
         HRESULT(0)
     }
 
     fn error_happened(&self, p: RawComPtr) -> HRESULT {
-        self.send_event(EngineEvent::ErrorHappened);
+        self.events.send(EngineEvent::ErrorHappened);
         HRESULT(0)
     }
 
     fn progress(&self, x: u32, s: BStr) -> HRESULT {
-        self.send_event(EngineEvent::Progress);
+        self.events.send(EngineEvent::Progress);
         HRESULT(0)
     }
 }

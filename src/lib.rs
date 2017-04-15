@@ -25,6 +25,7 @@ use grammar::Grammar;
 use engine::*;
 use components::*;
 use std::ptr;
+use std::sync::mpsc;
 
 fn make_test_grammar() -> Grammar {
     let data = r#"
@@ -52,19 +53,42 @@ fn make_test_grammar() -> Grammar {
     serde_json::from_str(data).unwrap()
 }
 
+enum Event {
+    Engine(EngineEvent),
+    Grammar(GrammarEvent),
+}
+
+impl From<EngineEvent> for Event {
+    fn from(event: EngineEvent) -> Self {
+        Event::Engine(event)
+    }
+}
+
+impl From<GrammarEvent> for Event {
+    fn from(event: GrammarEvent) -> Self {
+        Event::Grammar(event)
+    }
+}
 
 fn test() {
     let engine = Engine::connect();
-    let receiver = engine.register(SEND_BEGIN_UTTERANCE);
+    let (tx, rx) = mpsc::channel();
+    let registration = engine.register(SEND_PAUSED, tx.clone());
 
     let grammar = make_test_grammar();
     let grammar_control = engine.grammar_load(SEND_PHRASE_FINISH,
-                                              &grammar);
+                                              &grammar,
+                                              tx);
+
     grammar_control.activate_rule("Mapping");
 
     for _ in 0..10 {
-        match grammar_control.recv().unwrap() {
-            GrammarEvent::PhraseFinish(words) => {
+        match rx.recv().unwrap() {
+            Event::Engine(EngineEvent::Paused(cookie)) => {
+                println!("paused");
+                engine.resume(cookie);
+            },
+            Event::Grammar(GrammarEvent::PhraseFinish(words)) => {
                 println!("{:?}", words);
             },
             _ => println!("something else"),

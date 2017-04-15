@@ -1,5 +1,4 @@
-use std::ops::Deref;
-use std::sync::mpsc::Receiver;
+use std::sync::mpsc::Sender;
 use components::comptr::ComPtr;
 use components::bstr::BString;
 use components::*;
@@ -17,6 +16,7 @@ mod interfaces;
 mod enginesink;
 mod grammarsink;
 mod grammarcompiler;
+mod events;
 
 pub use self::enginesink::PauseCookie;
 
@@ -71,8 +71,10 @@ impl Engine {
         }
     }
 
-    pub fn register(&self, flags: EngineSinkFlags) -> EngineEventReceiver {
-        let (sink, rx) = EngineSink::new(flags);
+    pub fn register<T>(&self, flags: EngineSinkFlags, sender: Sender<T>)
+                       -> EngineRegistration
+    where T: From<EngineEvent> + Send + 'static {
+        let sink = EngineSink::new(flags, sender);
         let mut key = 0;
         unsafe {
             let result = self.central.register(&sink as &IUnknown as *const _ as RawComPtr,
@@ -81,17 +83,18 @@ impl Engine {
             assert_eq!(result.0, 0);
         }
 
-        EngineEventReceiver {
+        EngineRegistration {
             central: self.central.clone(),
             register_key: key,
-            receiver: rx,
         }
     }
 
-    pub fn grammar_load(&self,
+    pub fn grammar_load<T>(&self,
                         flags: GrammarSinkFlags,
-                        grammar: &Grammar)
-                        -> GrammarControl {
+                        grammar: &Grammar,
+                        sender: Sender<T>)
+                           -> GrammarControl
+    where T: From<GrammarEvent> + Send + 'static {
         let compiled = compile_grammar(grammar);
         let data = SDATA {
             data: compiled.as_ptr(),
@@ -99,7 +102,7 @@ impl Engine {
         };
         let mut raw_control = ptr::null();
 
-        let (sink, rx) = GrammarSink::new(flags);
+        let sink = GrammarSink::new(flags, sender);
         let raw_sink = &sink as &IUnknown as *const _ as RawComPtr;
 
         let grammar_control = unsafe {
@@ -117,7 +120,6 @@ impl Engine {
 
         GrammarControl {
             grammar_control: grammar_control,
-            receiver: rx,
         }
     }
 }
@@ -144,15 +146,6 @@ pub enum GrammarEvent {
 
 pub struct GrammarControl {
     grammar_control: ComPtr<ISRGramCommon>,
-    receiver: Receiver<GrammarEvent>,
-}
-
-impl Deref for GrammarControl {
-    type Target = Receiver<GrammarEvent>;
-
-    fn deref(&self) -> &Receiver<GrammarEvent> {
-        &self.receiver
-    }
 }
 
 impl GrammarControl {
@@ -175,21 +168,12 @@ impl GrammarControl {
     }
 }
 
-pub struct EngineEventReceiver {
+pub struct EngineRegistration {
     central: ComPtr<ISRCentral>,
     register_key: u32,
-    receiver: Receiver<EngineEvent>,
 }
 
-impl Deref for EngineEventReceiver {
-    type Target = Receiver<EngineEvent>;
-
-    fn deref(&self) -> &Receiver<EngineEvent> {
-        &self.receiver
-    }
-}
-
-impl Drop for EngineEventReceiver {
+impl Drop for EngineRegistration {
     fn drop(&mut self) {
         unsafe {
             let result = self.central.unregister(self.register_key);
