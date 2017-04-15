@@ -55,6 +55,9 @@ com_interface! {
         iid: IID_ISRGramCommon,
         vtable: ISRGramCommonVtable,
         fn activate(w: HWND, autopause: i32, rule_name: BStr) -> HRESULT;
+        fn todo1() -> HRESULT;
+        fn todo2() -> HRESULT;
+        fn deactivate(rule_name: BStr) -> HRESULT;
     }
 }
 

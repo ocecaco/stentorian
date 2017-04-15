@@ -1,7 +1,9 @@
+pub mod interfaces;
+
 use std::sync::mpsc::{Sender, Receiver};
 use std::sync::mpsc;
 use std::sync::Mutex;
-use super::interfaces::*;
+use self::interfaces::*;
 use interfaces::*;
 use components::*;
 use components::comptr::ComPtr;
@@ -9,7 +11,7 @@ use components::refcount::*;
 use std::boxed::Box;
 use std::mem;
 use dragon::*;
-use super::{GrammarSinkFlags, GrammarEvent};
+use super::{GrammarEvent, GrammarSinkFlags};
 
 use std::os::raw::c_void;
 
@@ -23,7 +25,7 @@ pub struct GrammarSink {
 }
 
 impl GrammarSink {
-    fn new(flags: GrammarSinkFlags) -> (ComPtr<IUnknown>, Receiver<GrammarEvent>) {
+    pub fn new(flags: GrammarSinkFlags) -> (ComPtr<IUnknown>, Receiver<GrammarEvent>) {
         fn ensure_sync<T: Sync>(_: &T) {
         }
 

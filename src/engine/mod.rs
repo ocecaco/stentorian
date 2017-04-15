@@ -1,15 +1,22 @@
 use std::ops::Deref;
 use std::sync::mpsc::Receiver;
 use components::comptr::ComPtr;
+use components::bstr::BString;
 use components::*;
 use interfaces::*;
 use self::interfaces::*;
 use std::ptr;
 use dragon::*;
+use grammar::Grammar;
 use self::enginesink::*;
+use self::grammarsink::*;
+use self::grammarsink::interfaces::{ISRGramCommon, ISRGramNotifySink};
+use self::grammarcompiler::compile_grammar;
 
 mod interfaces;
 mod enginesink;
+mod grammarsink;
+mod grammarcompiler;
 
 pub use self::enginesink::PauseCookie;
 
@@ -47,29 +54,6 @@ pub struct Engine {
     engine_control: ComPtr<IDgnSREngineControl>,
 }
 
-pub struct EngineEventReceiver {
-    central: ComPtr<ISRCentral>,
-    register_key: u32,
-    receiver: Receiver<EngineEvent>,
-}
-
-impl Deref for EngineEventReceiver {
-    type Target = Receiver<EngineEvent>;
-
-    fn deref(&self) -> &Receiver<EngineEvent> {
-        &self.receiver
-    }
-}
-
-impl Drop for EngineEventReceiver {
-    fn drop(&mut self) {
-        unsafe {
-            let result = self.central.unregister(self.register_key);
-            assert_eq!(result.0, 0);
-        }
-    }
-}
-
 impl Engine {
     pub fn connect() -> Self {
         let central = get_central();
@@ -101,6 +85,115 @@ impl Engine {
             central: self.central.clone(),
             register_key: key,
             receiver: rx,
+        }
+    }
+
+    pub fn grammar_load(&self,
+                        flags: GrammarSinkFlags,
+                        grammar: &Grammar)
+                        -> GrammarControl {
+        let compiled = compile_grammar(grammar);
+        let data = SDATA {
+            data: compiled.as_ptr(),
+            size: compiled.len() as u32,
+        };
+        let mut raw_control = ptr::null();
+
+        let (sink, rx) = GrammarSink::new(flags);
+        let raw_sink = &sink as &IUnknown as *const _ as RawComPtr;
+
+        let grammar_control = unsafe {
+            let result = self.central.grammar_load(SRGRMFMT::SRGRMFMT_CFG,
+                                                   data,
+                                                   raw_sink,
+                                                   ISRGramNotifySink::iid(),
+                                                   &mut raw_control);
+            assert_eq!(result.0, 0);
+            raw_to_comptr::<IUnknown>(raw_control, true)
+        };
+
+        let grammar_control =
+            query_interface::<ISRGramCommon>(&grammar_control).unwrap();
+
+        GrammarControl {
+            grammar_control: grammar_control,
+            receiver: rx,
+        }
+    }
+}
+
+bitflags! {
+    pub flags GrammarSinkFlags: u32 {
+        const SEND_PHRASE_START = 0x1000,
+        const SEND_PHRASE_HYPOTHESIS = 0x2000,
+        const SEND_PHRASE_FINISH = 0x4000,
+        const SEND_FOREIGN_FINISH = 0x8000,
+    }
+}
+
+pub enum GrammarEvent {
+    Bookmark,
+    Paused,
+    PhraseFinish(Box<[(String, u32)]>),
+    PhraseHypothesis,
+    PhraseStart,
+    Reevaluate,
+    Training,
+    Unarchive,
+}
+
+pub struct GrammarControl {
+    grammar_control: ComPtr<ISRGramCommon>,
+    receiver: Receiver<GrammarEvent>,
+}
+
+impl Deref for GrammarControl {
+    type Target = Receiver<GrammarEvent>;
+
+    fn deref(&self) -> &Receiver<GrammarEvent> {
+        &self.receiver
+    }
+}
+
+impl GrammarControl {
+    pub fn activate_rule(&self, name: &str) {
+        unsafe {
+            let result =
+                self.grammar_control.activate(ptr::null(),
+                                              0,
+                                              BString::from(name).as_ref());
+            assert_eq!(result.0, 0);
+        }
+    }
+
+    pub fn deactivate_rule(&self, name: &str) {
+        unsafe {
+            let result =
+                self.grammar_control.deactivate(BString::from(name).as_ref());
+            assert_eq!(result.0, 0);
+        }
+    }
+}
+
+pub struct EngineEventReceiver {
+    central: ComPtr<ISRCentral>,
+    register_key: u32,
+    receiver: Receiver<EngineEvent>,
+}
+
+impl Deref for EngineEventReceiver {
+    type Target = Receiver<EngineEvent>;
+
+    fn deref(&self) -> &Receiver<EngineEvent> {
+        &self.receiver
+    }
+}
+
+impl Drop for EngineEventReceiver {
+    fn drop(&mut self) {
+        unsafe {
+            let result = self.central.unregister(self.register_key);
+            assert_eq!(result.0, 0);
         }
     }
 }
