@@ -12,9 +12,9 @@ use std::boxed::Box;
 
 #[repr(C)]
 pub struct EngineSink {
-    vtable1: *const ISRNotifySinkVtable,
-    vtable2: *const IDgnGetSinkFlagsVtable,
-    vtable3: *const IDgnSREngineNotifySinkVtable,
+    vtable1: &'static ISRNotifySinkVtable,
+    vtable2: &'static IDgnGetSinkFlagsVtable,
+    vtable3: &'static IDgnSREngineNotifySinkVtable,
     ref_count: RefCount,
     flags: EngineSinkFlags,
     events: Mutex<Option<Sender<EngineEvent>>>,
@@ -22,6 +22,9 @@ pub struct EngineSink {
 
 impl EngineSink {
     pub fn new(flags: EngineSinkFlags) -> (ComPtr<IUnknown>, Receiver<EngineEvent>) {
+        fn ensure_sync<T: Sync>(_: &T) {
+        }
+
         let (tx, rx) = mpsc::channel();
 
         let sink = EngineSink {
@@ -32,6 +35,8 @@ impl EngineSink {
             flags: flags,
             events: Mutex::new(Some(tx)),
         };
+
+        ensure_sync(&sink);
 
         let raw = Box::into_raw(Box::new(sink)) as RawComPtr;
         let unk = unsafe { raw_to_comptr(raw, true) };
@@ -87,22 +92,27 @@ impl EngineSink {
     }
 
     fn interference(&self, a: u64, b: u64, c: u64) -> HRESULT {
+        self.send_event(EngineEvent::Interference);
         HRESULT(0)
     }
 
     fn sound(&self, a: u64, b: u64) -> HRESULT {
+        self.send_event(EngineEvent::Sound);
         HRESULT(0)
     }
 
     fn utterance_begin(&self, a: u64) -> HRESULT {
+        self.send_event(EngineEvent::UtteranceBegin);
         HRESULT(0)
     }
 
     fn utterance_end(&self, a: u64, b: u64) -> HRESULT {
+        self.send_event(EngineEvent::UtteranceEnd);
         HRESULT(0)
     }
 
     fn vu_meter(&self, a: u64, b: u16) -> HRESULT {
+        self.send_event(EngineEvent::VuMeter);
         HRESULT(0)
     }
 
@@ -114,6 +124,7 @@ impl EngineSink {
 
 
     fn attrib_changed_2(&self, x: u32) -> HRESULT {
+        self.send_event(EngineEvent::AttributeChanged);
         HRESULT(0)
     }
 
@@ -123,14 +134,17 @@ impl EngineSink {
     }
 
     fn mimic_done(&self, x: u32, p: RawComPtr) -> HRESULT {
+        self.send_event(EngineEvent::MimicDone);
         HRESULT(0)
     }
 
     fn error_happened(&self, p: RawComPtr) -> HRESULT {
+        self.send_event(EngineEvent::ErrorHappened);
         HRESULT(0)
     }
 
     fn progress(&self, x: u32, s: BStr) -> HRESULT {
+        self.send_event(EngineEvent::Progress);
         HRESULT(0)
     }
 }

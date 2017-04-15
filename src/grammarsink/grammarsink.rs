@@ -1,32 +1,62 @@
+use std::sync::mpsc::{Sender, Receiver};
+use std::sync::mpsc;
+use std::sync::Mutex;
 use super::interfaces::*;
 use interfaces::*;
 use components::*;
+use components::comptr::ComPtr;
 use components::refcount::*;
 use std::boxed::Box;
 use std::mem;
 use dragon::*;
+use super::{GrammarSinkFlags, GrammarEvent};
 
 use std::os::raw::c_void;
 
-pub fn make_grammar_sink() -> RawComPtr {
-    let obj = Box::into_raw(Box::new(GrammarSink::new()));
-
-    obj as RawComPtr
-}
-
 #[repr(C)]
 pub struct GrammarSink {
-    vtable1: *const ISRGramNotifySinkVtable,
-    vtable2: *const IDgnGetSinkFlagsVtable,
+    vtable1: &'static ISRGramNotifySinkVtable,
+    vtable2: &'static IDgnGetSinkFlagsVtable,
     ref_count: RefCount,
+    flags: GrammarSinkFlags,
+    events: Mutex<Option<Sender<GrammarEvent>>>,
 }
 
 impl GrammarSink {
-    fn new() -> Self {
-        GrammarSink {
+    fn new(flags: GrammarSinkFlags) -> (ComPtr<IUnknown>, Receiver<GrammarEvent>) {
+        fn ensure_sync<T: Sync>(_: &T) {
+        }
+
+        let (tx, rx) = mpsc::channel();
+
+        let result = GrammarSink {
             vtable1: &v1::VTABLE,
             vtable2: &v2::VTABLE,
             ref_count: RefCount::new(1),
+            flags: flags,
+            events: Mutex::new(Some(tx)),
+        };
+
+        ensure_sync(&result);
+
+        let raw = Box::into_raw(Box::new(result)) as RawComPtr;
+        let unk = unsafe { raw_to_comptr(raw, true) };
+        (unk, rx)
+    }
+
+    fn send_event(&self, event: GrammarEvent) {
+        let mut events = self.events.lock().unwrap();
+
+        let result = if let Some(ref e) = *events {
+            Some(e.send(event))
+        } else {
+            None
+        };
+
+        if let Some(r) = result {
+            if r.is_err() {
+                *events = None;
+            }
         }
     }
 
@@ -57,9 +87,11 @@ impl GrammarSink {
     }
 
     fn bookmark(&self, x: u32) -> HRESULT {
+        self.send_event(GrammarEvent::Bookmark);
         HRESULT(0)
     }
     fn paused(&self) -> HRESULT {
+        self.send_event(GrammarEvent::Paused);
         HRESULT(0)
     }
     unsafe fn phrase_finish(&self,
@@ -100,8 +132,9 @@ impl GrammarSink {
 
             words.push((string_from_slice(&word.buffer), word_node.dwCFGParse));
         }
+        let words = words.into_boxed_slice();
 
-        println!("{:?}", words);
+        self.send_event(GrammarEvent::PhraseFinish(words));
 
         HRESULT(0)
     }
@@ -112,23 +145,28 @@ impl GrammarSink {
                          phrase: *const c_void,
                          results: RawComPtr)
                          -> HRESULT {
+        self.send_event(GrammarEvent::PhraseHypothesis);
         HRESULT(0)
     }
     fn phrase_start(&self, a: u64) -> HRESULT {
+        self.send_event(GrammarEvent::PhraseStart);
         HRESULT(0)
     }
     fn reevaluate(&self, a: RawComPtr) -> HRESULT {
+        self.send_event(GrammarEvent::Reevaluate);
         HRESULT(0)
     }
     fn training(&self, a: u32) -> HRESULT {
+        self.send_event(GrammarEvent::Training);
         HRESULT(0)
     }
     fn unarchive(&self, a: RawComPtr) -> HRESULT {
+        self.send_event(GrammarEvent::Unarchive);
         HRESULT(0)
     }
 
     unsafe fn sink_flags_get(&self, flags: *mut u32) -> HRESULT {
-        *flags = 0xf1ff;
+        *flags = self.flags.bits();
         HRESULT(0)
     }
 }
