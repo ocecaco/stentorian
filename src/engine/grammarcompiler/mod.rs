@@ -45,9 +45,7 @@ mod rulecompiler {
             };
         }
 
-        pub fn compile_rule_definition(&mut self,
-                            definition: &'a RuleDefinition)
-                                       -> Vec<u8> {
+        pub fn compile_rule_definition(&mut self, definition: &'a RuleDefinition) -> Vec<u8> {
             let mut tokens = Vec::new();
             self.compile_element(&definition.element, &mut tokens);
             serialize_rule_tokens(&tokens)
@@ -135,11 +133,9 @@ fn preprocess(grammar: &Grammar) -> PreprocessResult {
         all_rules.push((rule_id, rule));
 
         match rule.definition {
-            Some(ref r) if r.exported =>
-                exported_rules.push((id, name)),
+            Some(ref r) if r.exported => exported_rules.push((id, name)),
             Some(_) => (),
-            None =>
-                imported_rules.push((id, name)),
+            None => imported_rules.push((id, name)),
         }
     }
 

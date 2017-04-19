@@ -24,12 +24,10 @@ pub struct GrammarSink {
 }
 
 impl GrammarSink {
-    pub fn create<T>(flags: GrammarSinkFlags,
-                     sender: Sender<T>)
-                     -> ComPtr<IUnknown>
-    where T: From<GrammarEvent> + Send + 'static {
-        fn ensure_sync<T: Sync>(_: &T) {
-        }
+    pub fn create<T>(flags: GrammarSinkFlags, sender: Sender<T>) -> ComPtr<IUnknown>
+        where T: From<GrammarEvent> + Send + 'static
+    {
+        fn ensure_sync<T: Sync>(_: &T) {}
 
         let result = GrammarSink {
             vtable1: &v1::VTABLE,

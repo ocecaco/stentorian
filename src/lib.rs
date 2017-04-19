@@ -76,9 +76,7 @@ fn test() {
     let registration = engine.register(SEND_PAUSED, tx.clone());
 
     let grammar = make_test_grammar();
-    let grammar_control = engine.grammar_load(SEND_PHRASE_FINISH,
-                                              &grammar,
-                                              tx);
+    let grammar_control = engine.grammar_load(SEND_PHRASE_FINISH, &grammar, tx);
 
     grammar_control.activate_rule("Mapping");
 
@@ -87,10 +85,10 @@ fn test() {
             Event::Engine(EngineEvent::Paused(cookie)) => {
                 println!("paused");
                 engine.resume(cookie);
-            },
+            }
             Event::Grammar(GrammarEvent::PhraseFinish(words)) => {
                 println!("{:?}", words);
-            },
+            }
             _ => println!("something else"),
         }
     }

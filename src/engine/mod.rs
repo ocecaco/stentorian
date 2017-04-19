@@ -71,15 +71,16 @@ impl Engine {
         }
     }
 
-    pub fn register<T>(&self, flags: EngineSinkFlags, sender: Sender<T>)
-                       -> EngineRegistration
-    where T: From<EngineEvent> + Send + 'static {
+    pub fn register<T>(&self, flags: EngineSinkFlags, sender: Sender<T>) -> EngineRegistration
+        where T: From<EngineEvent> + Send + 'static
+    {
         let sink = EngineSink::create(flags, sender);
         let mut key = 0;
         unsafe {
-            let result = self.central.register(&sink as &IUnknown as *const _ as RawComPtr,
-                                               IDgnSREngineNotifySink::iid(),
-                                               &mut key);
+            let result = self.central
+                .register(&sink as &IUnknown as *const _ as RawComPtr,
+                          IDgnSREngineNotifySink::iid(),
+                          &mut key);
             assert_eq!(result.0, 0);
         }
 
@@ -90,11 +91,12 @@ impl Engine {
     }
 
     pub fn grammar_load<T>(&self,
-                        flags: GrammarSinkFlags,
-                        grammar: &Grammar,
-                        sender: Sender<T>)
+                           flags: GrammarSinkFlags,
+                           grammar: &Grammar,
+                           sender: Sender<T>)
                            -> GrammarControl
-    where T: From<GrammarEvent> + Send + 'static {
+        where T: From<GrammarEvent> + Send + 'static
+    {
         let compiled = compile_grammar(grammar);
         let data = SDATA {
             data: compiled.as_ptr(),
@@ -106,21 +108,19 @@ impl Engine {
         let raw_sink = &sink as &IUnknown as *const _ as RawComPtr;
 
         let grammar_control = unsafe {
-            let result = self.central.grammar_load(SRGRMFMT::SRGRMFMT_CFG,
-                                                   data,
-                                                   raw_sink,
-                                                   ISRGramNotifySink::iid(),
-                                                   &mut raw_control);
+            let result = self.central
+                .grammar_load(SRGRMFMT::SRGRMFMT_CFG,
+                              data,
+                              raw_sink,
+                              ISRGramNotifySink::iid(),
+                              &mut raw_control);
             assert_eq!(result.0, 0);
             raw_to_comptr::<IUnknown>(raw_control, true)
         };
 
-        let grammar_control =
-            query_interface::<ISRGramCommon>(&grammar_control).unwrap();
+        let grammar_control = query_interface::<ISRGramCommon>(&grammar_control).unwrap();
 
-        GrammarControl {
-            grammar_control: grammar_control,
-        }
+        GrammarControl { grammar_control: grammar_control }
     }
 }
 
@@ -151,18 +151,16 @@ pub struct GrammarControl {
 impl GrammarControl {
     pub fn activate_rule(&self, name: &str) {
         unsafe {
-            let result =
-                self.grammar_control.activate(ptr::null(),
-                                              0,
-                                              BString::from(name).as_ref());
+            let result = self.grammar_control
+                .activate(ptr::null(), 0, BString::from(name).as_ref());
             assert_eq!(result.0, 0);
         }
     }
 
     pub fn deactivate_rule(&self, name: &str) {
         unsafe {
-            let result =
-                self.grammar_control.deactivate(BString::from(name).as_ref());
+            let result = self.grammar_control
+                .deactivate(BString::from(name).as_ref());
             assert_eq!(result.0, 0);
         }
     }
@@ -183,12 +181,11 @@ impl Drop for EngineRegistration {
 }
 
 fn get_central() -> ComPtr<ISRCentral> {
-    let provider =
-        create_instance::<IServiceProvider>(&CLSID_DgnSite, None, CLSCTX_LOCAL_SERVER).unwrap();
+    let provider = create_instance::<IServiceProvider>(&CLSID_DgnSite, None, CLSCTX_LOCAL_SERVER)
+        .unwrap();
     unsafe {
         let mut central: RawComPtr = ptr::null();
-        let result =
-            provider.query_service(&CLSID_DgnDictate, &ISRCentral::iid(), &mut central);
+        let result = provider.query_service(&CLSID_DgnDictate, &ISRCentral::iid(), &mut central);
         assert_eq!(result.0, 0);
         raw_to_comptr::<ISRCentral>(central, true)
     }

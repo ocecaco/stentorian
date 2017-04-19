@@ -11,9 +11,7 @@ pub struct ConvertSender<T> {
 
 impl<T> ConvertSender<T> {
     pub fn new(sender: Sender<T>) -> Self {
-        ConvertSender {
-            sender: Mutex::new(Some(sender)),
-        }
+        ConvertSender { sender: Mutex::new(Some(sender)) }
     }
 }
 

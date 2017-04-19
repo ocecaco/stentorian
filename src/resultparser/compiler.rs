@@ -33,7 +33,8 @@ fn relabel(instructions: &mut [Instruction], locations: &HashMap<LabelName, usiz
 
     for i in instructions.iter_mut() {
         match *i {
-            Instruction::Jump(ref mut target) | Instruction::RuleCall(ref mut target) => {
+            Instruction::Jump(ref mut target) |
+            Instruction::RuleCall(ref mut target) => {
                 relabel_target(target, locations);
             }
             Instruction::Split(ref mut targets) => {
@@ -98,7 +99,8 @@ impl Compiler {
         self.emit(Instruction::Split(labels));
 
         for &(i, r, label) in &with_labels {
-            self.rule_name_to_label.insert(r.name.clone(), (i, label));
+            self.rule_name_to_label
+                .insert(r.name.clone(), (i, label));
 
             if let Some(ref definition) = r.definition {
                 self.compile_single_rule(i, definition, label);

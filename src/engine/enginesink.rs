@@ -20,11 +20,10 @@ pub struct EngineSink {
 }
 
 impl EngineSink {
-    pub fn create<T>(flags: EngineSinkFlags, sender: Sender<T>)
-                  -> ComPtr<IUnknown>
-        where T: From<EngineEvent> + Send + 'static {
-        fn ensure_sync<T: Sync>(_: &T) {
-        }
+    pub fn create<T>(flags: EngineSinkFlags, sender: Sender<T>) -> ComPtr<IUnknown>
+        where T: From<EngineEvent> + Send + 'static
+    {
+        fn ensure_sync<T: Sync>(_: &T) {}
 
         let sink = EngineSink {
             vtable1: &v1::VTABLE,
@@ -111,7 +110,8 @@ impl EngineSink {
     }
 
     unsafe fn paused(&self, cookie: u64) -> HRESULT {
-        self.events.send(EngineEvent::Paused(PauseCookie(cookie)));
+        self.events
+            .send(EngineEvent::Paused(PauseCookie(cookie)));
         HRESULT(0)
     }
 

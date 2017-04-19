@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use super::instructions::*;
 
 pub fn perform_match<'a, 'b: 'c, 'c>(program: &'a [Instruction],
-                                 string: &'c [&'b str])
-                                 -> MatchResult<'a> {
+                                     string: &'c [&'b str])
+                                     -> MatchResult<'a> {
     let vm = Vm::new(program, string);
     vm.perform_match()
 }
@@ -11,7 +11,7 @@ pub fn perform_match<'a, 'b: 'c, 'c>(program: &'a [Instruction],
 #[derive(Debug, Copy, Clone)]
 pub enum Capture {
     Started(usize),
-    Complete(usize, usize)
+    Complete(usize, usize),
 }
 
 #[derive(Debug, Clone)]
@@ -25,13 +25,10 @@ struct Thread<'a, 'b: 'c, 'c> {
     top_level_rule: Option<u32>,
 }
 
-pub type MatchResult<'a> =
-    Option<(u32, HashMap<&'a str, Capture>)>;
+pub type MatchResult<'a> = Option<(u32, HashMap<&'a str, Capture>)>;
 
 impl<'a, 'b: 'c, 'c> Thread<'a, 'b, 'c> {
-    fn new(instructions: &'a [Instruction],
-           string: &'c [&'b str])
-           -> Self {
+    fn new(instructions: &'a [Instruction], string: &'c [&'b str]) -> Self {
         Thread {
             instructions: instructions,
             string: string,
@@ -43,9 +40,7 @@ impl<'a, 'b: 'c, 'c> Thread<'a, 'b, 'c> {
         }
     }
 
-    fn run(mut self,
-           threads: &mut Vec<Thread<'a, 'b, 'c>>)
-           -> MatchResult<'a> {
+    fn run(mut self, threads: &mut Vec<Thread<'a, 'b, 'c>>) -> MatchResult<'a> {
         loop {
             let next = &self.instructions[self.program_pointer];
             self.program_pointer += 1;
@@ -55,7 +50,7 @@ impl<'a, 'b: 'c, 'c> Thread<'a, 'b, 'c> {
                     if self.top_level_rule.is_none() {
                         self.top_level_rule = Some(r);
                     }
-                },
+                }
                 Instruction::Literal(ref word) => {
                     if self.string_pointer >= self.string.len() {
                         return None;
@@ -68,35 +63,35 @@ impl<'a, 'b: 'c, 'c> Thread<'a, 'b, 'c> {
                     } else {
                         return None;
                     }
-                },
+                }
                 Instruction::Match => {
                     if let Some(return_address) = self.call_stack.pop() {
                         self.program_pointer = return_address;
                     } else if self.string_pointer == self.string.len() {
-                        return Some((self.top_level_rule.unwrap(),
-                                     self.captures));
+                        return Some((self.top_level_rule.unwrap(), self.captures));
                     } else {
                         return None;
                     }
-                },
+                }
                 Instruction::CaptureStart(ref name) => {
-                    self.captures.insert(name, Capture::Started(self.string_pointer));
-                },
+                    self.captures
+                        .insert(name, Capture::Started(self.string_pointer));
+                }
                 Instruction::CaptureStop(ref name) => {
                     #[allow(get_unwrap)]
                     let c = *self.captures.get::<str>(name).unwrap();
                     if let Capture::Started(start) = c {
-                        self.captures.insert(name,
-                                             Capture::Complete(start, self.string_pointer));
+                        self.captures
+                            .insert(name, Capture::Complete(start, self.string_pointer));
                     }
-                },
+                }
                 Instruction::RuleCall(JumpTarget::Concrete(address)) => {
                     self.call_stack.push(self.program_pointer);
                     self.program_pointer = address;
-                },
+                }
                 Instruction::Jump(JumpTarget::Concrete(address)) => {
                     self.program_pointer = address;
-                },
+                }
                 Instruction::Split(ref targets) => {
                     let (first, rest) = targets.split_first().unwrap();
 
@@ -111,7 +106,7 @@ impl<'a, 'b: 'c, 'c> Thread<'a, 'b, 'c> {
                     if let JumpTarget::Concrete(address) = *first {
                         self.program_pointer = address;
                     }
-                },
+                }
                 _ => (),
             }
         }
