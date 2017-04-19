@@ -24,9 +24,9 @@ pub struct GrammarSink {
 }
 
 impl GrammarSink {
-    pub fn new<T>(flags: GrammarSinkFlags,
-                  sender: Sender<T>)
-                  -> ComPtr<IUnknown>
+    pub fn create<T>(flags: GrammarSinkFlags,
+                     sender: Sender<T>)
+                     -> ComPtr<IUnknown>
     where T: From<GrammarEvent> + Send + 'static {
         fn ensure_sync<T: Sync>(_: &T) {
         }
@@ -42,8 +42,7 @@ impl GrammarSink {
         ensure_sync(&result);
 
         let raw = Box::into_raw(Box::new(result)) as RawComPtr;
-        let unk = unsafe { raw_to_comptr(raw, true) };
-        unk
+        unsafe { raw_to_comptr(raw, true) }
     }
 
     unsafe fn query_interface(&self, iid: *const IID, v: *mut RawComPtr) -> HRESULT {

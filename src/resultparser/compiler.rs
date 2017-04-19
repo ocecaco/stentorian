@@ -33,16 +33,13 @@ fn relabel(instructions: &mut [Instruction], locations: &HashMap<LabelName, usiz
 
     for i in instructions.iter_mut() {
         match *i {
-            Instruction::Jump(ref mut target) => {
+            Instruction::Jump(ref mut target) | Instruction::RuleCall(ref mut target) => {
                 relabel_target(target, locations);
             }
             Instruction::Split(ref mut targets) => {
                 for t in targets.iter_mut() {
                     relabel_target(t, locations);
                 }
-            }
-            Instruction::RuleCall(ref mut target) => {
-                relabel_target(target, locations);
             }
             Instruction::Label(_) => {
                 *i = Instruction::NoOp;

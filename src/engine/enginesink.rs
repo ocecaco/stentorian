@@ -20,7 +20,7 @@ pub struct EngineSink {
 }
 
 impl EngineSink {
-    pub fn new<T>(flags: EngineSinkFlags, sender: Sender<T>)
+    pub fn create<T>(flags: EngineSinkFlags, sender: Sender<T>)
                   -> ComPtr<IUnknown>
         where T: From<EngineEvent> + Send + 'static {
         fn ensure_sync<T: Sync>(_: &T) {
@@ -38,8 +38,7 @@ impl EngineSink {
         ensure_sync(&sink);
 
         let raw = Box::into_raw(Box::new(sink)) as RawComPtr;
-        let unk = unsafe { raw_to_comptr(raw, true) };
-        unk
+        unsafe { raw_to_comptr(raw, true) }
     }
 
     unsafe fn query_interface(&self, iid: *const IID, v: *mut RawComPtr) -> HRESULT {

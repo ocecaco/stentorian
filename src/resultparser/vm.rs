@@ -47,7 +47,7 @@ impl<'a, 'b: 'c, 'c> Thread<'a, 'b, 'c> {
            threads: &mut Vec<Thread<'a, 'b, 'c>>)
            -> MatchResult<'a> {
         loop {
-            let ref next = self.instructions[self.program_pointer];
+            let next = &self.instructions[self.program_pointer];
             self.program_pointer += 1;
 
             match *next {
@@ -72,19 +72,18 @@ impl<'a, 'b: 'c, 'c> Thread<'a, 'b, 'c> {
                 Instruction::Match => {
                     if let Some(return_address) = self.call_stack.pop() {
                         self.program_pointer = return_address;
+                    } else if self.string_pointer == self.string.len() {
+                        return Some((self.top_level_rule.unwrap(),
+                                     self.captures));
                     } else {
-                        if self.string_pointer == self.string.len() {
-                            return Some((self.top_level_rule.unwrap(),
-                                         self.captures));
-                        } else {
-                            return None;
-                        }
+                        return None;
                     }
                 },
                 Instruction::CaptureStart(ref name) => {
                     self.captures.insert(name, Capture::Started(self.string_pointer));
                 },
                 Instruction::CaptureStop(ref name) => {
+                    #[allow(get_unwrap)]
                     let c = *self.captures.get::<str>(name).unwrap();
                     if let Capture::Started(start) = c {
                         self.captures.insert(name,

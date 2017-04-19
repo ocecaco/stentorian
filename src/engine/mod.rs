@@ -74,7 +74,7 @@ impl Engine {
     pub fn register<T>(&self, flags: EngineSinkFlags, sender: Sender<T>)
                        -> EngineRegistration
     where T: From<EngineEvent> + Send + 'static {
-        let sink = EngineSink::new(flags, sender);
+        let sink = EngineSink::create(flags, sender);
         let mut key = 0;
         unsafe {
             let result = self.central.register(&sink as &IUnknown as *const _ as RawComPtr,
@@ -102,7 +102,7 @@ impl Engine {
         };
         let mut raw_control = ptr::null();
 
-        let sink = GrammarSink::new(flags, sender);
+        let sink = GrammarSink::create(flags, sender);
         let raw_sink = &sink as &IUnknown as *const _ as RawComPtr;
 
         let grammar_control = unsafe {
