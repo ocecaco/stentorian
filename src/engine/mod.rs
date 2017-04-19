@@ -35,9 +35,31 @@ bitflags! {
     }
 }
 
+#[repr(u32)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
+pub enum Attribute {
+    AutoGainEnable = 1,
+    Threshold,
+    Echo,
+    EnergyFloor,
+    Microphone,
+    RealTime,
+    Speaker,
+    Timeout,
+    StartListening,
+    StopListening,
+
+    MicrophoneState = 1001,
+    Registry,
+    PlaybackDone,
+    Topic,
+    LexiconAdd,
+    LexiconRemove,
+}
+
 #[derive(Debug)]
 pub enum EngineEvent {
-    AttributeChanged,
+    AttributeChanged(Attribute),
     Interference,
     Sound,
     UtteranceBegin,
@@ -47,6 +69,14 @@ pub enum EngineEvent {
     MimicDone,
     ErrorHappened,
     Progress,
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
+pub enum MicrophoneState {
+    Disabled = 0,
+    Off = 1,
+    On = 2,
+    Sleeping = 3,
 }
 
 pub struct Engine {
@@ -133,6 +163,7 @@ bitflags! {
     }
 }
 
+#[derive(Debug)]
 pub enum GrammarEvent {
     Bookmark,
     Paused,

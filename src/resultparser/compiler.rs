@@ -105,15 +105,15 @@ impl Compiler {
 
     fn compile_single_rule(&mut self,
                            rule_id: u32,
-                           definition: &Rule,
+                           rule: &Rule,
                            start_label: LabelName) {
         self.emit(Instruction::Label(start_label));
 
-        if definition.exported {
+        if rule.exported {
             self.emit(Instruction::TopLevelRule(rule_id));
         }
 
-        self.compile_element(&definition.element);
+        self.compile_element(&rule.definition);
         self.emit(Instruction::Match);
     }
 

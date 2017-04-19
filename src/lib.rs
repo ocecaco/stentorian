@@ -32,26 +32,20 @@ fn make_test_grammar() -> Grammar {
 {
     "rules": [
         {
-            "name": "dgnnumber",
-            "definition": null
-        },
-        {
             "name": "Mapping",
+            "exported": true,
             "definition": {
-                "exported": true,
-                "element": {
                     "type": "sequence",
                     "children": [
                         {"type": "word", "text": "hello"},
                         {"type": "word", "text": "testing"},
                         {"type": "alternative", "children": [
-                            {"type": "rule_ref", "name": "dgnnumber"},
+                            {"type": "dictation_word"},
                             {"type": "word", "text": "world"}
                         ]},
                         {"type": "word", "text": "soup"}
                     ]
                 }
-            }
         }
     ]
 }
@@ -60,6 +54,7 @@ fn make_test_grammar() -> Grammar {
     serde_json::from_str(data).unwrap()
 }
 
+#[derive(Debug)]
 enum Event {
     Engine(EngineEvent),
     Grammar(GrammarEvent),
@@ -80,7 +75,7 @@ impl From<GrammarEvent> for Event {
 fn test() {
     let engine = Engine::connect();
     let (tx, rx) = mpsc::channel();
-    let registration = engine.register(SEND_PAUSED, tx.clone());
+    let registration = engine.register(SEND_PAUSED | SEND_ATTRIBUTE, tx.clone());
 
     let grammar = make_test_grammar();
     let grammar_control = engine.grammar_load(SEND_PHRASE_FINISH, &grammar, tx);
@@ -96,6 +91,7 @@ fn test() {
             Event::Grammar(GrammarEvent::PhraseFinish(words)) => {
                 println!("{:?}", words);
             }
+            Event::Engine(EngineEvent::AttributeChanged(a)) => println!("{:?}", a as u32),
             _ => println!("something else"),
         }
     }

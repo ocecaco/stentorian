@@ -7,7 +7,7 @@ pub struct Grammar {
 pub struct Rule {
     pub name: String,
     pub exported: bool,
-    pub element: Element,
+    pub definition: Element,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

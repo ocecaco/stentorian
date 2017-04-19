@@ -59,7 +59,7 @@ mod rulecompiler {
 
         pub fn compile_rule(&mut self, rule: &'a Rule) -> (RuleId, Vec<u8>) {
             let mut tokens = Vec::new();
-            self.compile_element(&rule.element, &mut tokens);
+            self.compile_element(&rule.definition, &mut tokens);
             let result = serialize_rule_tokens(&tokens);
 
             let id = self.declare_rule(&rule.name);
