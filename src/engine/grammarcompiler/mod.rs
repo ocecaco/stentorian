@@ -1,6 +1,6 @@
 use byteorder::{LittleEndian, WriteBytesExt};
 use encoding::{Encoding, EncoderTrap};
-use encoding::all::WINDOWS_1252;
+use encoding::all::UTF_16LE;
 use std::mem;
 use grammar::*;
 use self::rulecompiler::*;
@@ -192,7 +192,7 @@ pub fn compile_grammar(grammar: &Grammar) -> Vec<u8> {
 
     let mut output = Vec::new();
     output.write_u32::<LittleEndian>(0).unwrap();
-    output.write_u32::<LittleEndian>(0).unwrap();
+    output.write_u32::<LittleEndian>(1).unwrap();
     write_chunk(&mut output, ChunkType::Exports, export_chunk);
     write_chunk(&mut output, ChunkType::Imports, import_chunk);
     write_chunk(&mut output, ChunkType::Lists, list_chunk);
@@ -244,7 +244,8 @@ fn compile_id_chunk(entries: &[(u32, &str)]) -> Vec<u8> {
 
     for &(id, name) in entries.iter() {
         // TODO: is this the proper encoding?
-        let mut encoded = WINDOWS_1252.encode(name, EncoderTrap::Strict).unwrap();
+        let mut encoded = UTF_16LE.encode(name, EncoderTrap::Strict).unwrap();
+        encoded.push(0u8);
 
         // make the size a multiple of 4 (and add null bytes as padding)
         add_padding(&mut encoded, 4);
