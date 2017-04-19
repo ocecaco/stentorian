@@ -1,47 +1,6 @@
-#[derive(Debug, Copy, Clone)]
-pub struct WordId(u32);
-
-#[derive(Debug, Copy, Clone)]
-pub struct RuleId(u32);
-
-#[derive(Debug, Copy, Clone)]
-pub struct ListId(u32);
-
-impl From<u32> for WordId {
-    fn from(v: u32) -> Self {
-        WordId(v)
-    }
-}
-
-impl From<u32> for RuleId {
-    fn from(v: u32) -> Self {
-        RuleId(v)
-    }
-}
-
-impl From<u32> for ListId {
-    fn from(v: u32) -> Self {
-        ListId(v)
-    }
-}
-
-impl From<WordId> for u32 {
-    fn from(id: WordId) -> Self {
-        id.0
-    }
-}
-
-impl From<RuleId> for u32 {
-    fn from(id: RuleId) -> Self {
-        id.0
-    }
-}
-
-impl From<ListId> for u32 {
-    fn from(id: ListId) -> Self {
-        id.0
-    }
-}
+pub type WordId = u32;
+pub type RuleId = u32;
+pub type ListId = u32;
 
 #[derive(Debug, Copy, Clone)]
 pub enum NestedPosition {
@@ -76,9 +35,9 @@ impl RuleToken {
     pub fn convert(&self) -> (u16, u32) {
         match *self {
             RuleToken::Nested(pos, ty) => (pos as u16, ty as u32),
-            RuleToken::Word(word_id) => (BasicType::Word as u16, word_id.0),
-            RuleToken::Rule(rule_id) => (BasicType::Rule as u16, rule_id.0),
-            RuleToken::List(list_id) => (BasicType::List as u16, list_id.0),
+            RuleToken::Word(word_id) => (BasicType::Word as u16, word_id),
+            RuleToken::Rule(rule_id) => (BasicType::Rule as u16, rule_id),
+            RuleToken::List(list_id) => (BasicType::List as u16, list_id),
         }
     }
 }

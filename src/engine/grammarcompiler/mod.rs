@@ -4,7 +4,6 @@ use encoding::all::WINDOWS_1252;
 use std::mem;
 use grammar::*;
 use self::rulecompiler::*;
-use self::ruletoken::*;
 
 mod intern;
 mod ruletoken;
@@ -19,36 +18,83 @@ mod rulecompiler {
 
     type IdNamePairs<'a> = Vec<(u32, &'a str)>;
 
+    pub struct CompilerResult<'a> {
+        pub imported_rules: IdNamePairs<'a>,
+        pub exported_rules: IdNamePairs<'a>,
+        pub rule_name_to_id: HashMap<&'a str, RuleId>,
+        pub words: IdNamePairs<'a>,
+        pub lists: IdNamePairs<'a>,
+    }
+
     pub struct RuleCompiler<'a> {
+        rule_counter: RuleId,
+        imported_rules: IdNamePairs<'a>,
+        exported_rules: IdNamePairs<'a>,
         rule_name_to_id: HashMap<&'a str, RuleId>,
-        words: Interner<'a, WordId>,
-        lists: Interner<'a, ListId>,
+        words: Interner<'a>,
+        lists: Interner<'a>,
     }
 
     impl<'a> RuleCompiler<'a> {
         pub fn new() -> Self {
             RuleCompiler {
+                rule_counter: 0,
+                imported_rules: Vec::new(),
+                exported_rules: Vec::new(),
                 rule_name_to_id: HashMap::new(),
                 words: Interner::new(),
                 lists: Interner::new(),
             }
         }
 
-        pub fn done(self) -> (IdNamePairs<'a>, IdNamePairs<'a>) {
-            (self.words.done(), self.lists.done())
+        pub fn done(self) -> CompilerResult<'a> {
+            CompilerResult {
+                imported_rules: self.imported_rules,
+                exported_rules: self.exported_rules,
+                rule_name_to_id: self.rule_name_to_id,
+                words: self.words.done(),
+                lists: self.lists.done(),
+            }
         }
 
-        pub fn declare_rule(&mut self, id: RuleId, name: &'a str) {
+        pub fn compile_rule(&mut self, rule: &'a Rule) -> (RuleId, Vec<u8>) {
+            let mut tokens = Vec::new();
+            self.compile_element(&rule.element, &mut tokens);
+            let result = serialize_rule_tokens(&tokens);
+
+            let id = self.declare_rule(&rule.name);
+            if rule.exported {
+                self.exported_rules.push((id, &rule.name));
+            }
+
+            (id, result)
+        }
+
+        fn declare_rule(&mut self, name: &'a str) -> RuleId {
             match self.rule_name_to_id.entry(name) {
                 Entry::Occupied(_) => panic!("duplicate rule name"),
-                Entry::Vacant(entry) => entry.insert(id),
-            };
+                Entry::Vacant(entry) => {
+                    self.rule_counter += 1;
+                    let id = self.rule_counter;
+
+                    entry.insert(id);
+                    id
+                },
+            }
         }
 
-        pub fn compile_rule_definition(&mut self, definition: &'a RuleDefinition) -> Vec<u8> {
-            let mut tokens = Vec::new();
-            self.compile_element(&definition.element, &mut tokens);
-            serialize_rule_tokens(&tokens)
+        fn add_imported_rule(&mut self, name: &'static str) -> RuleId {
+            match self.rule_name_to_id.entry(name) {
+                Entry::Occupied(entry) => *entry.get(),
+                Entry::Vacant(entry) => {
+                    self.rule_counter += 1;
+                    let id = self.rule_counter;
+
+                    entry.insert(id);
+                    self.imported_rules.push((id, name));
+                    id
+                },
+            }
         }
 
         fn compile_element(&mut self, element: &'a Element, output: &mut Vec<RuleToken>) {
@@ -94,6 +140,18 @@ mod rulecompiler {
                 Element::Capture { ref child, .. } => {
                     self.compile_element(child, output);
                 }
+                Element::Dictation => {
+                    let id = self.add_imported_rule("dgndictation");
+                    output.push(RuleToken::Rule(id));
+                }
+                Element::DictationWord => {
+                    let id = self.add_imported_rule("dgnwords");
+                    output.push(RuleToken::Rule(id));
+                }
+                Element::SpellingLetter => {
+                    let id = self.add_imported_rule("dgnletters");
+                    output.push(RuleToken::Rule(id));
+                }
             }
         }
     }
@@ -114,61 +172,23 @@ mod rulecompiler {
     }
 }
 
-struct PreprocessResult<'a> {
-    exported_rules: Vec<(u32, &'a str)>,
-    imported_rules: Vec<(u32, &'a str)>,
-    all_rules: Vec<(RuleId, &'a Rule)>,
-}
-
-fn preprocess(grammar: &Grammar) -> PreprocessResult {
-    let mut exported_rules = Vec::new();
-    let mut imported_rules = Vec::new();
-
-    let mut all_rules = Vec::new();
-
-    for (id, rule) in (1u32..).zip(grammar.rules.iter()) {
-        let rule_id = id.into();
-        let name: &str = &rule.name;
-
-        all_rules.push((rule_id, rule));
-
-        match rule.definition {
-            Some(ref r) if r.exported => exported_rules.push((id, name)),
-            Some(_) => (),
-            None => imported_rules.push((id, name)),
-        }
-    }
-
-    PreprocessResult {
-        exported_rules: exported_rules,
-        imported_rules: imported_rules,
-        all_rules: all_rules,
-    }
-}
-
-
 pub fn compile_grammar(grammar: &Grammar) -> Vec<u8> {
-    let preprocess_result = preprocess(grammar);
-
     let mut compiler = RuleCompiler::new();
 
     let mut rule_chunk = Vec::new();
-    for &(id, r) in &preprocess_result.all_rules {
-        if let Some(ref definition) = r.definition {
-            let compiled = compiler.compile_rule_definition(definition);
-            write_entry(&mut rule_chunk, id.into(), compiled);
-        }
-        compiler.declare_rule(id, &r.name);
+    for r in grammar.rules.iter() {
+        let (id, compiled) = compiler.compile_rule(r);
+        write_entry(&mut rule_chunk, id, compiled);
     }
     let rule_chunk = rule_chunk;
 
-    let (words, lists) = compiler.done();
+    let compile_result = compiler.done();
 
-    let word_chunk = compile_id_chunk(&words);
-    let list_chunk = compile_id_chunk(&lists);
+    let word_chunk = compile_id_chunk(&compile_result.words);
+    let list_chunk = compile_id_chunk(&compile_result.lists);
 
-    let export_chunk = compile_id_chunk(&preprocess_result.exported_rules);
-    let import_chunk = compile_id_chunk(&preprocess_result.imported_rules);
+    let export_chunk = compile_id_chunk(&compile_result.exported_rules);
+    let import_chunk = compile_id_chunk(&compile_result.imported_rules);
 
     let mut output = Vec::new();
     output.write_u32::<LittleEndian>(0).unwrap();

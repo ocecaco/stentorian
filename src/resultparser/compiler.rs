@@ -2,9 +2,9 @@ use std::collections::HashMap;
 use grammar::*;
 use super::instructions::*;
 
-pub fn compile_grammar_matcher(grammar: &Grammar) -> Vec<Instruction> {
+pub fn compile_grammar_matcher(rules: &[(u32, &Rule)]) -> Vec<Instruction> {
     let compiler = Compiler::new();
-    let mut instructions = compiler.compile_rules(&grammar.rules);
+    let mut instructions = compiler.compile_rules(rules);
     let locations = find_label_locations(&instructions);
     relabel(&mut instructions, &locations);
     instructions
@@ -51,7 +51,7 @@ fn relabel(instructions: &mut [Instruction], locations: &HashMap<LabelName, usiz
 }
 
 struct Compiler {
-    rule_name_to_label: HashMap<String, (u32, Option<LabelName>)>,
+    rule_name_to_label: HashMap<String, (u32, LabelName)>,
     label_counter: u32,
     instructions: Vec<Instruction>,
 }
@@ -75,36 +75,29 @@ impl Compiler {
         LabelName(self.label_counter)
     }
 
-    fn compile_rules(mut self, rules: &[Rule]) -> Vec<Instruction> {
+    fn compile_rules(mut self, rules: &[(u32, &Rule)]) -> Vec<Instruction> {
         let mut with_labels = Vec::new();
-        let mut labels = Vec::new();
-        for (i, r) in (1u32..).zip(rules.iter()) {
-            match r.definition {
-                Some(ref def) => {
-                    let n = self.new_label();
-                    if def.exported {
-                        labels.push(n);
-                    }
-                    with_labels.push((i, r, Some(n)));
-                }
-                None => with_labels.push((i, r, None)),
+        let mut split = Vec::new();
+        for &(i, r) in rules {
+            let n = self.new_label();
+            if r.exported {
+                split.push(n);
             }
+            with_labels.push((i, r, n));
         }
 
-        let labels = labels
+        let split = split
             .iter()
             .map(|&n| JumpTarget::Symbolic(n))
             .collect::<Vec<_>>()
             .into_boxed_slice();
-        self.emit(Instruction::Split(labels));
+        self.emit(Instruction::Split(split));
 
         for &(i, r, label) in &with_labels {
             self.rule_name_to_label
                 .insert(r.name.clone(), (i, label));
 
-            if let Some(ref definition) = r.definition {
-                self.compile_single_rule(i, definition, label);
-            }
+            self.compile_single_rule(i, r, label);
         }
 
         self.instructions
@@ -112,11 +105,9 @@ impl Compiler {
 
     fn compile_single_rule(&mut self,
                            rule_id: u32,
-                           definition: &RuleDefinition,
-                           start_label: Option<LabelName>) {
-        if let Some(n) = start_label {
-            self.emit(Instruction::Label(n));
-        }
+                           definition: &Rule,
+                           start_label: LabelName) {
+        self.emit(Instruction::Label(start_label));
 
         if definition.exported {
             self.emit(Instruction::TopLevelRule(rule_id));
@@ -203,12 +194,15 @@ impl Compiler {
                 self.emit(Instruction::Literal(text.clone()));
             }
             Element::RuleRef { ref name } => {
-                let target = JumpTarget::Symbolic(self.rule_name_to_label[name].1.unwrap());
+                let target = JumpTarget::Symbolic(self.rule_name_to_label[name].1);
                 self.emit(Instruction::RuleCall(target));
             }
             Element::List { ref name } => {
                 self.emit(Instruction::List(name.clone()));
             }
+            Element::Dictation |
+            Element::DictationWord |
+            Element::SpellingLetter => unimplemented!()
         }
     }
 }

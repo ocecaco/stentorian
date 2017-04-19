@@ -4,15 +4,10 @@ pub struct Grammar {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RuleDefinition {
-    pub exported: bool,
-    pub element: Element,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Rule {
     pub name: String,
-    pub definition: Option<RuleDefinition>,
+    pub exported: bool,
+    pub element: Element,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -26,4 +21,7 @@ pub enum Element {
     Word { text: String },
     RuleRef { name: String },
     List { name: String },
+    Dictation,
+    DictationWord,
+    SpellingLetter,
 }

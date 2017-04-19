@@ -32,6 +32,10 @@ fn make_test_grammar() -> Grammar {
 {
     "rules": [
         {
+            "name": "dgnnumber",
+            "definition": null
+        },
+        {
             "name": "Mapping",
             "definition": {
                 "exported": true,
@@ -40,7 +44,10 @@ fn make_test_grammar() -> Grammar {
                     "children": [
                         {"type": "word", "text": "hello"},
                         {"type": "word", "text": "testing"},
-                        {"type": "word", "text": "beautiful"},
+                        {"type": "alternative", "children": [
+                            {"type": "rule_ref", "name": "dgnnumber"},
+                            {"type": "word", "text": "world"}
+                        ]},
                         {"type": "word", "text": "soup"}
                     ]
                 }

@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
-pub struct Interner<'a, U> {
-    name_to_id: HashMap<&'a str, U>,
-    names: Vec<(U, &'a str)>,
+pub struct Interner<'a> {
+    name_to_id: HashMap<&'a str, u32>,
+    names: Vec<(u32, &'a str)>,
 }
 
-impl<'a, U: From<u32> + Into<u32> + Copy> Interner<'a, U> {
+impl<'a> Interner<'a> {
     pub fn new() -> Self {
         Interner {
             name_to_id: HashMap::new(),
@@ -13,11 +13,11 @@ impl<'a, U: From<u32> + Into<u32> + Copy> Interner<'a, U> {
         }
     }
 
-    pub fn intern(&mut self, s: &'a str) -> U {
+    pub fn intern(&mut self, s: &'a str) -> u32 {
         if let Some(&id) = self.name_to_id.get(s) {
             id
         } else {
-            let id = U::from((self.names.len() + 1) as u32);
+            let id = (self.names.len() + 1) as u32;
 
             self.names.push((id, s));
             self.name_to_id.insert(s, id);
@@ -27,8 +27,5 @@ impl<'a, U: From<u32> + Into<u32> + Copy> Interner<'a, U> {
 
     pub fn done(self) -> Vec<(u32, &'a str)> {
         self.names
-            .iter()
-            .map(|&(id, s)| (U::into(id), s))
-            .collect()
     }
 }
