@@ -15,6 +15,7 @@ pub enum Instruction {
     Match,
     Label(LabelName),
     NoOp,
+    Progress,
     CaptureStart(String),
     CaptureStop(String),
     RuleCall(JumpTarget),

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use super::instructions::*;
 
 pub fn perform_match<'a, 'b: 'c, 'c>(program: &'a [Instruction],
@@ -23,6 +24,7 @@ struct Thread<'a, 'b: 'c, 'c> {
     call_stack: Vec<usize>,
     captures: HashMap<&'a str, Capture>,
     top_level_rule: Option<u32>,
+    progress: HashMap<usize, usize>,
 }
 
 pub type MatchResult<'a> = Option<(u32, HashMap<&'a str, Capture>)>;
@@ -37,6 +39,7 @@ impl<'a, 'b: 'c, 'c> Thread<'a, 'b, 'c> {
             call_stack: Vec::new(),
             captures: HashMap::new(),
             top_level_rule: None,
+            progress: HashMap::new(),
         }
     }
 
@@ -79,7 +82,8 @@ impl<'a, 'b: 'c, 'c> Thread<'a, 'b, 'c> {
                 }
                 Instruction::CaptureStop(ref name) => {
                     #[allow(get_unwrap)]
-                    let c = *self.captures.get::<str>(name).unwrap();
+                    let c = *self.captures.get::<str>(name)
+                        .expect(&format!("capture {} stopped without being started", name));
                     if let Capture::Started(start) = c {
                         self.captures
                             .insert(name, Capture::Complete(start, self.string_pointer));
@@ -88,6 +92,10 @@ impl<'a, 'b: 'c, 'c> Thread<'a, 'b, 'c> {
                 Instruction::RuleCall(JumpTarget::Concrete(address)) => {
                     self.call_stack.push(self.program_pointer);
                     self.program_pointer = address;
+                }
+                Instruction::RuleCall(JumpTarget::Symbolic(_)) |
+                Instruction::Jump(JumpTarget::Symbolic(_)) => {
+                    panic!("found symbolic jump instruction");
                 }
                 Instruction::Jump(JumpTarget::Concrete(address)) => {
                     self.program_pointer = address;
@@ -100,14 +108,45 @@ impl<'a, 'b: 'c, 'c> Thread<'a, 'b, 'c> {
                             let mut branch = self.clone();
                             branch.program_pointer = address;
                             threads.push(branch);
+                        } else {
+                            panic!("found symbolic jump instruction");
                         }
                     }
 
                     if let JumpTarget::Concrete(address) = *first {
                         self.program_pointer = address;
+                    } else {
+                        panic!("found symbolic jump instruction");
                     }
                 }
-                _ => (),
+                Instruction::List(ref name) => {
+                    unimplemented!();
+                }
+                Instruction::Progress => {
+                    // make sure we've progressed since the last time
+                    // we were here to avoid infinite loop
+                    let pc = self.program_pointer;
+                    let current = self.string_pointer;
+
+                    let entry = self.progress.entry(pc);
+                    match entry {
+                        Entry::Occupied(mut e) => {
+                            let previous = e.get_mut();
+
+                            // stop we haven't made progress
+                            if current == *previous {
+                                return None;
+                            }
+
+                            *previous = current;
+                        }
+                        Entry::Vacant(e) => {
+                            e.insert(current);
+                        }
+                    }
+                }
+                Instruction::NoOp |
+                Instruction::Label(_) => {}
             }
         }
     }

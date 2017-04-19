@@ -165,6 +165,8 @@ impl Compiler {
 
                 self.emit(Instruction::Label(loop_label));
 
+                self.emit(Instruction::Progress);
+
                 let targets = vec![JumpTarget::Symbolic(child_label),
                                    JumpTarget::Symbolic(done_label)];
                 let targets = targets.into_boxed_slice();
