@@ -91,7 +91,7 @@ fn test() {
             Event::Grammar(GrammarEvent::PhraseFinish(words)) => {
                 println!("{:?}", words);
             }
-            Event::Engine(EngineEvent::AttributeChanged(a)) => println!("{:?}", a as u32),
+            Event::Engine(EngineEvent::AttributeChanged(a)) => println!("{:?}", a),
             _ => println!("something else"),
         }
     }

@@ -1,7 +1,6 @@
 use dragon::*;
 use components::*;
 use components::bstr::BStr;
-use super::Attribute;
 
 define_guid!(IID_ISRCentral = 0xB9BD3860,
              0x44DB,
@@ -50,7 +49,7 @@ com_interface! {
     interface ISRNotifySink : IUnknown {
         iid: IID_ISRNotifySink,
         vtable: ISRNotifySinkVtable,
-        fn attrib_changed(a: Attribute) -> HRESULT;
+        fn attrib_changed(a: u32) -> HRESULT;
         fn interference(a: u64, b: u64, c: u64) -> HRESULT;
         fn sound(a: u64, b: u64) -> HRESULT;
         fn utterance_begin(a: u64) -> HRESULT;
@@ -75,7 +74,7 @@ com_interface! {
     interface IDgnSREngineNotifySink : IUnknown {
         iid: IID_IDgnSREngineNotifySink,
         vtable: IDgnSREngineNotifySinkVtable,
-        fn attrib_changed_2(x: Attribute) -> HRESULT;
+        fn attrib_changed_2(x: u32) -> HRESULT;
         fn paused(x: u64) -> HRESULT;
         fn mimic_done(x: u32, p: RawComPtr) -> HRESULT;
         fn error_happened(p: RawComPtr) -> HRESULT;

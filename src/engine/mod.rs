@@ -35,10 +35,9 @@ bitflags! {
     }
 }
 
-#[repr(u32)]
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub enum Attribute {
-    AutoGainEnable = 1,
+    AutoGainEnable,
     Threshold,
     Echo,
     EnergyFloor,
@@ -49,12 +48,14 @@ pub enum Attribute {
     StartListening,
     StopListening,
 
-    MicrophoneState = 1001,
+    MicrophoneState,
     Registry,
     PlaybackDone,
     Topic,
     LexiconAdd,
     LexiconRemove,
+
+    Unknown(u32)
 }
 
 #[derive(Debug)]

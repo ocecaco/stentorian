@@ -67,8 +67,8 @@ impl EngineSink {
         result
     }
 
-    fn attrib_changed(&self, a: Attribute) -> HRESULT {
-        self.events.send(EngineEvent::AttributeChanged(a));
+    fn attrib_changed(&self, a: u32) -> HRESULT {
+        self.events.send(EngineEvent::AttributeChanged(convert_attribute(a)));
         HRESULT(0)
     }
 
@@ -104,8 +104,8 @@ impl EngineSink {
     }
 
 
-    fn attrib_changed_2(&self, a: Attribute) -> HRESULT {
-        self.events.send(EngineEvent::AttributeChanged(a));
+    fn attrib_changed_2(&self, a: u32) -> HRESULT {
+        self.events.send(EngineEvent::AttributeChanged(convert_attribute(a)));
         HRESULT(0)
     }
 
@@ -131,6 +131,30 @@ impl EngineSink {
     }
 }
 
+fn convert_attribute(a: u32) -> Attribute {
+    match a {
+        1 => Attribute::AutoGainEnable,
+        2 => Attribute::Threshold,
+        3 => Attribute::Echo,
+        4 => Attribute::EnergyFloor,
+        5 => Attribute::Microphone,
+        6 => Attribute::RealTime,
+        7 => Attribute::Speaker,
+        8 => Attribute::Timeout,
+        9 => Attribute::StartListening,
+        10 => Attribute::StopListening,
+
+        1001 => Attribute::MicrophoneState,
+        1002 => Attribute::Registry,
+        1003 => Attribute::PlaybackDone,
+        1004 => Attribute::Topic,
+        1005 => Attribute::LexiconAdd,
+        1006 => Attribute::LexiconRemove,
+
+        x => Attribute::Unknown(x)
+    }
+}
+
 #[derive(Debug)]
 pub struct PauseCookie(u64);
 
@@ -153,7 +177,7 @@ coclass! {
                     fn add_ref() -> ULONG;
                     fn release() -> ULONG;
                 },
-                fn attrib_changed(a: Attribute) -> HRESULT;
+                fn attrib_changed(a: u32) -> HRESULT;
                 fn interference(a: u64, b: u64, c: u64) -> HRESULT;
                 fn sound(a: u64, b: u64) -> HRESULT;
                 fn utterance_begin(a: u64) -> HRESULT;
@@ -188,7 +212,7 @@ coclass! {
                     fn add_ref() -> ULONG;
                     fn release() -> ULONG;
                 },
-                fn attrib_changed_2(x: Attribute) -> HRESULT;
+                fn attrib_changed_2(x: u32) -> HRESULT;
                 fn paused(x: u64) -> HRESULT;
                 fn mimic_done(x: u32, p: RawComPtr) -> HRESULT;
                 fn error_happened(p: RawComPtr) -> HRESULT;

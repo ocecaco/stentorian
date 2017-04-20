@@ -243,8 +243,10 @@ fn compile_id_chunk(entries: &[(u32, &str)]) -> Vec<u8> {
     let mut chunk = Vec::new();
 
     for &(id, name) in entries.iter() {
-        // TODO: is this the proper encoding?
         let mut encoded = UTF_16LE.encode(name, EncoderTrap::Strict).unwrap();
+
+        // make sure word is terminated by at least *two* null bytes
+        // after padding
         encoded.push(0u8);
 
         // make the size a multiple of 4 (and add null bytes as padding)
