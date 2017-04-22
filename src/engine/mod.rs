@@ -294,7 +294,7 @@ impl Drop for EngineRegistration {
     fn drop(&mut self) {
         unsafe {
             let result = self.central.unregister(self.register_key);
-            assert!(result == S_OK, "engine unregister failed: {}", result);
+            assert_eq!(result, S_OK, "engine unregister failed: {}", result);
         }
     }
 }

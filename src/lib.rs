@@ -1,6 +1,4 @@
 #![allow(dead_code)]
-#![allow(unused_variables)]
-
 extern crate byteorder;
 
 #[macro_use]
@@ -75,11 +73,11 @@ impl From<GrammarEvent> for Event {
 }
 
 fn test() -> Result<()> {
-    let com = unsafe { com_initialize() };
+    let _com = unsafe { com_initialize()? };
 
     let engine = Engine::connect()?;
     let (tx, rx) = mpsc::channel();
-    let registration = engine.register(SEND_PAUSED | SEND_ATTRIBUTE, tx.clone())?;
+    let _registration = engine.register(SEND_PAUSED | SEND_ATTRIBUTE, tx.clone())?;
 
     let grammar = make_test_grammar();
     let grammar_control = engine.grammar_load(SEND_PHRASE_FINISH | SEND_FOREIGN_FINISH, &grammar, tx)?;

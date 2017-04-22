@@ -119,7 +119,7 @@ impl<'a, 'b: 'c, 'c> Thread<'a, 'b, 'c> {
                         panic!("found symbolic jump instruction");
                     }
                 }
-                Instruction::List(ref name) => {
+                Instruction::List(ref _name) => {
                     unimplemented!();
                 }
                 Instruction::Progress => {

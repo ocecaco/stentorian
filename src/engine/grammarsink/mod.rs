@@ -69,7 +69,7 @@ impl GrammarSink {
         result
     }
 
-    fn bookmark(&self, x: u32) -> HRESULT {
+    fn bookmark(&self, _x: u32) -> HRESULT {
         self.events.send(GrammarEvent::Bookmark);
         HRESULT(0)
     }
@@ -78,10 +78,10 @@ impl GrammarSink {
         HRESULT(0)
     }
     unsafe fn phrase_finish(&self,
-                            a: u32,
-                            b: u64,
-                            c: u64,
-                            phrase: *const c_void,
+                            _flags: u32,
+                            _b: u64,
+                            _c: u64,
+                            _phrase: *const c_void,
                             results: RawComPtr)
                             -> HRESULT {
         let results = raw_to_comptr::<IUnknown>(results, false);
@@ -122,28 +122,28 @@ impl GrammarSink {
         HRESULT(0)
     }
     fn phrase_hypothesis(&self,
-                         a: u32,
-                         b: u64,
-                         c: u64,
-                         phrase: *const c_void,
-                         results: RawComPtr)
+                         _flags: u32,
+                         _b: u64,
+                         _c: u64,
+                         _phrase: *const c_void,
+                         _results: RawComPtr)
                          -> HRESULT {
         self.events.send(GrammarEvent::PhraseHypothesis);
         HRESULT(0)
     }
-    fn phrase_start(&self, a: u64) -> HRESULT {
+    fn phrase_start(&self, _a: u64) -> HRESULT {
         self.events.send(GrammarEvent::PhraseStart);
         HRESULT(0)
     }
-    fn reevaluate(&self, a: RawComPtr) -> HRESULT {
+    fn reevaluate(&self, _a: RawComPtr) -> HRESULT {
         self.events.send(GrammarEvent::Reevaluate);
         HRESULT(0)
     }
-    fn training(&self, a: u32) -> HRESULT {
+    fn training(&self, _a: u32) -> HRESULT {
         self.events.send(GrammarEvent::Training);
         HRESULT(0)
     }
-    fn unarchive(&self, a: RawComPtr) -> HRESULT {
+    fn unarchive(&self, _a: RawComPtr) -> HRESULT {
         self.events.send(GrammarEvent::Unarchive);
         HRESULT(0)
     }

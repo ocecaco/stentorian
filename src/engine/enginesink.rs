@@ -72,27 +72,27 @@ impl EngineSink {
         HRESULT(0)
     }
 
-    fn interference(&self, a: u64, b: u64, c: u64) -> HRESULT {
+    fn interference(&self, _a: u64, _b: u64, _c: u64) -> HRESULT {
         self.events.send(EngineEvent::Interference);
         HRESULT(0)
     }
 
-    fn sound(&self, a: u64, b: u64) -> HRESULT {
+    fn sound(&self, _a: u64, _b: u64) -> HRESULT {
         self.events.send(EngineEvent::Sound);
         HRESULT(0)
     }
 
-    fn utterance_begin(&self, a: u64) -> HRESULT {
+    fn utterance_begin(&self, _a: u64) -> HRESULT {
         self.events.send(EngineEvent::UtteranceBegin);
         HRESULT(0)
     }
 
-    fn utterance_end(&self, a: u64, b: u64) -> HRESULT {
+    fn utterance_end(&self, _a: u64, _b: u64) -> HRESULT {
         self.events.send(EngineEvent::UtteranceEnd);
         HRESULT(0)
     }
 
-    fn vu_meter(&self, a: u64, b: u16) -> HRESULT {
+    fn vu_meter(&self, _a: u64, _b: u16) -> HRESULT {
         self.events.send(EngineEvent::VuMeter);
         HRESULT(0)
     }
@@ -115,17 +115,17 @@ impl EngineSink {
         HRESULT(0)
     }
 
-    fn mimic_done(&self, x: u32, p: RawComPtr) -> HRESULT {
+    fn mimic_done(&self, _x: u32, _p: RawComPtr) -> HRESULT {
         self.events.send(EngineEvent::MimicDone);
         HRESULT(0)
     }
 
-    fn error_happened(&self, p: RawComPtr) -> HRESULT {
+    fn error_happened(&self, _p: RawComPtr) -> HRESULT {
         self.events.send(EngineEvent::ErrorHappened);
         HRESULT(0)
     }
 
-    fn progress(&self, x: u32, s: BStr) -> HRESULT {
+    fn progress(&self, _x: u32, _s: BStr) -> HRESULT {
         self.events.send(EngineEvent::Progress);
         HRESULT(0)
     }
