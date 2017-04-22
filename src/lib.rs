@@ -19,6 +19,7 @@ mod errors {
     error_chain! {
         links {
             Com(::components::errors::Error, ::components::errors::ErrorKind);
+            Grammar(::engine::grammar_errors::Error, ::engine::grammar_errors::ErrorKind);
         }
     }
 }

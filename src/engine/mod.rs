@@ -21,6 +21,7 @@ mod grammarcompiler;
 mod events;
 
 pub use self::enginesink::PauseCookie;
+pub use self::grammarcompiler::errors as grammar_errors;
 
 bitflags! {
     pub flags EngineSinkFlags: u32 {
@@ -154,7 +155,7 @@ impl Engine {
                            -> Result<GrammarControl>
         where T: From<GrammarEvent> + Send + 'static
     {
-        let compiled = compile_grammar(grammar);
+        let compiled = compile_grammar(grammar)?;
         let data = SDATA {
             data: compiled.as_ptr(),
             size: compiled.len() as u32,

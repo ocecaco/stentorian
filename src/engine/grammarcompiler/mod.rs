@@ -2,9 +2,26 @@ use byteorder::{LittleEndian, WriteBytesExt};
 use std::mem;
 use grammar::*;
 use self::rulecompiler::*;
+use self::errors::*;
 
 mod intern;
 mod ruletoken;
+
+pub mod errors {
+    error_chain! {
+        errors {
+            UnknownRule(name: String) {
+                description("unknown rule")
+                display("unknown rule: {}", name)
+            }
+
+            DuplicateRule(name: String) {
+                description("duplicate rule")
+                display("duplicate rule: {}", name)
+            }
+        }
+    }
+}
 
 mod rulecompiler {
     use super::ruletoken::*;
@@ -13,6 +30,7 @@ mod rulecompiler {
     use byteorder::{LittleEndian, WriteBytesExt};
     use std::collections::HashMap;
     use std::collections::hash_map::Entry;
+    use super::errors::*;
 
     type IdNamePairs<'a> = Vec<(u32, &'a str)>;
 
@@ -55,29 +73,31 @@ mod rulecompiler {
             }
         }
 
-        pub fn compile_rule(&mut self, rule: &'a Rule) -> (RuleId, Vec<u8>) {
+        pub fn compile_rule(&mut self, rule: &'a Rule) -> Result<(RuleId, Vec<u8>)> {
             let mut tokens = Vec::new();
-            self.compile_element(&rule.definition, &mut tokens);
+            self.compile_element(&rule.definition, &mut tokens)?;
             let result = serialize_rule_tokens(&tokens);
 
-            let id = self.declare_rule(&rule.name);
+            let id = self.declare_rule(&rule.name)?;
             if rule.exported {
                 self.exported_rules.push((id, &rule.name));
             }
 
-            (id, result)
+            Ok((id, result))
         }
 
-        fn declare_rule(&mut self, name: &'a str) -> RuleId {
+        fn declare_rule(&mut self, name: &'a str) -> Result<RuleId> {
             match self.rule_name_to_id.entry(name) {
-                Entry::Occupied(_) => panic!("duplicate rule name"),
+                Entry::Occupied(_) => {
+                    Err(ErrorKind::DuplicateRule(name.to_string()).into())
+                }
                 Entry::Vacant(entry) => {
                     self.rule_counter += 1;
                     let id = self.rule_counter;
 
                     entry.insert(id);
-                    id
-                },
+                    Ok(id)
+                }
             }
         }
 
@@ -95,30 +115,30 @@ mod rulecompiler {
             }
         }
 
-        fn compile_element(&mut self, element: &'a Element, output: &mut Vec<RuleToken>) {
+        fn compile_element(&mut self, element: &'a Element, output: &mut Vec<RuleToken>) -> Result<()> {
             match *element {
                 Element::Sequence { ref children } => {
                     output.push(SEQUENCE_START);
                     for c in children.iter() {
-                        self.compile_element(c, output);
+                        self.compile_element(c, output)?;
                     }
                     output.push(SEQUENCE_END);
                 }
                 Element::Alternative { ref children } => {
                     output.push(ALTERNATIVE_START);
                     for c in children.iter() {
-                        self.compile_element(c, output);
+                        self.compile_element(c, output)?;
                     }
                     output.push(ALTERNATIVE_END);
                 }
                 Element::Repetition { ref child } => {
                     output.push(REPETITION_START);
-                    self.compile_element(child, output);
+                    self.compile_element(child, output)?;
                     output.push(REPETITION_END);
                 }
                 Element::Optional { ref child } => {
                     output.push(OPTIONAL_START);
-                    self.compile_element(child, output);
+                    self.compile_element(child, output)?;
                     output.push(OPTIONAL_END);
                 }
                 Element::Word { ref text } => {
@@ -126,17 +146,16 @@ mod rulecompiler {
                     output.push(RuleToken::Word(id));
                 }
                 Element::RuleRef { ref name } => {
-                    // TODO: handle missing rule
-                    #[allow(get_unwrap)]
-                    let id = self.rule_name_to_id.get::<str>(name).unwrap();
-                    output.push(RuleToken::Rule(*id));
+                    let maybe_id = self.rule_name_to_id.get::<str>(name);
+                    let result = maybe_id.ok_or_else(|| ErrorKind::UnknownRule(name.clone()))?;
+                    output.push(RuleToken::Rule(*result));
                 }
                 Element::List { ref name } => {
                     let id = self.lists.intern(name);
                     output.push(RuleToken::List(id));
                 }
                 Element::Capture { ref child, .. } => {
-                    self.compile_element(child, output);
+                    self.compile_element(child, output)?;
                 }
                 Element::Dictation => {
                     let id = self.add_imported_rule("dgndictation");
@@ -150,7 +169,9 @@ mod rulecompiler {
                     let id = self.add_imported_rule("dgnletters");
                     output.push(RuleToken::Rule(id));
                 }
-            }
+            };
+
+            Ok(())
         }
     }
 
@@ -170,12 +191,12 @@ mod rulecompiler {
     }
 }
 
-pub fn compile_grammar(grammar: &Grammar) -> Vec<u8> {
+pub fn compile_grammar(grammar: &Grammar) -> Result<Vec<u8>> {
     let mut compiler = RuleCompiler::new();
 
     let mut rule_chunk = Vec::new();
     for r in grammar.rules.iter() {
-        let (id, compiled) = compiler.compile_rule(r);
+        let (id, compiled) = compiler.compile_rule(r)?;
         write_entry(&mut rule_chunk, id, compiled);
     }
     let rule_chunk = rule_chunk;
@@ -197,8 +218,7 @@ pub fn compile_grammar(grammar: &Grammar) -> Vec<u8> {
     write_chunk(&mut output, ChunkType::Words, word_chunk);
     write_chunk(&mut output, ChunkType::Rules, rule_chunk);
 
-    output
-
+    Ok(output)
 }
 
 #[derive(Debug, Copy, Clone)]
