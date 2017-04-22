@@ -19,7 +19,7 @@ mod errors {
     error_chain! {
         links {
             Com(::components::errors::Error, ::components::errors::ErrorKind);
-            Grammar(::engine::grammar_errors::Error, ::engine::grammar_errors::ErrorKind);
+            Grammar(::grammarcompiler::errors::Error, ::grammarcompiler::errors::ErrorKind);
         }
     }
 }
@@ -29,6 +29,7 @@ mod dragon;
 mod engine;
 mod grammar;
 mod resultparser;
+mod grammarcompiler;
 
 use grammar::Grammar;
 use engine::*;
@@ -81,7 +82,7 @@ fn test() -> Result<()> {
     let _registration = engine.register(SEND_PAUSED | SEND_ATTRIBUTE, tx.clone())?;
 
     let grammar = make_test_grammar();
-    let grammar_control = engine.grammar_load(SEND_PHRASE_FINISH | SEND_FOREIGN_FINISH, &grammar, tx)?;
+    let (grammar_control, ids) = engine.grammar_load(SEND_PHRASE_FINISH | SEND_FOREIGN_FINISH, &grammar, tx)?;
 
     grammar_control.rule_activate("Mapping")?;
 

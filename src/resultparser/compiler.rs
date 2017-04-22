@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 use grammar::*;
+use grammarcompiler::GrammarRuleIds;
 use super::instructions::*;
 
-pub fn compile_grammar_matcher(rules: &[(u32, &Rule)]) -> Vec<Instruction> {
-    let compiler = Compiler::new();
-    let mut instructions = compiler.compile_rules(rules);
+pub fn compile_grammar_matcher(grammar: &Grammar, ids: &GrammarRuleIds) -> Vec<Instruction> {
+    let compiler = Compiler::new(ids);
+    let mut instructions = compiler.compile_grammar(grammar);
     let locations = find_label_locations(&instructions);
     relabel(&mut instructions, &locations);
     instructions
@@ -16,7 +17,6 @@ fn find_label_locations(instructions: &[Instruction]) -> HashMap<LabelName, usiz
 
     for (i, ins) in instructions.iter().enumerate() {
         if let Instruction::Label(name) = *ins {
-            // TODO: check for duplicates
             locations.insert(name, i);
         }
     }
@@ -50,16 +50,18 @@ fn relabel(instructions: &mut [Instruction], locations: &HashMap<LabelName, usiz
     }
 }
 
-struct Compiler {
+struct Compiler<'a> {
     rule_name_to_label: HashMap<String, (u32, LabelName)>,
+    ids: &'a GrammarRuleIds,
     label_counter: u32,
     instructions: Vec<Instruction>,
 }
 
-impl Compiler {
-    fn new() -> Self {
+impl<'a> Compiler<'a> {
+    fn new(ids: &'a GrammarRuleIds) -> Self {
         Compiler {
             rule_name_to_label: HashMap::new(),
+            ids: ids,
             label_counter: 0,
             instructions: Vec::new(),
         }
@@ -75,10 +77,10 @@ impl Compiler {
         LabelName(self.label_counter)
     }
 
-    fn compile_rules(mut self, rules: &[(u32, &Rule)]) -> Vec<Instruction> {
+    fn compile_grammar(mut self, grammar: &Grammar) -> Vec<Instruction> {
         let mut with_labels = Vec::new();
         let mut split = Vec::new();
-        for &(i, r) in rules {
+        for (&i, r) in self.ids.rule_ids.iter().zip(grammar.rules.iter()) {
             let n = self.new_label();
             if r.exported {
                 split.push(n);
@@ -108,11 +110,7 @@ impl Compiler {
                            rule: &Rule,
                            start_label: LabelName) {
         self.emit(Instruction::Label(start_label));
-
-        if rule.exported {
-            self.emit(Instruction::TopLevelRule(rule_id));
-        }
-
+        self.emit(Instruction::RuleEntry(rule_id));
         self.compile_element(&rule.definition);
         self.emit(Instruction::Match);
     }

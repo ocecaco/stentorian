@@ -11,17 +11,15 @@ use grammar::Grammar;
 use self::enginesink::*;
 use self::grammarsink::*;
 use self::grammarsink::interfaces::{ISRGramCommon, ISRGramNotifySink, ISRGramCFG};
-use self::grammarcompiler::compile_grammar;
+use grammarcompiler::{GrammarRuleIds, compile_grammar};
 use errors::*;
 
 mod interfaces;
 mod enginesink;
 mod grammarsink;
-mod grammarcompiler;
 mod events;
 
 pub use self::enginesink::PauseCookie;
-pub use self::grammarcompiler::errors as grammar_errors;
 
 bitflags! {
     pub flags EngineSinkFlags: u32 {
@@ -152,10 +150,10 @@ impl Engine {
                            flags: GrammarSinkFlags,
                            grammar: &Grammar,
                            sender: Sender<T>)
-                           -> Result<GrammarControl>
+                           -> Result<(GrammarControl, GrammarRuleIds)>
         where T: From<GrammarEvent> + Send + 'static
     {
-        let compiled = compile_grammar(grammar)?;
+        let (compiled, ids) = compile_grammar(grammar)?;
         let data = SDATA {
             data: compiled.as_ptr(),
             size: compiled.len() as u32,
@@ -182,10 +180,12 @@ impl Engine {
         let grammar_control = query_interface::<ISRGramCommon>(&grammar_control)?;
         let grammar_lists = query_interface::<ISRGramCFG>(&grammar_control)?;
 
-        Ok(GrammarControl {
+        let control = GrammarControl {
             grammar_control: grammar_control,
             grammar_lists: grammar_lists,
-        })
+        };
+
+        Ok((control, ids))
     }
 }
 

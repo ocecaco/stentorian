@@ -3,6 +3,7 @@ use std::mem;
 use grammar::*;
 use self::rulecompiler::*;
 use self::errors::*;
+pub use self::ruletoken::RuleId;
 
 mod intern;
 mod ruletoken;
@@ -11,13 +12,13 @@ pub mod errors {
     error_chain! {
         errors {
             UnknownRule(name: String) {
-                description("unknown rule")
-                display("unknown rule: {}", name)
+                description("unknown rule in grammar definition")
+                display("unknown rule in grammar definition: {}", name)
             }
 
             DuplicateRule(name: String) {
-                description("duplicate rule")
-                display("duplicate rule: {}", name)
+                description("duplicate rule in grammar definition")
+                display("duplicate rule in grammar definition: {}", name)
             }
         }
     }
@@ -191,13 +192,22 @@ mod rulecompiler {
     }
 }
 
-pub fn compile_grammar(grammar: &Grammar) -> Result<Vec<u8>> {
+pub struct GrammarRuleIds {
+    pub rule_ids: Vec<RuleId>,
+    pub dictation: Option<RuleId>,
+    pub dictation_word: Option<RuleId>,
+    pub spelling_letter: Option<RuleId>,
+}
+
+pub fn compile_grammar(grammar: &Grammar) -> Result<(Vec<u8>, GrammarRuleIds)> {
     let mut compiler = RuleCompiler::new();
 
+    let mut rule_ids = Vec::new();
     let mut rule_chunk = Vec::new();
     for r in grammar.rules.iter() {
         let (id, compiled) = compiler.compile_rule(r)?;
         write_entry(&mut rule_chunk, id, compiled);
+        rule_ids.push(id);
     }
     let rule_chunk = rule_chunk;
 
@@ -218,7 +228,20 @@ pub fn compile_grammar(grammar: &Grammar) -> Result<Vec<u8>> {
     write_chunk(&mut output, ChunkType::Words, word_chunk);
     write_chunk(&mut output, ChunkType::Rules, rule_chunk);
 
-    Ok(output)
+    let ids = GrammarRuleIds {
+        rule_ids: rule_ids,
+        dictation: compile_result .rule_name_to_id
+            .get("dgndictation")
+            .map(|x| *x),
+        dictation_word: compile_result.rule_name_to_id
+            .get("dgnwords")
+            .map(|x| *x),
+        spelling_letter: compile_result.rule_name_to_id
+            .get("dgnletters")
+            .map(|x| *x),
+    };
+
+    Ok((output, ids))
 }
 
 #[derive(Debug, Copy, Clone)]

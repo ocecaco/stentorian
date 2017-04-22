@@ -7,9 +7,19 @@ pub enum JumpTarget {
     Concrete(usize),
 }
 
+impl JumpTarget {
+    pub fn address(&self) -> usize {
+        if let JumpTarget::Concrete(address) = *self {
+            address
+        } else {
+            panic!("found symbolic jump instruction");
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum Instruction {
-    TopLevelRule(u32),
+    RuleEntry(u32),
     Literal(String),
     List(String),
     Match,
