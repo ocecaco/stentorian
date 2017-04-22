@@ -15,6 +15,17 @@ extern crate serde_json;
 #[macro_use]
 extern crate components;
 
+#[macro_use]
+extern crate error_chain;
+
+mod errors {
+    error_chain! {
+        links {
+            Com(::components::errors::Error, ::components::errors::ErrorKind);
+        }
+    }
+}
+
 mod interfaces;
 mod dragon;
 mod engine;
@@ -24,8 +35,8 @@ mod resultparser;
 use grammar::Grammar;
 use engine::*;
 use components::*;
-use std::ptr;
 use std::sync::mpsc;
+use errors::*;
 
 fn make_test_grammar() -> Grammar {
     let data = r#"
@@ -64,26 +75,28 @@ impl From<GrammarEvent> for Event {
     }
 }
 
-fn test() {
-    let engine = Engine::connect();
+fn test() -> Result<()> {
+    let com = unsafe { com_initialize() };
+
+    let engine = Engine::connect()?;
     let (tx, rx) = mpsc::channel();
-    let registration = engine.register(SEND_PAUSED | SEND_ATTRIBUTE, tx.clone());
+    let registration = engine.register(SEND_PAUSED | SEND_ATTRIBUTE, tx.clone())?;
 
     let grammar = make_test_grammar();
-    let grammar_control = engine.grammar_load(SEND_PHRASE_FINISH | SEND_FOREIGN_FINISH, &grammar, tx);
+    let grammar_control = engine.grammar_load(SEND_PHRASE_FINISH | SEND_FOREIGN_FINISH, &grammar, tx)?;
 
-    grammar_control.rule_activate("Mapping");
+    grammar_control.rule_activate("Mapping")?;
 
-    grammar_control.list_append("testlist", "bazerong");
-    grammar_control.list_append("testlist", "ookabooka");
-    grammar_control.list_clear("testlist");
-    grammar_control.list_append("testlist", "Visual Studio");
+    grammar_control.list_append("testlist", "bazerong")?;
+    grammar_control.list_append("testlist", "ookabooka")?;
+    grammar_control.list_clear("testlist")?;
+    grammar_control.list_append("testlist", "Visual Studio")?;
 
     for _ in 0..10 {
         match rx.recv().unwrap() {
             Event::Engine(EngineEvent::Paused(cookie)) => {
                 println!("paused");
-                engine.resume(cookie);
+                engine.resume(cookie)?;
             }
             Event::Grammar(GrammarEvent::PhraseFinish(words)) => {
                 println!("{:?}", words);
@@ -92,17 +105,12 @@ fn test() {
             _ => println!("something else"),
         }
     }
+
+    Ok(())
 }
 
-pub fn main() {
-    unsafe {
-        let result = CoInitializeEx(ptr::null(), COINIT_MULTITHREADED);
-        assert_eq!(result.0, 0);
-    }
+quick_main!(test);
 
-    test();
-
-    unsafe {
-        CoUninitialize();
-    }
+pub fn external_main() {
+    main();
 }
