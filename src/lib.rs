@@ -70,14 +70,14 @@ fn test() {
     let registration = engine.register(SEND_PAUSED | SEND_ATTRIBUTE, tx.clone());
 
     let grammar = make_test_grammar();
-    let grammar_control = engine.grammar_load(SEND_PHRASE_FINISH, &grammar, tx);
+    let grammar_control = engine.grammar_load(SEND_PHRASE_FINISH | SEND_FOREIGN_FINISH, &grammar, tx);
 
     grammar_control.rule_activate("Mapping");
 
     grammar_control.list_append("testlist", "bazerong");
     grammar_control.list_append("testlist", "ookabooka");
     grammar_control.list_clear("testlist");
-    grammar_control.list_append("testlist", "ookabooka");
+    grammar_control.list_append("testlist", "Visual Studio");
 
     for _ in 0..10 {
         match rx.recv().unwrap() {

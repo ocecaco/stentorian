@@ -74,6 +74,7 @@ pub enum EngineEvent {
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
+#[repr(u16)]
 pub enum MicrophoneState {
     Disabled = 0,
     Off = 1,
@@ -101,6 +102,25 @@ impl Engine {
             let result = self.engine_control.resume(cookie.into());
             assert_eq!(result.0, 0);
         }
+    }
+
+    pub fn microphone_set_state(&self, state: MicrophoneState) {
+        unsafe {
+            let result = self.engine_control.set_mic_state(state as u16, 0);
+            assert_eq!(result.0, 0);
+        }
+    }
+
+    pub fn microphone_get_state(&self) -> MicrophoneState {
+        let mut state = MicrophoneState::Off;
+
+        unsafe {
+            let ptr = &mut state as *mut MicrophoneState as *mut u16;
+            let result = self.engine_control.get_mic_state(ptr);
+            assert_eq!(result.0, 0);
+        }
+
+        state
     }
 
     pub fn register<T>(&self, flags: EngineSinkFlags, sender: Sender<T>) -> EngineRegistration
