@@ -5,11 +5,12 @@ use components::*;
 use interfaces::*;
 use self::interfaces::*;
 use std::ptr;
+use std::mem;
 use dragon::*;
 use grammar::Grammar;
 use self::enginesink::*;
 use self::grammarsink::*;
-use self::grammarsink::interfaces::{ISRGramCommon, ISRGramNotifySink};
+use self::grammarsink::interfaces::{ISRGramCommon, ISRGramNotifySink, ISRGramCFG};
 use self::grammarcompiler::compile_grammar;
 
 mod interfaces;
@@ -150,8 +151,12 @@ impl Engine {
         };
 
         let grammar_control = query_interface::<ISRGramCommon>(&grammar_control).unwrap();
+        let grammar_lists = query_interface::<ISRGramCFG>(&grammar_control).unwrap();
 
-        GrammarControl { grammar_control: grammar_control }
+        GrammarControl {
+            grammar_control: grammar_control,
+            grammar_lists: grammar_lists,
+        }
     }
 }
 
@@ -178,10 +183,11 @@ pub enum GrammarEvent {
 
 pub struct GrammarControl {
     grammar_control: ComPtr<ISRGramCommon>,
+    grammar_lists: ComPtr<ISRGramCFG>,
 }
 
 impl GrammarControl {
-    pub fn activate_rule(&self, name: &str) {
+    pub fn rule_activate(&self, name: &str) {
         unsafe {
             let result = self.grammar_control
                 .activate(ptr::null(), 0, BString::from(name).as_ref());
@@ -189,10 +195,58 @@ impl GrammarControl {
         }
     }
 
-    pub fn deactivate_rule(&self, name: &str) {
+    pub fn rule_deactivate(&self, name: &str) {
         unsafe {
             let result = self.grammar_control
                 .deactivate(BString::from(name).as_ref());
+            assert_eq!(result.0, 0);
+        }
+    }
+
+    pub fn list_append(&self, name: &str, word: &str) {
+        let name = BString::from(name);
+        let srword: SRWORD = word.into();
+
+        let data = SDATA {
+            data: &srword as *const SRWORD as *const u8,
+            size: mem::size_of::<SRWORD>() as u32,
+        };
+
+        unsafe {
+            let result = self.grammar_lists
+                .list_append(name.as_ref(), data);
+            assert_eq!(result.0, 0);
+        }
+    }
+
+    pub fn list_remove(&self, name: &str, word: &str) {
+        let name = BString::from(name);
+        let srword: SRWORD = word.into();
+
+        let data = SDATA {
+            data: &srword as *const SRWORD as *const u8,
+            size: mem::size_of::<SRWORD>() as u32,
+        };
+
+        unsafe {
+            let result = self.grammar_lists
+                .list_remove(name.as_ref(), data);
+            assert_eq!(result.0, 0);
+        }
+    }
+
+    pub fn list_clear(&self, name: &str) {
+        let name = BString::from(name);
+        let srword: SRWORD = "".into();
+
+        let data = SDATA {
+            data: &srword as *const SRWORD as *const u8,
+            size: mem::size_of::<SRWORD>() as u32,
+        };
+
+        unsafe {
+            let result = self.grammar_lists
+                .list_set(name.as_ref(), data);
             assert_eq!(result.0, 0);
         }
     }

@@ -1,4 +1,5 @@
 use components::*;
+use std::mem;
 
 type LANGID = u16;
 
@@ -100,6 +101,27 @@ pub struct SRWORD {
     pub size: u32,
     pub word_number: u32,
     pub buffer: [u16; 128],
+}
+
+impl<'a> From<&'a str> for SRWORD {
+    fn from(s: &'a str) -> SRWORD {
+        let mut word = SRWORD {
+            size: mem::size_of::<SRWORD>() as u32,
+            word_number: 0,
+            buffer: [0; 128],
+        };
+
+        {
+            let buf = &mut word.buffer;
+            let (_, init) = buf.split_last_mut().unwrap();
+
+            for (elem, encoded) in init.iter_mut().zip(s.encode_utf16()) {
+                *elem = encoded;
+            }
+        }
+
+        word
+    }
 }
 
 define_guid!(pub CLSID_DgnDictate = 0xdd100001,

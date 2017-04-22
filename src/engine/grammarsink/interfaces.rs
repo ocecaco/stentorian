@@ -117,3 +117,28 @@ com_interface! {
                          size_needed: *mut u32) -> HRESULT;
     }
 }
+
+define_guid!(IID_ISRGramCFG = 0xecc0b180,
+             0xc743,
+             0x11cd,
+             0x80,
+             0xe5,
+             0x0,
+             0xaa,
+             0x0,
+             0x3e,
+             0x4b,
+             0x50);
+
+com_interface! {
+    interface ISRGramCFG : IUnknown {
+        iid: IID_ISRGramCFG,
+        vtable: ISRGramCFGVtable,
+        fn link_query(list_name: BStr, result: *mut i32) -> HRESULT;
+        fn list_append(list_name: BStr, word: SDATA) -> HRESULT;
+        fn list_get(list_name: BStr, word: *mut SDATA) -> HRESULT;
+        fn list_remove(list_name: BStr, word: SDATA) -> HRESULT;
+        fn list_set(list_name: BStr, word: SDATA) -> HRESULT;
+        fn list_query(list_name: BStr, result: *mut i32) -> HRESULT;
+    }
+}

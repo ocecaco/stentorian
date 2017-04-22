@@ -35,16 +35,8 @@ fn make_test_grammar() -> Grammar {
             "name": "Mapping",
             "exported": true,
             "definition": {
-                    "type": "sequence",
-                    "children": [
-                        {"type": "word", "text": "hello"},
-                        {"type": "word", "text": "testing"},
-                        {"type": "alternative", "children": [
-                            {"type": "dictation_word"},
-                            {"type": "word", "text": "world"}
-                        ]},
-                        {"type": "word", "text": "soup"}
-                    ]
+                    "type": "list",
+                    "name": "testlist"
                 }
         }
     ]
@@ -80,7 +72,12 @@ fn test() {
     let grammar = make_test_grammar();
     let grammar_control = engine.grammar_load(SEND_PHRASE_FINISH, &grammar, tx);
 
-    grammar_control.activate_rule("Mapping");
+    grammar_control.rule_activate("Mapping");
+
+    grammar_control.list_append("testlist", "bazerong");
+    grammar_control.list_append("testlist", "ookabooka");
+    grammar_control.list_clear("testlist");
+    grammar_control.list_append("testlist", "ookabooka");
 
     for _ in 0..10 {
         match rx.recv().unwrap() {
