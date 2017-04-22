@@ -1,6 +1,4 @@
 use byteorder::{LittleEndian, WriteBytesExt};
-use encoding::{Encoding, EncoderTrap};
-use encoding::all::UTF_16LE;
 use std::mem;
 use grammar::*;
 use self::rulecompiler::*;
@@ -240,10 +238,18 @@ fn compile_id_chunk(entries: &[(u32, &str)]) -> Vec<u8> {
         }
     }
 
+    fn encode(s: &str) -> Vec<u8> {
+        let mut result = Vec::new();
+        for c in s.encode_utf16() {
+            result.write_u16::<LittleEndian>(c).unwrap();
+        }
+        result
+    }
+
     let mut chunk = Vec::new();
 
     for &(id, name) in entries.iter() {
-        let mut encoded = UTF_16LE.encode(name, EncoderTrap::Strict).unwrap();
+        let mut encoded = encode(name);
 
         // make sure word is terminated by at least *two* null bytes
         // after padding

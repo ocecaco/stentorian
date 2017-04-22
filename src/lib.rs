@@ -2,7 +2,6 @@
 #![allow(unused_variables)]
 
 extern crate byteorder;
-extern crate encoding;
 
 #[macro_use]
 extern crate bitflags;
@@ -92,7 +91,7 @@ fn test() -> Result<()> {
     grammar_control.list_clear("testlist")?;
     grammar_control.list_append("testlist", "Visual Studio")?;
 
-    for _ in 0..10 {
+    for _ in 0..100 {
         match rx.recv().unwrap() {
             Event::Engine(EngineEvent::Paused(cookie)) => {
                 println!("paused");
@@ -101,7 +100,10 @@ fn test() -> Result<()> {
             Event::Grammar(GrammarEvent::PhraseFinish(words)) => {
                 println!("{:?}", words);
             }
-            Event::Engine(EngineEvent::AttributeChanged(a)) => println!("{:?}", a),
+            Event::Engine(EngineEvent::AttributeChanged(a)) => {
+                println!("{:?}", a);
+                println!("{:?}", engine.microphone_get_state()?);
+            },
             _ => println!("something else"),
         }
     }
