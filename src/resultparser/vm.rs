@@ -88,13 +88,9 @@ impl<'a, 'c> Thread<'a, 'c> {
                     }
                 }
                 Instruction::GreedyRule(rule) => {
-                    loop {
-                        if let Some(&(_, id)) = self.string.get(self.string_pointer) {
-                            if id == rule {
-                                self.string_pointer += 1;
-                            } else {
-                                break;
-                            }
+                    while let Some(&(_, id)) = self.string.get(self.string_pointer) {
+                        if id == rule {
+                            self.string_pointer += 1;
                         } else {
                             break;
                         }

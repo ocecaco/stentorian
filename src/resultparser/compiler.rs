@@ -191,7 +191,8 @@ impl<'a> Compiler<'a> {
                 let target = JumpTarget::Symbolic(self.rule_name_to_label[name]);
                 self.emit(Instruction::RuleCall(target));
             }
-            Element::List { .. } => {
+            Element::List { .. } |
+            Element::DictationWord => {
                 self.emit(Instruction::AnyWord);
             }
             Element::Dictation => {
@@ -199,9 +200,6 @@ impl<'a> Compiler<'a> {
             }
             Element::SpellingLetter => {
                 self.emit(Instruction::GreedyRule(1000001));
-            }
-            Element::DictationWord => {
-                self.emit(Instruction::AnyWord);
             }
         }
     }
