@@ -43,6 +43,10 @@ impl<'a, 'c> Thread<'a, 'c> {
         }
     }
 
+    fn current_rule(&self) -> u32 {
+        *self.rule_stack.last().unwrap()
+    }
+
     fn run(mut self, threads: &mut Vec<Thread<'a, 'c>>) -> MatchResult<'a> {
         loop {
             let next = &self.instructions[self.program_pointer];
@@ -57,9 +61,9 @@ impl<'a, 'c> Thread<'a, 'c> {
                         return None;
                     }
 
-                    let (ref current_word, _id) = self.string[self.string_pointer];
+                    let (ref current_word, id) = self.string[self.string_pointer];
 
-                    if current_word == word {
+                    if current_word == word && self.current_rule() == id {
                         self.string_pointer += 1;
                     } else {
                         return None;
