@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 extern crate byteorder;
 
 #[macro_use]
@@ -15,7 +14,7 @@ extern crate components;
 #[macro_use]
 extern crate error_chain;
 
-mod errors {
+pub mod errors {
     error_chain! {
         links {
             Com(::components::errors::Error, ::components::errors::ErrorKind);
@@ -24,10 +23,11 @@ mod errors {
     }
 }
 
+pub mod engine;
+pub mod grammar;
+
 mod interfaces;
 mod dragon;
-mod engine;
-mod grammar;
 mod resultparser;
 mod grammarcompiler;
 

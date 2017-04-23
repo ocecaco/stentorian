@@ -35,6 +35,7 @@ pub struct SRMODEINFO {
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 #[allow(non_camel_case_types)]
+#[allow(dead_code)]
 pub enum SRGRMFMT {
     SRGRMFMT_CFG = 0x0000,
     SRGRMFMT_LIMITEDDOMAIN = 0x0001,
@@ -57,6 +58,7 @@ pub struct SDATA {
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 #[allow(non_camel_case_types)]
+#[allow(dead_code)]
 pub enum VOICEPARTOFSPEECH {
     VPS_UNKNOWN = 0,
     VPS_NOUN = 1,
