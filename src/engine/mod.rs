@@ -21,56 +21,34 @@ mod events;
 
 pub use self::enginesink::PauseCookie;
 
-bitflags! {
-    pub flags EngineSinkFlags: u32 {
-        const SEND_BEGIN_UTTERANCE = 0x01,
-        const SEND_END_UTTERANCE = 0x02,
-        const SEND_VU_METER = 0x04,
-        const SEND_ATTRIBUTE = 0x08,
-        const SEND_INTERFERENCE = 0x10,
-        const SEND_SOUND = 0x20,
-        const SEND_PAUSED = 0x40,
-        const SEND_ERROR = 0x80,
-        const SEND_PROGRESS = 0x100,
-        const SEND_MIMIC_DONE = 0x200,
+mod engine_flags {
+    bitflags! {
+        pub flags EngineSinkFlags: u32 {
+            const SEND_BEGIN_UTTERANCE = 0x01,
+            const SEND_END_UTTERANCE = 0x02,
+            const SEND_VU_METER = 0x04,
+            const SEND_ATTRIBUTE = 0x08,
+            const SEND_INTERFERENCE = 0x10,
+            const SEND_SOUND = 0x20,
+            const SEND_PAUSED = 0x40,
+            const SEND_ERROR = 0x80,
+            const SEND_PROGRESS = 0x100,
+            const SEND_MIMIC_DONE = 0x200,
+
+            const SEND_ALL = 0x3ff,
+        }
     }
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub enum Attribute {
-    AutoGainEnable,
-    Threshold,
-    Echo,
-    EnergyFloor,
-    Microphone,
-    RealTime,
-    Speaker,
-    Timeout,
-    StartListening,
-    StopListening,
-
     MicrophoneState,
-    Registry,
-    PlaybackDone,
-    Topic,
-    LexiconAdd,
-    LexiconRemove,
-
-    Unknown(u32),
 }
 
 #[derive(Debug)]
 pub enum EngineEvent {
     AttributeChanged(Attribute),
-    Interference,
-    Sound,
-    UtteranceBegin,
-    UtteranceEnd,
-    VuMeter,
     Paused(PauseCookie),
-    MimicDone,
-    ErrorHappened,
-    Progress,
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
@@ -124,12 +102,13 @@ impl Engine {
     }
 
     pub fn register<T>(&self,
-                       flags: EngineSinkFlags,
                        sender: Sender<T>)
                        -> Result<EngineRegistration>
         where T: From<EngineEvent> + Send + 'static
     {
-        let sink = EngineSink::create(flags, sender);
+        let sink = EngineSink::create(engine_flags::SEND_PAUSED |
+                                      engine_flags::SEND_ATTRIBUTE,
+                                      sender);
         let mut key = 0;
         let rc = unsafe {
             self.central
@@ -147,8 +126,8 @@ impl Engine {
     }
 
     pub fn grammar_load<T>(&self,
-                           flags: GrammarSinkFlags,
                            grammar: &Grammar,
+                           all_recognitions: bool,
                            sender: Sender<T>)
                            -> Result<GrammarControl>
         where T: From<GrammarEvent> + Send + 'static
@@ -159,6 +138,13 @@ impl Engine {
             size: compiled.len() as u32,
         };
         let mut raw_control = ptr::null();
+
+        let mut flags = grammar_flags::SEND_PHRASE_START
+            | grammar_flags::SEND_PHRASE_FINISH;
+
+        if all_recognitions {
+            flags |= grammar_flags::SEND_FOREIGN_FINISH;
+        }
 
         let sink = GrammarSink::create(flags, sender);
         let raw_sink = &sink as &IUnknown as *const _ as RawComPtr;
@@ -188,25 +174,29 @@ impl Engine {
     }
 }
 
-bitflags! {
-    pub flags GrammarSinkFlags: u32 {
-        const SEND_PHRASE_START = 0x1000,
-        const SEND_PHRASE_HYPOTHESIS = 0x2000,
-        const SEND_PHRASE_FINISH = 0x4000,
-        const SEND_FOREIGN_FINISH = 0x8000,
+mod grammar_flags {
+    bitflags! {
+        pub flags GrammarSinkFlags: u32 {
+            const SEND_PHRASE_START = 0x1000,
+            const SEND_PHRASE_HYPOTHESIS = 0x2000,
+            const SEND_PHRASE_FINISH = 0x4000,
+            const SEND_FOREIGN_FINISH = 0x8000,
+        }
     }
+}
+
+type Words = Box<[(String, u32)]>;
+
+#[derive(Debug)]
+pub struct Recognition {
+    pub foreign: bool,
+    pub words: Words,
 }
 
 #[derive(Debug)]
 pub enum GrammarEvent {
-    Bookmark,
-    Paused,
-    PhraseFinish(Box<[(String, u32)]>),
-    PhraseHypothesis,
+    PhraseFinish(Option<Recognition>),
     PhraseStart,
-    Reevaluate,
-    Training,
-    Unarchive,
 }
 
 pub struct GrammarControl {

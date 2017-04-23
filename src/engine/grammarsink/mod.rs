@@ -9,7 +9,8 @@ use components::refcount::*;
 use std::boxed::Box;
 use std::mem;
 use dragon::*;
-use super::{GrammarEvent, GrammarSinkFlags};
+use super::{GrammarEvent, Recognition};
+use super::grammar_flags::GrammarSinkFlags;
 use super::events::{EventSender, ConvertSender};
 
 use std::os::raw::c_void;
@@ -69,21 +70,93 @@ impl GrammarSink {
         result
     }
 
-    fn bookmark(&self, _x: u32) -> HRESULT {
-        self.events.send(GrammarEvent::Bookmark);
+    fn bookmark(&self, x: u32) -> HRESULT {
+        debug!("grammar event: bookmark {}", x);
         HRESULT(0)
     }
     fn paused(&self) -> HRESULT {
-        self.events.send(GrammarEvent::Paused);
+        debug!("grammar event: paused");
         HRESULT(0)
     }
+
     unsafe fn phrase_finish(&self,
-                            _flags: u32,
-                            _b: u64,
-                            _c: u64,
+                            flags: u32,
+                            b: u64,
+                            c: u64,
                             _phrase: *const c_void,
                             results: RawComPtr)
                             -> HRESULT {
+        debug!("grammar event: phrase_finish {} {} {}", flags, b, c);
+
+        const RECOGNIZED: u32 = 0x1;
+        const THIS_GRAMMAR: u32 = 0x2;
+
+        let reject = (flags & RECOGNIZED) == 0;
+        let foreign = (flags & THIS_GRAMMAR) == 0;
+
+        if reject {
+            let event = GrammarEvent::PhraseFinish(None);
+            self.events.send(event);
+        } else {
+            let words = retrieve_words(results);
+            let recognition = Recognition {
+                foreign: foreign,
+                words: words,
+            };
+            let event = GrammarEvent::PhraseFinish(Some(recognition));
+            self.events.send(event);
+        }
+
+        HRESULT(0)
+    }
+
+    fn phrase_hypothesis(&self,
+                         flags: u32,
+                         b: u64,
+                         c: u64,
+                         _phrase: *const c_void,
+                         _results: RawComPtr)
+                         -> HRESULT {
+        debug!("grammar event: phrase_hypothesis {} {} {}", flags, b, c);
+        HRESULT(0)
+    }
+
+    fn phrase_start(&self, a: u64) -> HRESULT {
+        debug!("grammar event: phrase_start {}", a);
+        self.events.send(GrammarEvent::PhraseStart);
+        HRESULT(0)
+    }
+
+    fn reevaluate(&self, _a: RawComPtr) -> HRESULT {
+        debug!("grammar event: reevaluate");
+        HRESULT(0)
+    }
+
+    fn training(&self, a: u32) -> HRESULT {
+        debug!("grammar event: training {}", a);
+        HRESULT(0)
+    }
+
+    fn unarchive(&self, _a: RawComPtr) -> HRESULT {
+        debug!("grammar event: unarchive");
+        HRESULT(0)
+    }
+
+    unsafe fn sink_flags_get(&self, flags: *mut u32) -> HRESULT {
+        debug!("grammar event: sink_flags_get");
+        *flags = self.flags.bits();
+        HRESULT(0)
+    }
+}
+
+fn string_from_slice(s: &[u16]) -> String {
+    String::from_utf16_lossy(&s.iter()
+                                  .cloned()
+                                  .take_while(|&x| x != 0)
+                                  .collect::<Vec<u16>>())
+}
+
+unsafe fn retrieve_words(results: RawComPtr) -> Box<[(String, u32)]> {
         let results = raw_to_comptr::<IUnknown>(results, false);
         let results = query_interface::<ISRResGraph>(&results).unwrap();
 
@@ -115,50 +188,8 @@ impl GrammarSink {
 
             words.push((string_from_slice(&word.buffer), word_node.dwCFGParse));
         }
-        let words = words.into_boxed_slice();
 
-        self.events.send(GrammarEvent::PhraseFinish(words));
-
-        HRESULT(0)
-    }
-    fn phrase_hypothesis(&self,
-                         _flags: u32,
-                         _b: u64,
-                         _c: u64,
-                         _phrase: *const c_void,
-                         _results: RawComPtr)
-                         -> HRESULT {
-        self.events.send(GrammarEvent::PhraseHypothesis);
-        HRESULT(0)
-    }
-    fn phrase_start(&self, _a: u64) -> HRESULT {
-        self.events.send(GrammarEvent::PhraseStart);
-        HRESULT(0)
-    }
-    fn reevaluate(&self, _a: RawComPtr) -> HRESULT {
-        self.events.send(GrammarEvent::Reevaluate);
-        HRESULT(0)
-    }
-    fn training(&self, _a: u32) -> HRESULT {
-        self.events.send(GrammarEvent::Training);
-        HRESULT(0)
-    }
-    fn unarchive(&self, _a: RawComPtr) -> HRESULT {
-        self.events.send(GrammarEvent::Unarchive);
-        HRESULT(0)
-    }
-
-    unsafe fn sink_flags_get(&self, flags: *mut u32) -> HRESULT {
-        *flags = self.flags.bits();
-        HRESULT(0)
-    }
-}
-
-fn string_from_slice(s: &[u16]) -> String {
-    String::from_utf16_lossy(&s.iter()
-                                  .cloned()
-                                  .take_while(|&x| x != 0)
-                                  .collect::<Vec<u16>>())
+        words.into_boxed_slice()
 }
 
 coclass! {

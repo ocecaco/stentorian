@@ -5,7 +5,8 @@ use components::refcount::*;
 use components::bstr::BStr;
 use super::interfaces::*;
 use interfaces::*;
-use super::{EngineEvent, EngineSinkFlags, Attribute};
+use super::{EngineEvent, Attribute};
+use super::engine_flags::EngineSinkFlags;
 use std::boxed::Box;
 use super::events::{EventSender, ConvertSender};
 
@@ -68,92 +69,82 @@ impl EngineSink {
     }
 
     fn attrib_changed(&self, a: u32) -> HRESULT {
-        self.events
-            .send(EngineEvent::AttributeChanged(convert_attribute(a)));
+        debug!("engine event: attrib_changed {}", a);
+        if let Some(attr) = convert_attribute(a) {
+            self.events.send(EngineEvent::AttributeChanged(attr));
+        }
         HRESULT(0)
     }
 
-    fn interference(&self, _a: u64, _b: u64, _c: u64) -> HRESULT {
-        self.events.send(EngineEvent::Interference);
+    fn interference(&self, a: u64, b: u64, c: u64) -> HRESULT {
+        debug!("engine event: interference {} {} {}", a, b, c);
         HRESULT(0)
     }
 
-    fn sound(&self, _a: u64, _b: u64) -> HRESULT {
-        self.events.send(EngineEvent::Sound);
+    fn sound(&self, a: u64, b: u64) -> HRESULT {
+        debug!("engine event: sound {} {}", a, b);
         HRESULT(0)
     }
 
-    fn utterance_begin(&self, _a: u64) -> HRESULT {
-        self.events.send(EngineEvent::UtteranceBegin);
+    fn utterance_begin(&self, a: u64) -> HRESULT {
+        debug!("engine event: utterance_begin {}", a);
         HRESULT(0)
     }
 
-    fn utterance_end(&self, _a: u64, _b: u64) -> HRESULT {
-        self.events.send(EngineEvent::UtteranceEnd);
+    fn utterance_end(&self, a: u64, b: u64) -> HRESULT {
+        debug!("engine event: utterance_end {} {}", a, b);
         HRESULT(0)
     }
 
-    fn vu_meter(&self, _a: u64, _b: u16) -> HRESULT {
-        self.events.send(EngineEvent::VuMeter);
+    fn vu_meter(&self, a: u64, b: u16) -> HRESULT {
+        debug!("engine event: vu_meter {} {}", a, b);
         HRESULT(0)
     }
 
 
     unsafe fn sink_flags_get(&self, flags: *mut u32) -> HRESULT {
+        debug!("engine event: sink_flags_get");
         *flags = self.flags.bits();
         HRESULT(0)
     }
 
 
     fn attrib_changed_2(&self, a: u32) -> HRESULT {
-        self.events
-            .send(EngineEvent::AttributeChanged(convert_attribute(a)));
+        debug!("engine event: attrib_changed_2 {}", a);
+        if let Some(attr) = convert_attribute(a) {
+            self.events.send(EngineEvent::AttributeChanged(attr));
+        }
         HRESULT(0)
     }
 
     unsafe fn paused(&self, cookie: u64) -> HRESULT {
+        debug!("engine event: paused {}", cookie);
         self.events
             .send(EngineEvent::Paused(PauseCookie(cookie)));
         HRESULT(0)
     }
 
-    fn mimic_done(&self, _x: u32, _p: RawComPtr) -> HRESULT {
-        self.events.send(EngineEvent::MimicDone);
+    fn mimic_done(&self, x: u32, _p: RawComPtr) -> HRESULT {
+        debug!("engine event: mimic_done {}", x);
         HRESULT(0)
     }
 
     fn error_happened(&self, _p: RawComPtr) -> HRESULT {
-        self.events.send(EngineEvent::ErrorHappened);
+        debug!("engine event: error_happened");
         HRESULT(0)
     }
 
-    fn progress(&self, _x: u32, _s: BStr) -> HRESULT {
-        self.events.send(EngineEvent::Progress);
+    fn progress(&self, x: u32, _s: BStr) -> HRESULT {
+        debug!("engine event: progress {}", x);
         HRESULT(0)
     }
 }
 
-fn convert_attribute(a: u32) -> Attribute {
-    match a {
-        1 => Attribute::AutoGainEnable,
-        2 => Attribute::Threshold,
-        3 => Attribute::Echo,
-        4 => Attribute::EnergyFloor,
-        5 => Attribute::Microphone,
-        6 => Attribute::RealTime,
-        7 => Attribute::Speaker,
-        8 => Attribute::Timeout,
-        9 => Attribute::StartListening,
-        10 => Attribute::StopListening,
-
-        1001 => Attribute::MicrophoneState,
-        1002 => Attribute::Registry,
-        1003 => Attribute::PlaybackDone,
-        1004 => Attribute::Topic,
-        1005 => Attribute::LexiconAdd,
-        1006 => Attribute::LexiconRemove,
-
-        x => Attribute::Unknown(x),
+fn convert_attribute(a: u32) -> Option<Attribute> {
+    if a == 1001 {
+        Some(Attribute::MicrophoneState)
+    } else {
+        None
     }
 }
 

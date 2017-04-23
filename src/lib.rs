@@ -9,6 +9,10 @@ extern crate serde;
 extern crate serde_json;
 
 #[macro_use]
+extern crate log;
+extern crate env_logger;
+
+#[macro_use]
 extern crate components;
 
 #[macro_use]
@@ -88,17 +92,16 @@ impl From<GrammarEvent> for Event {
 }
 
 fn test() -> Result<()> {
+    env_logger::init().unwrap();
+
     let _com = unsafe { com_initialize()? };
 
     let engine = Engine::connect()?;
     let (tx, rx) = mpsc::channel();
-    let _registration = engine
-        .register(SEND_PAUSED | SEND_ATTRIBUTE, tx.clone())?;
+    let _registration = engine.register(tx.clone())?;
 
     let grammar = make_test_grammar();
-    let grammar_control =
-        engine
-            .grammar_load(SEND_PHRASE_FINISH | SEND_FOREIGN_FINISH, &grammar, tx)?;
+    let grammar_control = engine.grammar_load(&grammar, true, tx)?;
     let matcher = Matcher::new(&grammar);
 
     grammar_control.rule_activate("Mapping")?;
@@ -109,15 +112,22 @@ fn test() -> Result<()> {
                 println!("paused");
                 engine.resume(cookie)?;
             }
-            Event::Grammar(GrammarEvent::PhraseFinish(words)) => {
-                println!("{:?}", words);
-                println!("{:?}", matcher.perform_match(&words));
+            Event::Grammar(GrammarEvent::PhraseStart) => {
+                println!("phrase start");
             }
-            Event::Engine(EngineEvent::AttributeChanged(a)) => {
-                println!("{:?}", a);
+            Event::Grammar(GrammarEvent::PhraseFinish(result)) => {
+                if let Some(recognition) = result {
+                    println!("{:?}", recognition.words);
+                    if !recognition.foreign {
+                        println!("{:?}", matcher.perform_match(&recognition.words));
+                    }
+                } else {
+                    println!("recognition failed");
+                }
+            }
+            Event::Engine(EngineEvent::AttributeChanged(Attribute::MicrophoneState)) => {
                 println!("{:?}", engine.microphone_get_state()?);
             }
-            _ => println!("something else"),
         }
     }
 
