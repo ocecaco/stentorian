@@ -100,10 +100,7 @@ impl<'a> Compiler<'a> {
         self.instructions
     }
 
-    fn compile_single_rule(&mut self,
-                           rule_id: u32,
-                           rule: &'a Rule,
-                           start_label: LabelName) {
+    fn compile_single_rule(&mut self, rule_id: u32, rule: &'a Rule, start_label: LabelName) {
         self.emit(Instruction::Label(start_label));
         self.emit(Instruction::RuleEntry(rule_id));
         self.compile_element(&rule.definition);

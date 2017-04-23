@@ -107,9 +107,9 @@ impl<'a, 'c> Thread<'a, 'c> {
                             .collect();
 
                         return Some(Match {
-                            top_level_rule: current_rule,
-                            captures: completed_captures,
-                        });
+                                        top_level_rule: current_rule,
+                                        captures: completed_captures,
+                                    });
                     } else {
                         return None;
                     }
@@ -119,8 +119,10 @@ impl<'a, 'c> Thread<'a, 'c> {
                         .insert(name, Capture::Started(self.string_pointer));
                 }
                 Instruction::CaptureStop(ref name) => {
-                    let c = *self.captures.get::<str>(name)
-                        .expect(&format!("capture {} stopped without being started", name));
+                    let c = *self.captures
+                                 .get::<str>(name)
+                                 .expect(&format!("capture {} stopped without being started",
+                                                  name));
                     if let Capture::Started(start) = c {
                         self.captures
                             .insert(name, Capture::Complete(start, self.string_pointer));

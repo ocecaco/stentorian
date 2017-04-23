@@ -127,9 +127,7 @@ impl<'a> GrammarCompiler<'a> {
 
     fn declare_rule(&mut self, id: RuleId, name: &'a str) -> Result<()> {
         match self.rule_name_to_id.entry(name) {
-            Entry::Occupied(_) => {
-                Err(ErrorKind::DuplicateRule(name.to_string()).into())
-            }
+            Entry::Occupied(_) => Err(ErrorKind::DuplicateRule(name.to_string()).into()),
             Entry::Vacant(entry) => {
                 entry.insert(id);
                 Ok(())
@@ -146,7 +144,7 @@ impl<'a> GrammarCompiler<'a> {
                 entry.insert(id);
                 self.imported_rules.push((id, rule.name()));
                 id
-            },
+            }
         }
     }
 
@@ -182,7 +180,8 @@ impl<'a> GrammarCompiler<'a> {
             }
             Element::RuleRef { ref name } => {
                 let maybe_id = self.rule_name_to_id.get::<str>(name);
-                let result = maybe_id.ok_or_else(|| ErrorKind::UnknownRule(name.clone()))?;
+                let result = maybe_id
+                    .ok_or_else(|| ErrorKind::UnknownRule(name.clone()))?;
                 output.push(RuleToken::Rule(*result));
             }
             Element::List { ref name } => {

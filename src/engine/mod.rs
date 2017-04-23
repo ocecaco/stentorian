@@ -56,7 +56,7 @@ pub enum Attribute {
     LexiconAdd,
     LexiconRemove,
 
-    Unknown(u32)
+    Unknown(u32),
 }
 
 #[derive(Debug)]
@@ -92,24 +92,20 @@ impl Engine {
         let central = get_central()?;
         let engine_control = query_interface::<IDgnSREngineControl>(&central)?;
         Ok(Engine {
-            central: central,
-            engine_control: engine_control,
-        })
+               central: central,
+               engine_control: engine_control,
+           })
     }
 
     pub fn resume(&self, cookie: PauseCookie) -> Result<()> {
-        let rc = unsafe {
-            self.engine_control.resume(cookie.into())
-        };
+        let rc = unsafe { self.engine_control.resume(cookie.into()) };
 
         try!(rc.result());
         Ok(())
     }
 
     pub fn microphone_set_state(&self, state: MicrophoneState) -> Result<()> {
-        let rc = unsafe {
-            self.engine_control.set_mic_state(state as u16, 0)
-        };
+        let rc = unsafe { self.engine_control.set_mic_state(state as u16, 0) };
 
         try!(rc.result());
         Ok(())
@@ -127,23 +123,27 @@ impl Engine {
         Ok(state)
     }
 
-    pub fn register<T>(&self, flags: EngineSinkFlags, sender: Sender<T>) -> Result<EngineRegistration>
+    pub fn register<T>(&self,
+                       flags: EngineSinkFlags,
+                       sender: Sender<T>)
+                       -> Result<EngineRegistration>
         where T: From<EngineEvent> + Send + 'static
     {
         let sink = EngineSink::create(flags, sender);
         let mut key = 0;
         let rc = unsafe {
-             self.central.register(&sink as &IUnknown as *const _ as RawComPtr,
-                                   IDgnSREngineNotifySink::iid(),
-                                   &mut key)
+            self.central
+                .register(&sink as &IUnknown as *const _ as RawComPtr,
+                          IDgnSREngineNotifySink::iid(),
+                          &mut key)
         };
 
         try!(rc.result());
 
         Ok(EngineRegistration {
-            central: self.central.clone(),
-            register_key: key,
-        })
+               central: self.central.clone(),
+               register_key: key,
+           })
     }
 
     pub fn grammar_load<T>(&self,
@@ -164,18 +164,17 @@ impl Engine {
         let raw_sink = &sink as &IUnknown as *const _ as RawComPtr;
 
         let rc = unsafe {
-            self.central.grammar_load(SRGRMFMT::SRGRMFMT_CFG,
-                                      data,
-                                      raw_sink,
-                                      ISRGramNotifySink::iid(),
-                                      &mut raw_control)
+            self.central
+                .grammar_load(SRGRMFMT::SRGRMFMT_CFG,
+                              data,
+                              raw_sink,
+                              ISRGramNotifySink::iid(),
+                              &mut raw_control)
         };
 
         try!(rc.result());
 
-        let grammar_control = unsafe {
-            raw_to_comptr::<IUnknown>(raw_control, true)
-        };
+        let grammar_control = unsafe { raw_to_comptr::<IUnknown>(raw_control, true) };
 
         let grammar_control = query_interface::<ISRGramCommon>(&grammar_control)?;
         let grammar_lists = query_interface::<ISRGramCFG>(&grammar_control)?;
@@ -218,7 +217,8 @@ pub struct GrammarControl {
 impl GrammarControl {
     pub fn rule_activate(&self, name: &str) -> Result<()> {
         let rc = unsafe {
-            self.grammar_control.activate(ptr::null(), 0, BString::from(name).as_ref())
+            self.grammar_control
+                .activate(ptr::null(), 0, BString::from(name).as_ref())
         };
 
         try!(rc.result());
@@ -227,7 +227,8 @@ impl GrammarControl {
 
     pub fn rule_deactivate(&self, name: &str) -> Result<()> {
         let rc = unsafe {
-            self.grammar_control.deactivate(BString::from(name).as_ref())
+            self.grammar_control
+                .deactivate(BString::from(name).as_ref())
         };
 
         try!(rc.result());
@@ -243,9 +244,7 @@ impl GrammarControl {
             size: mem::size_of::<SRWORD>() as u32,
         };
 
-        let rc = unsafe {
-            self.grammar_lists.list_append(name.as_ref(), data)
-        };
+        let rc = unsafe { self.grammar_lists.list_append(name.as_ref(), data) };
 
         try!(rc.result());
         Ok(())
@@ -260,9 +259,7 @@ impl GrammarControl {
             size: mem::size_of::<SRWORD>() as u32,
         };
 
-        let rc = unsafe {
-            self.grammar_lists.list_remove(name.as_ref(), data)
-        };
+        let rc = unsafe { self.grammar_lists.list_remove(name.as_ref(), data) };
 
         try!(rc.result());
         Ok(())
@@ -277,9 +274,7 @@ impl GrammarControl {
             size: mem::size_of::<SRWORD>() as u32,
         };
 
-        let rc = unsafe {
-            self.grammar_lists.list_set(name.as_ref(), data)
-        };
+        let rc = unsafe { self.grammar_lists.list_set(name.as_ref(), data) };
 
         try!(rc.result());
         Ok(())

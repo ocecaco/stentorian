@@ -68,7 +68,8 @@ impl EngineSink {
     }
 
     fn attrib_changed(&self, a: u32) -> HRESULT {
-        self.events.send(EngineEvent::AttributeChanged(convert_attribute(a)));
+        self.events
+            .send(EngineEvent::AttributeChanged(convert_attribute(a)));
         HRESULT(0)
     }
 
@@ -105,7 +106,8 @@ impl EngineSink {
 
 
     fn attrib_changed_2(&self, a: u32) -> HRESULT {
-        self.events.send(EngineEvent::AttributeChanged(convert_attribute(a)));
+        self.events
+            .send(EngineEvent::AttributeChanged(convert_attribute(a)));
         HRESULT(0)
     }
 
@@ -151,7 +153,7 @@ fn convert_attribute(a: u32) -> Attribute {
         1005 => Attribute::LexiconAdd,
         1006 => Attribute::LexiconRemove,
 
-        x => Attribute::Unknown(x)
+        x => Attribute::Unknown(x),
     }
 }
 

@@ -92,10 +92,13 @@ fn test() -> Result<()> {
 
     let engine = Engine::connect()?;
     let (tx, rx) = mpsc::channel();
-    let _registration = engine.register(SEND_PAUSED | SEND_ATTRIBUTE, tx.clone())?;
+    let _registration = engine
+        .register(SEND_PAUSED | SEND_ATTRIBUTE, tx.clone())?;
 
     let grammar = make_test_grammar();
-    let grammar_control = engine.grammar_load(SEND_PHRASE_FINISH | SEND_FOREIGN_FINISH, &grammar, tx)?;
+    let grammar_control =
+        engine
+            .grammar_load(SEND_PHRASE_FINISH | SEND_FOREIGN_FINISH, &grammar, tx)?;
     let matcher = Matcher::new(&grammar);
 
     grammar_control.rule_activate("Mapping")?;
@@ -113,7 +116,7 @@ fn test() -> Result<()> {
             Event::Engine(EngineEvent::AttributeChanged(a)) => {
                 println!("{:?}", a);
                 println!("{:?}", engine.microphone_get_state()?);
-            },
+            }
             _ => println!("something else"),
         }
     }
