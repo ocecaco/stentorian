@@ -1,8 +1,11 @@
 use byteorder::{LittleEndian, WriteBytesExt};
 use std::mem;
 use grammar::*;
-use self::rulecompiler::*;
 use self::errors::*;
+use self::ruletoken::*;
+use self::intern::*;
+use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 pub use self::ruletoken::RuleId;
 
 mod intern;
@@ -12,236 +15,214 @@ pub mod errors {
     error_chain! {
         errors {
             UnknownRule(name: String) {
-                description("unknown rule in grammar definition")
-                display("unknown rule in grammar definition: {}", name)
+                description("unknown rule name in grammar definition")
+                    display("unknown rule name in grammar definition: {}", name)
             }
 
             DuplicateRule(name: String) {
-                description("duplicate rule in grammar definition")
-                display("duplicate rule in grammar definition: {}", name)
+                description("duplicate rule name in grammar definition")
+                    display("duplicate rule name in grammar definition: {}", name)
+            }
+
+            ReservedRule(name: String) {
+                description("reserved rule name in grammar definition")
+                    display("reserved rule name in grammar definition: {}", name)
             }
         }
     }
 }
 
-mod rulecompiler {
-    use super::ruletoken::*;
-    use super::intern::*;
-    use grammar::*;
-    use byteorder::{LittleEndian, WriteBytesExt};
-    use std::collections::HashMap;
-    use std::collections::hash_map::Entry;
-    use super::errors::*;
+pub fn compile_grammar(grammar: &Grammar) -> Result<Vec<u8>> {
+    let compiler = GrammarCompiler::new(grammar);
+    compiler.compile_grammar()
+}
 
-    type IdNamePairs<'a> = Vec<(u32, &'a str)>;
+pub enum ImportedRule {
+    Dictation,
+    DictationWord,
+    SpellingLetter,
+}
 
-    pub struct CompilerResult<'a> {
-        pub imported_rules: IdNamePairs<'a>,
-        pub exported_rules: IdNamePairs<'a>,
-        pub rule_name_to_id: HashMap<&'a str, RuleId>,
-        pub words: IdNamePairs<'a>,
-        pub lists: IdNamePairs<'a>,
-    }
-
-    pub struct RuleCompiler<'a> {
-        rule_counter: RuleId,
-        imported_rules: IdNamePairs<'a>,
-        exported_rules: IdNamePairs<'a>,
-        rule_name_to_id: HashMap<&'a str, RuleId>,
-        words: Interner<'a>,
-        lists: Interner<'a>,
-    }
-
-    impl<'a> RuleCompiler<'a> {
-        pub fn new() -> Self {
-            RuleCompiler {
-                rule_counter: 0,
-                imported_rules: Vec::new(),
-                exported_rules: Vec::new(),
-                rule_name_to_id: HashMap::new(),
-                words: Interner::new(),
-                lists: Interner::new(),
-            }
-        }
-
-        pub fn done(self) -> CompilerResult<'a> {
-            CompilerResult {
-                imported_rules: self.imported_rules,
-                exported_rules: self.exported_rules,
-                rule_name_to_id: self.rule_name_to_id,
-                words: self.words.done(),
-                lists: self.lists.done(),
-            }
-        }
-
-        pub fn compile_rule(&mut self, rule: &'a Rule) -> Result<(RuleId, Vec<u8>)> {
-            let mut tokens = Vec::new();
-            self.compile_element(&rule.definition, &mut tokens)?;
-            let result = serialize_rule_tokens(&tokens);
-
-            let id = self.declare_rule(&rule.name)?;
-            if rule.exported {
-                self.exported_rules.push((id, &rule.name));
-            }
-
-            Ok((id, result))
-        }
-
-        fn declare_rule(&mut self, name: &'a str) -> Result<RuleId> {
-            match self.rule_name_to_id.entry(name) {
-                Entry::Occupied(_) => {
-                    Err(ErrorKind::DuplicateRule(name.to_string()).into())
-                }
-                Entry::Vacant(entry) => {
-                    self.rule_counter += 1;
-                    let id = self.rule_counter;
-
-                    entry.insert(id);
-                    Ok(id)
-                }
-            }
-        }
-
-        fn add_imported_rule(&mut self, name: &'static str) -> RuleId {
-            match self.rule_name_to_id.entry(name) {
-                Entry::Occupied(entry) => *entry.get(),
-                Entry::Vacant(entry) => {
-                    self.rule_counter += 1;
-                    let id = self.rule_counter;
-
-                    entry.insert(id);
-                    self.imported_rules.push((id, name));
-                    id
-                },
-            }
-        }
-
-        fn compile_element(&mut self, element: &'a Element, output: &mut Vec<RuleToken>) -> Result<()> {
-            match *element {
-                Element::Sequence { ref children } => {
-                    output.push(SEQUENCE_START);
-                    for c in children.iter() {
-                        self.compile_element(c, output)?;
-                    }
-                    output.push(SEQUENCE_END);
-                }
-                Element::Alternative { ref children } => {
-                    output.push(ALTERNATIVE_START);
-                    for c in children.iter() {
-                        self.compile_element(c, output)?;
-                    }
-                    output.push(ALTERNATIVE_END);
-                }
-                Element::Repetition { ref child } => {
-                    output.push(REPETITION_START);
-                    self.compile_element(child, output)?;
-                    output.push(REPETITION_END);
-                }
-                Element::Optional { ref child } => {
-                    output.push(OPTIONAL_START);
-                    self.compile_element(child, output)?;
-                    output.push(OPTIONAL_END);
-                }
-                Element::Word { ref text } => {
-                    let id = self.words.intern(text);
-                    output.push(RuleToken::Word(id));
-                }
-                Element::RuleRef { ref name } => {
-                    let maybe_id = self.rule_name_to_id.get::<str>(name);
-                    let result = maybe_id.ok_or_else(|| ErrorKind::UnknownRule(name.clone()))?;
-                    output.push(RuleToken::Rule(*result));
-                }
-                Element::List { ref name } => {
-                    let id = self.lists.intern(name);
-                    output.push(RuleToken::List(id));
-                }
-                Element::Capture { ref child, .. } => {
-                    self.compile_element(child, output)?;
-                }
-                Element::Dictation => {
-                    let id = self.add_imported_rule("dgndictation");
-                    output.push(RuleToken::Rule(id));
-                }
-                Element::DictationWord => {
-                    let id = self.add_imported_rule("dgnwords");
-                    output.push(RuleToken::Rule(id));
-                }
-                Element::SpellingLetter => {
-                    let id = self.add_imported_rule("dgnletters");
-                    output.push(RuleToken::Rule(id));
-                }
-            };
-
-            Ok(())
+impl ImportedRule {
+    fn name(&self) -> &'static str {
+        match *self {
+            ImportedRule::Dictation => "dgndictation",
+            ImportedRule::DictationWord => "dgnwords",
+            ImportedRule::SpellingLetter => "dgnletters",
         }
     }
 
-    fn serialize_rule_tokens(tokens: &[RuleToken]) -> Vec<u8> {
-        let mut result = Vec::new();
-
-        for t in tokens.iter() {
-            let (a, b) = t.convert();
-            let probability = 0u16;
-
-            result.write_u16::<LittleEndian>(a).unwrap();
-            result.write_u16::<LittleEndian>(probability).unwrap();
-            result.write_u32::<LittleEndian>(b).unwrap();
+    pub fn offset(&self) -> u32 {
+        match *self {
+            ImportedRule::Dictation => 1,
+            ImportedRule::DictationWord => 2,
+            ImportedRule::SpellingLetter => 3,
         }
-
-        result
     }
 }
 
-pub struct GrammarRuleIds {
-    pub rule_ids: Vec<RuleId>,
-    pub dictation: Option<RuleId>,
-    pub dictation_word: Option<RuleId>,
-    pub spelling_letter: Option<RuleId>,
+type IdNamePairs<'a> = Vec<(u32, &'a str)>;
+
+struct GrammarCompiler<'a> {
+    imported_rules: IdNamePairs<'a>,
+    exported_rules: IdNamePairs<'a>,
+    rule_name_to_id: HashMap<&'a str, RuleId>,
+    words: Interner<'a>,
+    lists: Interner<'a>,
+    grammar: &'a Grammar,
 }
 
-pub fn compile_grammar(grammar: &Grammar) -> Result<(Vec<u8>, GrammarRuleIds)> {
-    let mut compiler = RuleCompiler::new();
-
-    let mut rule_ids = Vec::new();
-    let mut rule_chunk = Vec::new();
-    for r in grammar.rules.iter() {
-        let (id, compiled) = compiler.compile_rule(r)?;
-        write_entry(&mut rule_chunk, id, compiled);
-        rule_ids.push(id);
+impl<'a> GrammarCompiler<'a> {
+    fn new(grammar: &'a Grammar) -> Self {
+        GrammarCompiler {
+            imported_rules: Vec::new(),
+            exported_rules: Vec::new(),
+            rule_name_to_id: HashMap::new(),
+            words: Interner::new(),
+            lists: Interner::new(),
+            grammar: grammar,
+        }
     }
-    let rule_chunk = rule_chunk;
 
-    let compile_result = compiler.done();
+    fn compile_grammar(mut self) -> Result<Vec<u8>> {
+        let mut rule_chunk = Vec::new();
+        for (id, r) in (1u32..).zip(self.grammar.rules.iter()) {
+            let compiled = self.compile_rule(id, r)?;
+            write_entry(&mut rule_chunk, id, compiled);
+        }
+        let rule_chunk = rule_chunk;
 
-    let word_chunk = compile_id_chunk(&compile_result.words);
-    let list_chunk = compile_id_chunk(&compile_result.lists);
+        let words = self.words.done();
+        let word_chunk = compile_id_chunk(&words);
+        let lists = self.lists.done();
+        let list_chunk = compile_id_chunk(&lists);
 
-    let export_chunk = compile_id_chunk(&compile_result.exported_rules);
-    let import_chunk = compile_id_chunk(&compile_result.imported_rules);
+        let export_chunk = compile_id_chunk(&self.exported_rules);
+        let import_chunk = compile_id_chunk(&self.imported_rules);
 
-    let mut output = Vec::new();
-    output.write_u32::<LittleEndian>(0).unwrap();
-    output.write_u32::<LittleEndian>(1).unwrap();
-    write_chunk(&mut output, ChunkType::Exports, export_chunk);
-    write_chunk(&mut output, ChunkType::Imports, import_chunk);
-    write_chunk(&mut output, ChunkType::Lists, list_chunk);
-    write_chunk(&mut output, ChunkType::Words, word_chunk);
-    write_chunk(&mut output, ChunkType::Rules, rule_chunk);
+        let mut output = Vec::new();
+        output.write_u32::<LittleEndian>(0).unwrap();
+        output.write_u32::<LittleEndian>(1).unwrap();
+        write_chunk(&mut output, ChunkType::Exports, export_chunk);
+        write_chunk(&mut output, ChunkType::Imports, import_chunk);
+        write_chunk(&mut output, ChunkType::Lists, list_chunk);
+        write_chunk(&mut output, ChunkType::Words, word_chunk);
+        write_chunk(&mut output, ChunkType::Rules, rule_chunk);
 
-    let ids = GrammarRuleIds {
-        rule_ids: rule_ids,
-        dictation: compile_result .rule_name_to_id
-            .get("dgndictation")
-            .map(|x| *x),
-        dictation_word: compile_result.rule_name_to_id
-            .get("dgnwords")
-            .map(|x| *x),
-        spelling_letter: compile_result.rule_name_to_id
-            .get("dgnletters")
-            .map(|x| *x),
-    };
+        Ok(output)
+    }
 
-    Ok((output, ids))
+    fn compile_rule(&mut self, id: RuleId, rule: &'a Rule) -> Result<Vec<u8>> {
+        let mut tokens = Vec::new();
+        self.compile_element(&rule.definition, &mut tokens)?;
+        let result = serialize_rule_tokens(&tokens);
+
+        self.declare_rule(id, &rule.name)?;
+        if rule.exported {
+            self.exported_rules.push((id, &rule.name));
+        }
+
+        Ok(result)
+    }
+
+    fn declare_rule(&mut self, id: RuleId, name: &'a str) -> Result<()> {
+        match self.rule_name_to_id.entry(name) {
+            Entry::Occupied(_) => {
+                Err(ErrorKind::DuplicateRule(name.to_string()).into())
+            }
+            Entry::Vacant(entry) => {
+                entry.insert(id);
+                Ok(())
+            }
+        }
+    }
+
+    fn add_imported_rule(&mut self, rule: ImportedRule) -> RuleId {
+        match self.rule_name_to_id.entry(rule.name()) {
+            Entry::Occupied(entry) => *entry.get(),
+            Entry::Vacant(entry) => {
+                let id = self.grammar.rules.len() as u32 + rule.offset();
+
+                entry.insert(id);
+                self.imported_rules.push((id, rule.name()));
+                id
+            },
+        }
+    }
+
+    fn compile_element(&mut self, element: &'a Element, output: &mut Vec<RuleToken>) -> Result<()> {
+        match *element {
+            Element::Sequence { ref children } => {
+                output.push(SEQUENCE_START);
+                for c in children.iter() {
+                    self.compile_element(c, output)?;
+                }
+                output.push(SEQUENCE_END);
+            }
+            Element::Alternative { ref children } => {
+                output.push(ALTERNATIVE_START);
+                for c in children.iter() {
+                    self.compile_element(c, output)?;
+                }
+                output.push(ALTERNATIVE_END);
+            }
+            Element::Repetition { ref child } => {
+                output.push(REPETITION_START);
+                self.compile_element(child, output)?;
+                output.push(REPETITION_END);
+            }
+            Element::Optional { ref child } => {
+                output.push(OPTIONAL_START);
+                self.compile_element(child, output)?;
+                output.push(OPTIONAL_END);
+            }
+            Element::Word { ref text } => {
+                let id = self.words.intern(text);
+                output.push(RuleToken::Word(id));
+            }
+            Element::RuleRef { ref name } => {
+                let maybe_id = self.rule_name_to_id.get::<str>(name);
+                let result = maybe_id.ok_or_else(|| ErrorKind::UnknownRule(name.clone()))?;
+                output.push(RuleToken::Rule(*result));
+            }
+            Element::List { ref name } => {
+                let id = self.lists.intern(name);
+                output.push(RuleToken::List(id));
+            }
+            Element::Capture { ref child, .. } => {
+                self.compile_element(child, output)?;
+            }
+            Element::Dictation => {
+                let id = self.add_imported_rule(ImportedRule::Dictation);
+                output.push(RuleToken::Rule(id));
+            }
+            Element::DictationWord => {
+                let id = self.add_imported_rule(ImportedRule::DictationWord);
+                output.push(RuleToken::Rule(id));
+            }
+            Element::SpellingLetter => {
+                let id = self.add_imported_rule(ImportedRule::SpellingLetter);
+                output.push(RuleToken::Rule(id));
+            }
+        };
+
+        Ok(())
+    }
+}
+
+fn serialize_rule_tokens(tokens: &[RuleToken]) -> Vec<u8> {
+    let mut result = Vec::new();
+
+    for t in tokens.iter() {
+        let (a, b) = t.convert();
+        let probability = 0u16;
+
+        result.write_u16::<LittleEndian>(a).unwrap();
+        result.write_u16::<LittleEndian>(probability).unwrap();
+        result.write_u32::<LittleEndian>(b).unwrap();
+    }
+
+    result
 }
 
 #[derive(Debug, Copy, Clone)]

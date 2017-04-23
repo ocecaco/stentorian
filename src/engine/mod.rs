@@ -11,7 +11,7 @@ use grammar::Grammar;
 use self::enginesink::*;
 use self::grammarsink::*;
 use self::grammarsink::interfaces::{ISRGramCommon, ISRGramNotifySink, ISRGramCFG};
-use grammarcompiler::{GrammarRuleIds, compile_grammar};
+use grammarcompiler::compile_grammar;
 use errors::*;
 
 mod interfaces;
@@ -150,10 +150,10 @@ impl Engine {
                            flags: GrammarSinkFlags,
                            grammar: &Grammar,
                            sender: Sender<T>)
-                           -> Result<(GrammarControl, GrammarRuleIds)>
+                           -> Result<GrammarControl>
         where T: From<GrammarEvent> + Send + 'static
     {
-        let (compiled, ids) = compile_grammar(grammar)?;
+        let compiled = compile_grammar(grammar)?;
         let data = SDATA {
             data: compiled.as_ptr(),
             size: compiled.len() as u32,
@@ -185,7 +185,7 @@ impl Engine {
             grammar_lists: grammar_lists,
         };
 
-        Ok((control, ids))
+        Ok(control)
     }
 }
 

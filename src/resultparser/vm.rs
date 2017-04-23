@@ -1,18 +1,29 @@
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use super::Match;
 use super::instructions::*;
 
-pub fn perform_match<'a, 'c>(program: &'a [Instruction],
-                                     string: &'c [(String, u32)])
-                                     -> MatchResult<'a> {
-    let vm = Vm::new(program, string);
+pub fn perform_match<'a, 'c>(instructions: &'a [Instruction],
+                             string: &'c [(String, u32)])
+                             -> Option<Match<'a>> {
+    let vm = Vm::new(instructions, string);
     vm.perform_match()
 }
 
 #[derive(Debug, Copy, Clone)]
-pub enum Capture {
+enum Capture {
     Started(usize),
     Complete(usize, usize),
+}
+
+impl Capture {
+    fn completed(&self) -> (usize, usize) {
+        if let Capture::Complete(a, b) = *self {
+            (a, b)
+        } else {
+            panic!("attempt to unwrap incomplete capture");
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -26,8 +37,6 @@ struct Thread<'a, 'c> {
     captures: HashMap<&'a str, Capture>,
     progress: HashMap<usize, usize>,
 }
-
-pub type MatchResult<'a> = Option<(u32, HashMap<&'a str, Capture>)>;
 
 impl<'a, 'c> Thread<'a, 'c> {
     fn new(instructions: &'a [Instruction], string: &'c [(String, u32)]) -> Self {
@@ -47,7 +56,7 @@ impl<'a, 'c> Thread<'a, 'c> {
         *self.rule_stack.last().unwrap()
     }
 
-    fn run(mut self, threads: &mut Vec<Thread<'a, 'c>>) -> MatchResult<'a> {
+    fn run(mut self, threads: &mut Vec<Thread<'a, 'c>>) -> Option<Match<'a>> {
         loop {
             let next = &self.instructions[self.program_pointer];
             self.program_pointer += 1;
@@ -56,17 +65,39 @@ impl<'a, 'c> Thread<'a, 'c> {
                 Instruction::RuleEntry(id) => {
                     self.rule_stack.push(id);
                 }
-                Instruction::Literal(ref word) => {
-                    if self.string_pointer >= self.string.len() {
-                        return None;
-                    }
-
-                    let (ref current_word, id) = self.string[self.string_pointer];
-
-                    if current_word == word && self.current_rule() == id {
-                        self.string_pointer += 1;
+                Instruction::Literal(ref grammar_word) => {
+                    if let Some(&(ref word, id)) = self.string.get(self.string_pointer) {
+                        if (word, id) == (grammar_word, self.current_rule()) {
+                            self.string_pointer += 1;
+                        } else {
+                            return None;
+                        }
                     } else {
                         return None;
+                    }
+                }
+                Instruction::AnyWord => {
+                    if let Some(&(_, id)) = self.string.get(self.string_pointer) {
+                        if id == self.current_rule() {
+                            self.string_pointer += 1;
+                        } else {
+                            return None;
+                        }
+                    } else {
+                        return None;
+                    }
+                }
+                Instruction::GreedyRule(rule) => {
+                    loop {
+                        if let Some(&(_, id)) = self.string.get(self.string_pointer) {
+                            if id == rule {
+                                self.string_pointer += 1;
+                            } else {
+                                break;
+                            }
+                        } else {
+                            break;
+                        }
                     }
                 }
                 Instruction::Match => {
@@ -74,7 +105,15 @@ impl<'a, 'c> Thread<'a, 'c> {
                     if let Some(return_address) = self.call_stack.pop() {
                         self.program_pointer = return_address;
                     } else if self.string_pointer == self.string.len() {
-                        return Some((current_rule, self.captures));
+                        let completed_captures = self.captures
+                            .iter()
+                            .map(|(&k, v)| (k, v.completed()))
+                            .collect();
+
+                        return Some(Match {
+                            top_level_rule: current_rule,
+                            captures: completed_captures,
+                        });
                     } else {
                         return None;
                     }
@@ -108,9 +147,6 @@ impl<'a, 'c> Thread<'a, 'c> {
                     }
 
                     self.program_pointer = first.address();
-                }
-                Instruction::List(ref _name) => {
-                    unimplemented!();
                 }
                 Instruction::Progress => {
                     // make sure we've progressed since the last time
@@ -158,7 +194,7 @@ impl<'a, 'c> Vm<'a, 'c> {
         }
     }
 
-    fn perform_match(mut self) -> MatchResult<'a> {
+    fn perform_match(mut self) -> Option<Match<'a>> {
         self.threads.push(Thread::new(self.program, self.string));
 
         while let Some(t) = self.threads.pop() {

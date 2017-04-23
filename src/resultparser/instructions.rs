@@ -21,7 +21,8 @@ impl JumpTarget {
 pub enum Instruction {
     RuleEntry(u32),
     Literal(String),
-    List(String),
+    GreedyRule(u32),
+    AnyWord,
     Match,
     Label(LabelName),
     NoOp,

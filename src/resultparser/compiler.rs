@@ -1,16 +1,14 @@
 use std::collections::HashMap;
 use grammar::*;
-use grammarcompiler::GrammarRuleIds;
 use super::instructions::*;
 
-pub fn compile_grammar_matcher(grammar: &Grammar, ids: &GrammarRuleIds) -> Vec<Instruction> {
-    let compiler = Compiler::new(ids);
+pub fn compile_matcher(grammar: &Grammar) -> Vec<Instruction> {
+    let compiler = Compiler::new();
     let mut instructions = compiler.compile_grammar(grammar);
     let locations = find_label_locations(&instructions);
     relabel(&mut instructions, &locations);
     instructions
 }
-
 
 fn find_label_locations(instructions: &[Instruction]) -> HashMap<LabelName, usize> {
     let mut locations = HashMap::new();
@@ -51,17 +49,15 @@ fn relabel(instructions: &mut [Instruction], locations: &HashMap<LabelName, usiz
 }
 
 struct Compiler<'a> {
-    rule_name_to_label: HashMap<String, (u32, LabelName)>,
-    ids: &'a GrammarRuleIds,
+    rule_name_to_label: HashMap<&'a str, LabelName>,
     label_counter: u32,
     instructions: Vec<Instruction>,
 }
 
 impl<'a> Compiler<'a> {
-    fn new(ids: &'a GrammarRuleIds) -> Self {
+    fn new() -> Self {
         Compiler {
             rule_name_to_label: HashMap::new(),
-            ids: ids,
             label_counter: 0,
             instructions: Vec::new(),
         }
@@ -77,10 +73,10 @@ impl<'a> Compiler<'a> {
         LabelName(self.label_counter)
     }
 
-    fn compile_grammar(mut self, grammar: &Grammar) -> Vec<Instruction> {
+    fn compile_grammar(mut self, grammar: &'a Grammar) -> Vec<Instruction> {
         let mut with_labels = Vec::new();
         let mut split = Vec::new();
-        for (&i, r) in self.ids.rule_ids.iter().zip(grammar.rules.iter()) {
+        for (i, r) in (1u32..).zip(grammar.rules.iter()) {
             let n = self.new_label();
             if r.exported {
                 split.push(n);
@@ -96,8 +92,7 @@ impl<'a> Compiler<'a> {
         self.emit(Instruction::Split(split));
 
         for &(i, r, label) in &with_labels {
-            self.rule_name_to_label
-                .insert(r.name.clone(), (i, label));
+            self.rule_name_to_label.insert(&r.name, label);
 
             self.compile_single_rule(i, r, label);
         }
@@ -107,7 +102,7 @@ impl<'a> Compiler<'a> {
 
     fn compile_single_rule(&mut self,
                            rule_id: u32,
-                           rule: &Rule,
+                           rule: &'a Rule,
                            start_label: LabelName) {
         self.emit(Instruction::Label(start_label));
         self.emit(Instruction::RuleEntry(rule_id));
@@ -115,7 +110,7 @@ impl<'a> Compiler<'a> {
         self.emit(Instruction::Match);
     }
 
-    fn compile_element(&mut self, element: &Element) {
+    fn compile_element(&mut self, element: &'a Element) {
         match *element {
             Element::Sequence { ref children } => {
                 for c in children.iter() {
@@ -192,15 +187,22 @@ impl<'a> Compiler<'a> {
                 self.emit(Instruction::Literal(text.clone()));
             }
             Element::RuleRef { ref name } => {
-                let target = JumpTarget::Symbolic(self.rule_name_to_label[name].1);
+                let name: &'a str = name;
+                let target = JumpTarget::Symbolic(self.rule_name_to_label[name]);
                 self.emit(Instruction::RuleCall(target));
             }
-            Element::List { ref name } => {
-                self.emit(Instruction::List(name.clone()));
+            Element::List { .. } => {
+                self.emit(Instruction::AnyWord);
             }
-            Element::Dictation |
-            Element::DictationWord |
-            Element::SpellingLetter => unimplemented!()
+            Element::Dictation => {
+                self.emit(Instruction::GreedyRule(1000000));
+            }
+            Element::SpellingLetter => {
+                self.emit(Instruction::GreedyRule(1000001));
+            }
+            Element::DictationWord => {
+                self.emit(Instruction::AnyWord);
+            }
         }
     }
 }
