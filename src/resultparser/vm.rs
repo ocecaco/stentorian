@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
-use super::Match;
+use super::{Match, CaptureTree};
 use super::instructions::*;
 
 pub fn perform_match<'a, 'c>(instructions: &'a [Instruction],
@@ -17,12 +17,24 @@ enum Capture {
 }
 
 impl Capture {
-    fn completed(&self) -> (usize, usize) {
+    fn complete(&self) -> (usize, usize) {
         if let Capture::Complete(a, b) = *self {
             (a, b)
         } else {
             panic!("attempt to unwrap incomplete capture");
         }
+    }
+}
+
+fn complete_capture_tree<'a>(tree: &CaptureTree<'a, Capture>) -> Match<'a> {
+    let completed_children = tree.children
+        .iter()
+        .map(|c| complete_capture_tree(c));
+
+    CaptureTree {
+        name: tree.name,
+        slice: tree.slice.complete(),
+        children: completed_children.collect(),
     }
 }
 
@@ -34,7 +46,7 @@ struct Thread<'a, 'c> {
     string_pointer: usize,
     rule_stack: Vec<u32>,
     call_stack: Vec<usize>,
-    captures: HashMap<&'a str, Capture>,
+    captures: Vec<CaptureTree<'a, Capture>>,
     progress: HashMap<usize, usize>,
 }
 
@@ -47,8 +59,36 @@ impl<'a, 'c> Thread<'a, 'c> {
             string_pointer: 0,
             rule_stack: Vec::new(),
             call_stack: Vec::new(),
-            captures: HashMap::new(),
+            captures: Vec::new(),
             progress: HashMap::new(),
+        }
+    }
+
+    fn capture_start(&mut self, name: &'a str) {
+        let position = self.string_pointer;
+
+        self.captures.push(CaptureTree {
+            name: name,
+            slice: Capture::Started(position),
+            children: Vec::new(),
+        });
+    }
+
+    fn capture_stop(&mut self) -> Option<CaptureTree<'a, Capture>> {
+        let position = self.string_pointer;
+
+        let mut child = self.captures.pop().unwrap();
+        if let Capture::Started(start) = child.slice {
+            child.slice = Capture::Complete(start, position);
+        } else {
+            panic!("attempt to stop capture twice");
+        }
+
+        if let Some(parent) = self.captures.last_mut() {
+            parent.children.push(child);
+            None
+        } else {
+            Some(child)
         }
     }
 
@@ -62,8 +102,9 @@ impl<'a, 'c> Thread<'a, 'c> {
             self.program_pointer += 1;
 
             match *next {
-                Instruction::RuleEntry(id) => {
+                Instruction::RuleStart(id, ref name) => {
                     self.rule_stack.push(id);
+                    self.capture_start(name);
                 }
                 Instruction::Literal(ref grammar_word) => {
                     if let Some(&(ref word, id)) = self.string.get(self.string_pointer) {
@@ -96,37 +137,24 @@ impl<'a, 'c> Thread<'a, 'c> {
                         }
                     }
                 }
-                Instruction::Match => {
-                    let current_rule = self.rule_stack.pop().unwrap();
+                Instruction::RuleStop => {
+                    let maybe_node = self.capture_stop();
+
+                    self.rule_stack.pop();
+
                     if let Some(return_address) = self.call_stack.pop() {
                         self.program_pointer = return_address;
                     } else if self.string_pointer == self.string.len() {
-                        let completed_captures = self.captures
-                            .iter()
-                            .map(|(&k, v)| (k, v.completed()))
-                            .collect();
-
-                        return Some(Match {
-                                        top_level_rule: current_rule,
-                                        captures: completed_captures,
-                                    });
+                        return Some(complete_capture_tree(&maybe_node.unwrap()));
                     } else {
                         return None;
                     }
                 }
                 Instruction::CaptureStart(ref name) => {
-                    self.captures
-                        .insert(name, Capture::Started(self.string_pointer));
+                    self.capture_start(name);
                 }
-                Instruction::CaptureStop(ref name) => {
-                    let c = *self.captures
-                                 .get::<str>(name)
-                                 .expect(&format!("capture {} stopped without being started",
-                                                  name));
-                    if let Capture::Started(start) = c {
-                        self.captures
-                            .insert(name, Capture::Complete(start, self.string_pointer));
-                    }
+                Instruction::CaptureStop => {
+                    self.capture_stop();
                 }
                 Instruction::RuleCall(ref t) => {
                     self.call_stack.push(self.program_pointer);

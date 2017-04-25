@@ -2,14 +2,16 @@ mod compiler;
 mod vm;
 mod instructions;
 
-use std::collections::HashMap;
 use grammar::Grammar;
 
 #[derive(Debug, Clone)]
-pub struct Match<'a> {
-    pub top_level_rule: u32,
-    pub captures: HashMap<&'a str, (usize, usize)>,
+pub struct CaptureTree<'a, T> {
+    pub name: &'a str,
+    pub slice: T,
+    pub children: Vec<CaptureTree<'a, T>>,
 }
+
+pub type Match<'a> = CaptureTree<'a, (usize, usize)>;
 
 pub struct Matcher {
     instructions: Vec<instructions::Instruction>,

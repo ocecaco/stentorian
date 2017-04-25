@@ -19,16 +19,21 @@ impl JumpTarget {
 
 #[derive(Debug, Clone)]
 pub enum Instruction {
-    RuleEntry(u32),
+    RuleStart(u32, String),
+    RuleStop,
+
     Literal(String),
     GreedyRule(u32),
     AnyWord,
-    Match,
+
     Label(LabelName),
     NoOp,
+
     Progress,
+
     CaptureStart(String),
-    CaptureStop(String),
+    CaptureStop,
+
     RuleCall(JumpTarget),
     Jump(JumpTarget),
     Split(Box<[JumpTarget]>),

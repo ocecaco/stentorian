@@ -102,9 +102,9 @@ impl<'a> Compiler<'a> {
 
     fn compile_single_rule(&mut self, rule_id: u32, rule: &'a Rule, start_label: LabelName) {
         self.emit(Instruction::Label(start_label));
-        self.emit(Instruction::RuleEntry(rule_id));
+        self.emit(Instruction::RuleStart(rule_id, rule.name.clone()));
         self.compile_element(&rule.definition);
-        self.emit(Instruction::Match);
+        self.emit(Instruction::RuleStop);
     }
 
     fn compile_element(&mut self, element: &'a Element) {
@@ -178,7 +178,7 @@ impl<'a> Compiler<'a> {
             Element::Capture { ref key, ref child } => {
                 self.emit(Instruction::CaptureStart(key.clone()));
                 self.compile_element(child);
-                self.emit(Instruction::CaptureStop(key.clone()));
+                self.emit(Instruction::CaptureStop);
             }
             Element::Word { ref text } => {
                 self.emit(Instruction::Literal(text.clone()));
