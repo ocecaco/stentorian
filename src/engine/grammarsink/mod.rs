@@ -1,6 +1,6 @@
 pub mod interfaces;
 
-use std::sync::mpsc::Sender;
+use futures::sync::mpsc::UnboundedSender;
 use self::interfaces::*;
 use interfaces::*;
 use components::*;
@@ -11,9 +11,13 @@ use std::mem;
 use dragon::*;
 use super::{GrammarEvent, Recognition};
 use super::grammar_flags::GrammarSinkFlags;
-use super::events::{EventSender, ConvertSender};
 
 use std::os::raw::c_void;
+
+fn _ensure_kinds() {
+    fn ensure_sync<T: Sync>() {}
+    ensure_sync::<GrammarSink>();
+}
 
 #[repr(C)]
 pub struct GrammarSink {
@@ -21,24 +25,19 @@ pub struct GrammarSink {
     vtable2: &'static IDgnGetSinkFlagsVtable,
     ref_count: RefCount,
     flags: GrammarSinkFlags,
-    events: Box<EventSender<GrammarEvent> + Sync>,
+    events: UnboundedSender<GrammarEvent>,
 }
 
 impl GrammarSink {
-    pub fn create<T>(flags: GrammarSinkFlags, sender: Sender<T>) -> ComPtr<IUnknown>
-        where T: From<GrammarEvent> + Send + 'static
+    pub fn create(flags: GrammarSinkFlags, sender: UnboundedSender<GrammarEvent>) -> ComPtr<IUnknown>
     {
-        fn ensure_sync<T: Sync>(_: &T) {}
-
         let result = GrammarSink {
             vtable1: &v1::VTABLE,
             vtable2: &v2::VTABLE,
             ref_count: RefCount::new(1),
             flags: flags,
-            events: Box::new(ConvertSender::new(sender)),
+            events: sender,
         };
-
-        ensure_sync(&result);
 
         let raw = Box::into_raw(Box::new(result)) as RawComPtr;
         unsafe { raw_to_comptr(raw, true) }

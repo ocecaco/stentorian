@@ -1,4 +1,4 @@
-use std::sync::mpsc::Sender;
+use futures::sync::mpsc::UnboundedSender;
 use components::comptr::ComPtr;
 use components::bstr::BString;
 use components::*;
@@ -17,7 +17,6 @@ use errors::*;
 mod interfaces;
 mod enginesink;
 mod grammarsink;
-mod events;
 
 pub use self::enginesink::PauseCookie;
 
@@ -70,9 +69,9 @@ impl Engine {
         let central = get_central()?;
         let engine_control = query_interface::<IDgnSREngineControl>(&central)?;
         Ok(Engine {
-               central: central,
-               engine_control: engine_control,
-           })
+            central: central,
+            engine_control: engine_control,
+        })
     }
 
     pub fn resume(&self, cookie: PauseCookie) -> Result<()> {
@@ -101,10 +100,9 @@ impl Engine {
         Ok(state)
     }
 
-    pub fn register<T>(&self,
-                       sender: Sender<T>)
-                       -> Result<EngineRegistration>
-        where T: From<EngineEvent> + Send + 'static
+    pub fn register(&self,
+                    sender: UnboundedSender<EngineEvent>)
+                    -> Result<EngineRegistration>
     {
         let sink = EngineSink::create(engine_flags::SEND_PAUSED |
                                       engine_flags::SEND_ATTRIBUTE,
@@ -120,17 +118,16 @@ impl Engine {
         try!(rc.result());
 
         Ok(EngineRegistration {
-               central: self.central.clone(),
-               register_key: key,
-           })
+            central: self.central.clone(),
+            register_key: key,
+        })
     }
 
-    pub fn grammar_load<T>(&self,
-                           grammar: &Grammar,
-                           all_recognitions: bool,
-                           sender: Sender<T>)
-                           -> Result<GrammarControl>
-        where T: From<GrammarEvent> + Send + 'static
+    pub fn grammar_load(&self,
+                        grammar: &Grammar,
+                        all_recognitions: bool,
+                        sender: UnboundedSender<GrammarEvent>)
+                        -> Result<GrammarControl>
     {
         let compiled = compile_grammar(grammar)?;
         let data = SDATA {

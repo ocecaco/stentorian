@@ -1,4 +1,4 @@
-use std::sync::mpsc::Sender;
+use futures::sync::mpsc::UnboundedSender;
 use components::*;
 use components::comptr::*;
 use components::refcount::*;
@@ -8,7 +8,11 @@ use interfaces::*;
 use super::{EngineEvent, Attribute};
 use super::engine_flags::EngineSinkFlags;
 use std::boxed::Box;
-use super::events::{EventSender, ConvertSender};
+
+fn _ensure_kinds() {
+    fn ensure_sync<T: Sync>() {}
+    ensure_sync::<EngineSink>();
+}
 
 #[repr(C)]
 pub struct EngineSink {
@@ -17,25 +21,20 @@ pub struct EngineSink {
     vtable3: &'static IDgnSREngineNotifySinkVtable,
     ref_count: RefCount,
     flags: EngineSinkFlags,
-    events: Box<EventSender<EngineEvent> + Sync>,
+    events: UnboundedSender<EngineEvent>,
 }
 
 impl EngineSink {
-    pub fn create<T>(flags: EngineSinkFlags, sender: Sender<T>) -> ComPtr<IUnknown>
-        where T: From<EngineEvent> + Send + 'static
+    pub fn create(flags: EngineSinkFlags, sender: UnboundedSender<EngineEvent>) -> ComPtr<IUnknown>
     {
-        fn ensure_sync<T: Sync>(_: &T) {}
-
         let sink = EngineSink {
             vtable1: &v1::VTABLE,
             vtable2: &v2::VTABLE,
             vtable3: &v3::VTABLE,
             ref_count: RefCount::new(1),
             flags: flags,
-            events: Box::new(ConvertSender::new(sender)),
+            events: sender,
         };
-
-        ensure_sync(&sink);
 
         let raw = Box::into_raw(Box::new(sink)) as RawComPtr;
         unsafe { raw_to_comptr(raw, true) }

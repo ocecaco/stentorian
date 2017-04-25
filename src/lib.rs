@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 extern crate byteorder;
 
 #[macro_use]
@@ -17,6 +18,8 @@ extern crate components;
 
 #[macro_use]
 extern crate error_chain;
+
+extern crate futures;
 
 pub mod errors {
     error_chain! {
@@ -38,11 +41,11 @@ mod grammarcompiler;
 use grammar::Grammar;
 use engine::*;
 use components::*;
-use std::sync::mpsc;
 use std::fs::File;
 use std::io::Read;
 use errors::*;
-use resultparser::Matcher;
+use futures::sync::mpsc;
+use futures::Stream;
 
 fn make_test_grammar() -> Grammar {
     let mut file = File::open("test.json").unwrap();
@@ -51,62 +54,19 @@ fn make_test_grammar() -> Grammar {
     serde_json::from_str(&contents).unwrap()
 }
 
-#[derive(Debug)]
-enum Event {
-    Engine(EngineEvent),
-    Grammar(GrammarEvent),
-}
-
-impl From<EngineEvent> for Event {
-    fn from(event: EngineEvent) -> Self {
-        Event::Engine(event)
-    }
-}
-
-impl From<GrammarEvent> for Event {
-    fn from(event: GrammarEvent) -> Self {
-        Event::Grammar(event)
-    }
-}
-
 fn test() -> Result<()> {
     env_logger::init().unwrap();
 
     let _com = unsafe { com_initialize()? };
 
     let engine = Engine::connect()?;
-    let (tx, rx) = mpsc::channel();
-    let _registration = engine.register(tx.clone())?;
 
-    let grammar = make_test_grammar();
-    let grammar_control = engine.grammar_load(&grammar, true, tx)?;
-    let matcher = Matcher::new(&grammar);
+    let (tx, rx) = mpsc::unbounded();
+    let _registration = engine.register(tx);
 
-    grammar_control.rule_activate("repeat")?;
+    let test = rx.map(|event| println!("{:?}", event));
 
-    for _ in 0..20 {
-        match rx.recv().unwrap() {
-            Event::Engine(EngineEvent::Paused(cookie)) => {
-                println!("paused");
-                engine.resume(cookie)?;
-            }
-            Event::Grammar(GrammarEvent::PhraseStart) => {
-                println!("phrase start");
-            }
-            Event::Grammar(GrammarEvent::PhraseFinish(result)) => {
-                if let Some(recognition) = result {
-                    println!("{:?}", recognition.words);
-                    if !recognition.foreign {
-                        println!("{:?}", matcher.perform_match(&recognition.words));
-                    }
-                } else {
-                    println!("recognition failed");
-                }
-            }
-            Event::Engine(EngineEvent::AttributeChanged(Attribute::MicrophoneState)) => {
-                println!("{:?}", engine.microphone_get_state()?);
-            }
-        }
+    for _ in test.wait() {
     }
 
     Ok(())
