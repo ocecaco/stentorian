@@ -48,6 +48,15 @@ fn relabel(instructions: &mut [Instruction], locations: &HashMap<LabelName, usiz
     }
 }
 
+fn make_split(labels: &[LabelName]) -> Instruction {
+    let split = labels
+        .iter()
+        .map(|&n| JumpTarget::Symbolic(n))
+        .collect::<Vec<_>>()
+        .into_boxed_slice();
+    Instruction::Split(split)
+}
+
 struct Compiler<'a> {
     rule_name_to_label: HashMap<&'a str, LabelName>,
     label_counter: u32,
@@ -75,25 +84,19 @@ impl<'a> Compiler<'a> {
 
     fn compile_grammar(mut self, grammar: &'a Grammar) -> Vec<Instruction> {
         let mut with_labels = Vec::new();
-        let mut split = Vec::new();
+        let mut split_labels = Vec::new();
         for (i, r) in (1u32..).zip(grammar.rules.iter()) {
             let n = self.new_label();
             if r.exported {
-                split.push(n);
+                split_labels.push(n);
             }
             with_labels.push((i, r, n));
+            self.rule_name_to_label.insert(&r.name, n);
         }
 
-        let split = split
-            .iter()
-            .map(|&n| JumpTarget::Symbolic(n))
-            .collect::<Vec<_>>()
-            .into_boxed_slice();
-        self.emit(Instruction::Split(split));
+        self.emit(make_split(&split_labels));
 
         for &(i, r, label) in &with_labels {
-            self.rule_name_to_label.insert(&r.name, label);
-
             self.compile_single_rule(i, r, label);
         }
 
@@ -120,13 +123,7 @@ impl<'a> Compiler<'a> {
                     labels.push(self.new_label());
                 }
 
-                let jump_targets = labels
-                    .iter()
-                    .map(|&name| JumpTarget::Symbolic(name))
-                    .collect::<Vec<_>>()
-                    .into_boxed_slice();
-
-                self.emit(Instruction::Split(jump_targets));
+                self.emit(make_split(&labels));
 
                 let end = self.new_label();
                 for (start, c) in labels.iter().zip(children.iter()) {
@@ -148,10 +145,7 @@ impl<'a> Compiler<'a> {
 
                 self.emit(Instruction::Progress);
 
-                let targets = vec![JumpTarget::Symbolic(child_label),
-                                   JumpTarget::Symbolic(done_label)];
-                let targets = targets.into_boxed_slice();
-                self.emit(Instruction::Split(targets));
+                self.emit(make_split(&[child_label, done_label]));
 
                 self.emit(Instruction::Label(child_label));
 
@@ -165,18 +159,15 @@ impl<'a> Compiler<'a> {
                 let yes_label = self.new_label();
                 let no_label = self.new_label();
 
-                let targets = vec![JumpTarget::Symbolic(yes_label),
-                                   JumpTarget::Symbolic(no_label)];
-                let targets = targets.into_boxed_slice();
-                self.emit(Instruction::Split(targets));
+                self.emit(make_split(&[yes_label, no_label]));
                 self.emit(Instruction::Label(yes_label));
 
                 self.compile_element(child);
 
                 self.emit(Instruction::Label(no_label));
             }
-            Element::Capture { ref key, ref child } => {
-                self.emit(Instruction::CaptureStart(key.clone()));
+            Element::Capture { ref name, ref child } => {
+                self.emit(Instruction::CaptureStart(name.clone()));
                 self.compile_element(child);
                 self.emit(Instruction::CaptureStop);
             }

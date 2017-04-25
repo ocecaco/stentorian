@@ -39,38 +39,16 @@ use grammar::Grammar;
 use engine::*;
 use components::*;
 use std::sync::mpsc;
+use std::fs::File;
+use std::io::Read;
 use errors::*;
 use resultparser::Matcher;
 
 fn make_test_grammar() -> Grammar {
-    let data = r#"
-{
-    "rules": [
-        {
-            "name": "Mapping",
-            "exported": true,
-            "definition": {
-                "type": "sequence",
-                "children": [
-                    {
-                        "type": "word",
-                        "text": "beautiful"
-                    },
-                    {
-                        "type": "capture",
-                        "key": "testing123",
-                        "child": {
-                            "type": "dictation"
-                        }
-                    }
-                ]
-            }
-        }
-    ]
-}
-"#;
-
-    serde_json::from_str(data).unwrap()
+    let mut file = File::open("test.json").unwrap();
+    let mut contents = String::new();
+    file.read_to_string(&mut contents).unwrap();
+    serde_json::from_str(&contents).unwrap()
 }
 
 #[derive(Debug)]
@@ -104,7 +82,7 @@ fn test() -> Result<()> {
     let grammar_control = engine.grammar_load(&grammar, true, tx)?;
     let matcher = Matcher::new(&grammar);
 
-    grammar_control.rule_activate("Mapping")?;
+    grammar_control.rule_activate("repeat")?;
 
     for _ in 0..20 {
         match rx.recv().unwrap() {

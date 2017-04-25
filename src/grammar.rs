@@ -17,7 +17,7 @@ pub enum Element {
     Alternative { children: Box<[Element]> },
     Repetition { child: Box<Element> },
     Optional { child: Box<Element> },
-    Capture { key: String, child: Box<Element> },
+    Capture { name: String, child: Box<Element> },
     Word { text: String },
     RuleRef { name: String },
     List { name: String },
