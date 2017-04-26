@@ -1,4 +1,5 @@
-use futures::sync::mpsc::UnboundedSender;
+use futures::sync::mpsc::UnboundedReceiver;
+use futures::{Poll, Stream};
 use components::comptr::ComPtr;
 use components::bstr::BString;
 use components::*;
@@ -100,13 +101,10 @@ impl Engine {
         Ok(state)
     }
 
-    pub fn register(&self,
-                    sender: UnboundedSender<EngineEvent>)
-                    -> Result<EngineRegistration>
+    pub fn register(&self) -> Result<EngineRegistration>
     {
-        let sink = EngineSink::create(engine_flags::SEND_PAUSED |
-                                      engine_flags::SEND_ATTRIBUTE,
-                                      sender);
+        let (sink, receiver) = EngineSink::create(engine_flags::SEND_PAUSED |
+                                                  engine_flags::SEND_ATTRIBUTE);
         let mut key = 0;
         let rc = unsafe {
             self.central
@@ -120,13 +118,13 @@ impl Engine {
         Ok(EngineRegistration {
             central: self.central.clone(),
             register_key: key,
+            receiver: receiver,
         })
     }
 
     pub fn grammar_load(&self,
                         grammar: &Grammar,
-                        all_recognitions: bool,
-                        sender: UnboundedSender<GrammarEvent>)
+                        all_recognitions: bool)
                         -> Result<GrammarControl>
     {
         let compiled = compile_grammar(grammar)?;
@@ -143,7 +141,7 @@ impl Engine {
             flags |= grammar_flags::SEND_FOREIGN_FINISH;
         }
 
-        let sink = GrammarSink::create(flags, sender);
+        let (sink, receiver) = GrammarSink::create(flags);
         let raw_sink = &sink as &IUnknown as *const _ as RawComPtr;
 
         let rc = unsafe {
@@ -165,6 +163,7 @@ impl Engine {
         let control = GrammarControl {
             grammar_control: grammar_control,
             grammar_lists: grammar_lists,
+            receiver: receiver,
         };
 
         Ok(control)
@@ -199,6 +198,16 @@ pub enum GrammarEvent {
 pub struct GrammarControl {
     grammar_control: ComPtr<ISRGramCommon>,
     grammar_lists: ComPtr<ISRGramCFG>,
+    receiver: UnboundedReceiver<GrammarEvent>,
+}
+
+impl Stream for GrammarControl {
+    type Item = GrammarEvent;
+    type Error = <UnboundedReceiver<GrammarEvent> as Stream>::Error;
+
+    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+        self.receiver.poll()
+    }
 }
 
 impl GrammarControl {
@@ -271,6 +280,16 @@ impl GrammarControl {
 pub struct EngineRegistration {
     central: ComPtr<ISRCentral>,
     register_key: u32,
+    receiver: UnboundedReceiver<EngineEvent>,
+}
+
+impl Stream for EngineRegistration {
+    type Item = EngineEvent;
+    type Error = <UnboundedReceiver<EngineEvent> as Stream>::Error;
+
+    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+        self.receiver.poll()
+    }
 }
 
 impl Drop for EngineRegistration {

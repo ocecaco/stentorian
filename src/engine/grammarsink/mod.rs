@@ -1,6 +1,5 @@
 pub mod interfaces;
 
-use futures::sync::mpsc::UnboundedSender;
 use self::interfaces::*;
 use interfaces::*;
 use components::*;
@@ -11,6 +10,8 @@ use std::mem;
 use dragon::*;
 use super::{GrammarEvent, Recognition};
 use super::grammar_flags::GrammarSinkFlags;
+use futures::sync::mpsc;
+use futures::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 use std::os::raw::c_void;
 
@@ -29,18 +30,28 @@ pub struct GrammarSink {
 }
 
 impl GrammarSink {
-    pub fn create(flags: GrammarSinkFlags, sender: UnboundedSender<GrammarEvent>) -> ComPtr<IUnknown>
+    pub fn create(flags: GrammarSinkFlags)
+                  -> (ComPtr<IUnknown>, UnboundedReceiver<GrammarEvent>)
     {
+        let (tx, rx) = mpsc::unbounded();
+
         let result = GrammarSink {
             vtable1: &v1::VTABLE,
             vtable2: &v2::VTABLE,
             ref_count: RefCount::new(1),
             flags: flags,
-            events: sender,
+            events: tx,
         };
 
         let raw = Box::into_raw(Box::new(result)) as RawComPtr;
-        unsafe { raw_to_comptr(raw, true) }
+        let unk = unsafe { raw_to_comptr(raw, true) };
+
+        (unk, rx)
+    }
+
+    fn send(&self, event: GrammarEvent) {
+        self.events.send(event)
+            .expect("receiving end of channel closed before unregister");
     }
 
     unsafe fn query_interface(&self, iid: *const IID, v: *mut RawComPtr) -> HRESULT {
@@ -95,7 +106,7 @@ impl GrammarSink {
 
         if reject {
             let event = GrammarEvent::PhraseFinish(None);
-            self.events.send(event);
+            self.send(event);
         } else {
             let words = retrieve_words(results);
             let recognition = Recognition {
@@ -103,7 +114,7 @@ impl GrammarSink {
                 words: words,
             };
             let event = GrammarEvent::PhraseFinish(Some(recognition));
-            self.events.send(event);
+            self.send(event);
         }
 
         HRESULT(0)
@@ -122,7 +133,7 @@ impl GrammarSink {
 
     fn phrase_start(&self, a: u64) -> HRESULT {
         debug!("grammar event: phrase_start {}", a);
-        self.events.send(GrammarEvent::PhraseStart);
+        self.send(GrammarEvent::PhraseStart);
         HRESULT(0)
     }
 

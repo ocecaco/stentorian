@@ -1,4 +1,5 @@
-use futures::sync::mpsc::UnboundedSender;
+use futures::sync::mpsc;
+use futures::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use components::*;
 use components::comptr::*;
 use components::refcount::*;
@@ -25,19 +26,28 @@ pub struct EngineSink {
 }
 
 impl EngineSink {
-    pub fn create(flags: EngineSinkFlags, sender: UnboundedSender<EngineEvent>) -> ComPtr<IUnknown>
+    pub fn create(flags: EngineSinkFlags)
+                  -> (ComPtr<IUnknown>, UnboundedReceiver<EngineEvent>)
     {
+        let (tx, rx) = mpsc::unbounded();
+
         let sink = EngineSink {
             vtable1: &v1::VTABLE,
             vtable2: &v2::VTABLE,
             vtable3: &v3::VTABLE,
             ref_count: RefCount::new(1),
             flags: flags,
-            events: sender,
+            events: tx,
         };
 
         let raw = Box::into_raw(Box::new(sink)) as RawComPtr;
-        unsafe { raw_to_comptr(raw, true) }
+        let unk = unsafe { raw_to_comptr(raw, true) };
+        (unk, rx)
+    }
+
+    fn send(&self, event: EngineEvent) {
+        self.events.send(event)
+            .expect("receiving end of channel closed before unregister");
     }
 
     unsafe fn query_interface(&self, iid: *const IID, v: *mut RawComPtr) -> HRESULT {
@@ -70,7 +80,7 @@ impl EngineSink {
     fn attrib_changed(&self, a: u32) -> HRESULT {
         debug!("engine event: attrib_changed {}", a);
         if let Some(attr) = convert_attribute(a) {
-            self.events.send(EngineEvent::AttributeChanged(attr));
+            self.send(EngineEvent::AttributeChanged(attr));
         }
         HRESULT(0)
     }
@@ -111,15 +121,14 @@ impl EngineSink {
     fn attrib_changed_2(&self, a: u32) -> HRESULT {
         debug!("engine event: attrib_changed_2 {}", a);
         if let Some(attr) = convert_attribute(a) {
-            self.events.send(EngineEvent::AttributeChanged(attr));
+            self.send(EngineEvent::AttributeChanged(attr));
         }
         HRESULT(0)
     }
 
     unsafe fn paused(&self, cookie: u64) -> HRESULT {
         debug!("engine event: paused {}", cookie);
-        self.events
-            .send(EngineEvent::Paused(PauseCookie(cookie)));
+        self.send(EngineEvent::Paused(PauseCookie(cookie)));
         HRESULT(0)
     }
 

@@ -44,7 +44,6 @@ use components::*;
 use std::fs::File;
 use std::io::Read;
 use errors::*;
-use futures::sync::mpsc;
 use futures::Stream;
 
 fn make_test_grammar() -> Grammar {
@@ -61,10 +60,14 @@ fn test() -> Result<()> {
 
     let engine = Engine::connect()?;
 
-    let (tx, rx) = mpsc::unbounded();
-    let _registration = engine.register(tx);
+    let registration = engine.register()?;
 
-    let test = rx.map(|event| println!("{:?}", event));
+    let test = registration.take(10).map(|event| {
+        println!("{:?}", event);
+        if let EngineEvent::Paused(cookie) = event {
+            engine.resume(cookie).unwrap();
+        }
+    });
 
     for _ in test.wait() {
     }
