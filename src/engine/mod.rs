@@ -1,4 +1,3 @@
-use futures::sync::mpsc::UnboundedReceiver;
 use futures::unsync::oneshot;
 use futures::{Poll, Stream, Future};
 use futures::stream::MergedItem;
@@ -105,7 +104,7 @@ impl Engine {
         Ok(state)
     }
 
-    pub fn register(&self) -> Result<EngineRegistration>
+    pub fn register(&self) -> Result<(EngineRegistration, EngineReceiver)>
     {
         let (sink, receiver) = EngineSink::create(engine_flags::SEND_PAUSED |
                                                   engine_flags::SEND_ATTRIBUTE);
@@ -119,11 +118,20 @@ impl Engine {
 
         try!(rc.result());
 
-        Ok(EngineRegistration {
+        let (tx, rx) = oneshot::channel();
+        let event_stream = with_cancellation(receiver, rx.map_err(|_| ()));
+
+        let registration = EngineRegistration {
+            cancel: Cancel::new(tx),
+        };
+
+        let engine_receiver = EngineReceiver {
             central: self.central.clone(),
             register_key: key,
-            receiver: receiver,
-        })
+            receiver: event_stream,
+        };
+
+        Ok((registration, engine_receiver))
     }
 
     pub fn grammar_load(&self,
@@ -165,23 +173,7 @@ impl Engine {
         let grammar_lists = query_interface::<ISRGramCFG>(&grammar_control)?;
 
         let (tx, rx) = oneshot::channel();
-        let event_stream = receiver.merge(rx.map_err(|_| ()).into_stream())
-            .take_while(|e| {
-                // stream continues as long as the one-shot channel
-                // doesn't send anything
-                if let MergedItem::First(_) = *e {
-                    future::ok(true)
-                } else {
-                    future::ok(false)
-                }
-            })
-            .filter_map(|e| {
-                match e {
-                    MergedItem::First(x) => Some(x),
-                    MergedItem::Second(_) => None,
-                    MergedItem::Both(x, _) => Some(x),
-                }
-            });
+        let event_stream = with_cancellation(receiver, rx.map_err(|_| ()));
 
         let pointers = Rc::new(GrammarPointers {
             grammar_control: grammar_control,
@@ -190,12 +182,12 @@ impl Engine {
 
         let control = GrammarControl {
             pointers: Rc::downgrade(&pointers),
-            cancel_events: Some(tx),
+            cancel: Cancel::new(tx),
         };
 
         let receiver = GrammarReceiver {
             pointers: Some(pointers),
-            receiver: Box::new(event_stream),
+            receiver: event_stream,
         };
 
         Ok((control, receiver))
@@ -234,21 +226,14 @@ struct GrammarPointers {
 
 pub struct GrammarControl {
     pointers: Weak<GrammarPointers>,
-    cancel_events: Option<oneshot::Sender<()>>,
+    cancel: Cancel,
 }
 
-impl Drop for GrammarControl {
-    fn drop(&mut self) {
-        let cancel = mem::replace(&mut self.cancel_events, None);
-        // we don't care about the error because it means the grammar
-        // is already gone
-        let _result = cancel.unwrap().send(());
-    }
-}
+type EventStream<T, E> = Box<Stream<Item=T, Error=E>>;
 
 pub struct GrammarReceiver {
     pointers: Option<Rc<GrammarPointers>>,
-    receiver: Box<Stream<Item=GrammarEvent, Error=()>>,
+    receiver: EventStream<GrammarEvent, ()>,
 }
 
 impl Drop for GrammarReceiver {
@@ -346,22 +331,27 @@ impl GrammarControl {
     }
 }
 
+
 pub struct EngineRegistration {
-    central: ComPtr<ISRCentral>,
-    register_key: u32,
-    receiver: UnboundedReceiver<EngineEvent>,
+    cancel: Cancel,
 }
 
-impl Stream for EngineRegistration {
+pub struct EngineReceiver {
+    central: ComPtr<ISRCentral>,
+    register_key: u32,
+    receiver: EventStream<EngineEvent, ()>,
+}
+
+impl Stream for EngineReceiver {
     type Item = EngineEvent;
-    type Error = <UnboundedReceiver<EngineEvent> as Stream>::Error;
+    type Error = ();
 
     fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
         self.receiver.poll()
     }
 }
 
-impl Drop for EngineRegistration {
+impl Drop for EngineReceiver {
     fn drop(&mut self) {
         unsafe {
             let result = self.central.unregister(self.register_key);
@@ -378,4 +368,48 @@ fn get_central() -> Result<ComPtr<ISRCentral>> {
         try!(rc.result());
         Ok(raw_to_comptr::<ISRCentral>(central, true))
     }
+}
+
+struct Cancel {
+    cancel_events: Option<oneshot::Sender<()>>,
+}
+
+impl Cancel {
+    fn new(s: oneshot::Sender<()>) -> Self {
+        Cancel {
+            cancel_events: Some(s)
+        }
+    }
+}
+
+impl Drop for Cancel {
+    fn drop(&mut self) {
+        let cancel = mem::replace(&mut self.cancel_events, None);
+        let _result = cancel.unwrap().send(());
+    }
+}
+
+fn with_cancellation<T, U, R, E>(stream: T, cancellation: U) -> EventStream<R, E>
+    where T: Stream<Item=R, Error=E> + 'static,
+          U: Future<Item=(), Error=E> + 'static,
+          E: 'static
+{
+    let result = stream.merge(cancellation.into_stream())
+        .take_while(|e| {
+            // stream continues as long as not canceled
+            if let MergedItem::First(_) = *e {
+                future::ok(true)
+            } else {
+                future::ok(false)
+            }
+        })
+        .filter_map(|e| {
+            match e {
+                MergedItem::First(x) => Some(x),
+                MergedItem::Second(_) => None,
+                MergedItem::Both(x, _) => Some(x),
+            }
+        });
+
+    Box::new(result)
 }
