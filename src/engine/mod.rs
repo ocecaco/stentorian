@@ -1,5 +1,8 @@
 use futures::sync::mpsc::UnboundedReceiver;
-use futures::{Poll, Stream};
+use futures::unsync::oneshot;
+use futures::{Poll, Stream, Future};
+use futures::stream::MergedItem;
+use futures::future;
 use components::comptr::ComPtr;
 use components::bstr::BString;
 use components::*;
@@ -13,6 +16,7 @@ use self::enginesink::*;
 use self::grammarsink::*;
 use self::grammarsink::interfaces::{ISRGramCommon, ISRGramNotifySink, ISRGramCFG};
 use grammarcompiler::compile_grammar;
+use std::rc::{Rc, Weak};
 use errors::*;
 
 mod interfaces;
@@ -125,7 +129,7 @@ impl Engine {
     pub fn grammar_load(&self,
                         grammar: &Grammar,
                         all_recognitions: bool)
-                        -> Result<GrammarControl>
+                        -> Result<(GrammarControl, GrammarReceiver)>
     {
         let compiled = compile_grammar(grammar)?;
         let data = SDATA {
@@ -160,13 +164,41 @@ impl Engine {
         let grammar_control = query_interface::<ISRGramCommon>(&grammar_control)?;
         let grammar_lists = query_interface::<ISRGramCFG>(&grammar_control)?;
 
-        let control = GrammarControl {
+        let (tx, rx) = oneshot::channel();
+        let event_stream = receiver.merge(rx.map_err(|_| ()).into_stream())
+            .take_while(|e| {
+                // stream continues as long as the one-shot channel
+                // doesn't send anything
+                if let MergedItem::First(_) = *e {
+                    future::ok(true)
+                } else {
+                    future::ok(false)
+                }
+            })
+            .filter_map(|e| {
+                match e {
+                    MergedItem::First(x) => Some(x),
+                    MergedItem::Second(_) => None,
+                    MergedItem::Both(x, _) => Some(x),
+                }
+            });
+
+        let pointers = Rc::new(GrammarPointers {
             grammar_control: grammar_control,
             grammar_lists: grammar_lists,
-            receiver: receiver,
+        });
+
+        let control = GrammarControl {
+            pointers: Rc::downgrade(&pointers),
+            cancel_events: Some(tx),
         };
 
-        Ok(control)
+        let receiver = GrammarReceiver {
+            pointers: Some(pointers),
+            receiver: Box::new(event_stream),
+        };
+
+        Ok((control, receiver))
     }
 }
 
@@ -195,15 +227,40 @@ pub enum GrammarEvent {
     PhraseStart,
 }
 
-pub struct GrammarControl {
+struct GrammarPointers {
     grammar_control: ComPtr<ISRGramCommon>,
     grammar_lists: ComPtr<ISRGramCFG>,
-    receiver: UnboundedReceiver<GrammarEvent>,
 }
 
-impl Stream for GrammarControl {
+pub struct GrammarControl {
+    pointers: Weak<GrammarPointers>,
+    cancel_events: Option<oneshot::Sender<()>>,
+}
+
+impl Drop for GrammarControl {
+    fn drop(&mut self) {
+        let cancel = mem::replace(&mut self.cancel_events, None);
+        // we don't care about the error because it means the grammar
+        // is already gone
+        let _result = cancel.unwrap().send(());
+    }
+}
+
+pub struct GrammarReceiver {
+    pointers: Option<Rc<GrammarPointers>>,
+    receiver: Box<Stream<Item=GrammarEvent, Error=()>>,
+}
+
+impl Drop for GrammarReceiver {
+    fn drop(&mut self) {
+        // make sure pointers are dropped before receiver
+        self.pointers = None;
+    }
+}
+
+impl Stream for GrammarReceiver {
     type Item = GrammarEvent;
-    type Error = <UnboundedReceiver<GrammarEvent> as Stream>::Error;
+    type Error = ();
 
     fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
         self.receiver.poll()
@@ -211,9 +268,17 @@ impl Stream for GrammarControl {
 }
 
 impl GrammarControl {
+    fn get_pointers(&self) -> Result<Rc<GrammarPointers>> {
+        self.pointers
+            .upgrade()
+            .ok_or(ErrorKind::GrammarGone.into())
+    }
+
     pub fn rule_activate(&self, name: &str) -> Result<()> {
+        let pointers = self.get_pointers()?;
+
         let rc = unsafe {
-            self.grammar_control
+            pointers.grammar_control
                 .activate(ptr::null(), 0, BString::from(name).as_ref())
         };
 
@@ -222,8 +287,9 @@ impl GrammarControl {
     }
 
     pub fn rule_deactivate(&self, name: &str) -> Result<()> {
+        let pointers = self.get_pointers()?;
         let rc = unsafe {
-            self.grammar_control
+            pointers.grammar_control
                 .deactivate(BString::from(name).as_ref())
         };
 
@@ -232,6 +298,7 @@ impl GrammarControl {
     }
 
     pub fn list_append(&self, name: &str, word: &str) -> Result<()> {
+        let pointers = self.get_pointers()?;
         let name = BString::from(name);
         let srword: SRWORD = word.into();
 
@@ -240,13 +307,14 @@ impl GrammarControl {
             size: mem::size_of::<SRWORD>() as u32,
         };
 
-        let rc = unsafe { self.grammar_lists.list_append(name.as_ref(), data) };
+        let rc = unsafe { pointers.grammar_lists.list_append(name.as_ref(), data) };
 
         try!(rc.result());
         Ok(())
     }
 
     pub fn list_remove(&self, name: &str, word: &str) -> Result<()> {
+        let pointers = self.get_pointers()?;
         let name = BString::from(name);
         let srword: SRWORD = word.into();
 
@@ -255,13 +323,14 @@ impl GrammarControl {
             size: mem::size_of::<SRWORD>() as u32,
         };
 
-        let rc = unsafe { self.grammar_lists.list_remove(name.as_ref(), data) };
+        let rc = unsafe { pointers.grammar_lists.list_remove(name.as_ref(), data) };
 
         try!(rc.result());
         Ok(())
     }
 
     pub fn list_clear(&self, name: &str) -> Result<()> {
+        let pointers = self.get_pointers()?;
         let name = BString::from(name);
         let srword: SRWORD = "".into();
 
@@ -270,7 +339,7 @@ impl GrammarControl {
             size: mem::size_of::<SRWORD>() as u32,
         };
 
-        let rc = unsafe { self.grammar_lists.list_set(name.as_ref(), data) };
+        let rc = unsafe { pointers.grammar_lists.list_set(name.as_ref(), data) };
 
         try!(rc.result());
         Ok(())

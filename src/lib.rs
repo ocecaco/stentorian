@@ -26,6 +26,13 @@ pub mod errors {
             Com(::components::errors::Error, ::components::errors::ErrorKind);
             Grammar(::grammarcompiler::errors::Error, ::grammarcompiler::errors::ErrorKind);
         }
+
+        errors {
+            GrammarGone {
+                description("attempt to perform operation on unloaded grammar")
+                display("attempt to perform operation on unloaded grammar")
+            }
+        }
     }
 }
 
