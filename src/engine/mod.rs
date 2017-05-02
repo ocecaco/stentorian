@@ -1,4 +1,4 @@
-use futures::unsync::oneshot;
+use futures::sync::oneshot;
 use futures::{Poll, Stream, Future};
 use futures::stream::MergedItem;
 use futures::future;
@@ -15,7 +15,7 @@ use self::enginesink::*;
 use self::grammarsink::*;
 use self::grammarsink::interfaces::{ISRGramCommon, ISRGramNotifySink, ISRGramCFG};
 use grammarcompiler::compile_grammar;
-use std::rc::{Rc, Weak};
+use std::sync::{Arc, Weak};
 use errors::*;
 
 mod interfaces;
@@ -175,13 +175,13 @@ impl Engine {
         let (tx, rx) = oneshot::channel();
         let event_stream = with_cancellation(receiver, rx.map_err(|_| ()));
 
-        let pointers = Rc::new(GrammarPointers {
+        let pointers = Arc::new(GrammarPointers {
             grammar_control: grammar_control,
             grammar_lists: grammar_lists,
         });
 
         let control = GrammarControl {
-            pointers: Rc::downgrade(&pointers),
+            pointers: Arc::downgrade(&pointers),
             cancel: Cancel::new(tx),
         };
 
@@ -229,10 +229,10 @@ pub struct GrammarControl {
     cancel: Cancel,
 }
 
-type EventStream<T, E> = Box<Stream<Item=T, Error=E>>;
+type EventStream<T, E> = Box<Stream<Item=T, Error=E> + Send>;
 
 pub struct GrammarReceiver {
-    pointers: Option<Rc<GrammarPointers>>,
+    pointers: Option<Arc<GrammarPointers>>,
     receiver: EventStream<GrammarEvent, ()>,
 }
 
@@ -253,7 +253,7 @@ impl Stream for GrammarReceiver {
 }
 
 impl GrammarControl {
-    fn get_pointers(&self) -> Result<Rc<GrammarPointers>> {
+    fn get_pointers(&self) -> Result<Arc<GrammarPointers>> {
         self.pointers
             .upgrade()
             .ok_or(ErrorKind::GrammarGone.into())
@@ -390,9 +390,10 @@ impl Drop for Cancel {
 }
 
 fn with_cancellation<T, U, R, E>(stream: T, cancellation: U) -> EventStream<R, E>
-    where T: Stream<Item=R, Error=E> + 'static,
-          U: Future<Item=(), Error=E> + 'static,
-          E: 'static
+    where T: Stream<Item=R, Error=E> + 'static + Send,
+          U: Future<Item=(), Error=E> + 'static + Send,
+          E: Send + 'static,
+          R: Send
 {
     let result = stream.merge(cancellation.into_stream())
         .take_while(|e| {
