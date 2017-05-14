@@ -1,7 +1,3 @@
-use futures::sync::oneshot;
-use futures::{Poll, Stream, Future};
-use futures::stream::MergedItem;
-use futures::future;
 use components::comptr::ComPtr;
 use components::bstr::BString;
 use components::*;
@@ -15,7 +11,6 @@ use self::enginesink::*;
 use self::grammarsink::*;
 use self::grammarsink::interfaces::{ISRGramCommon, ISRGramNotifySink, ISRGramCFG};
 use grammarcompiler::compile_grammar;
-use std::sync::{Arc, Weak};
 use errors::*;
 
 mod interfaces;
@@ -23,6 +18,8 @@ mod enginesink;
 mod grammarsink;
 
 pub use self::enginesink::PauseCookie;
+pub use self::enginesink::Callback as EngineCallback;
+pub use self::grammarsink::Callback as GrammarCallback;
 
 mod engine_flags {
     bitflags! {
@@ -104,10 +101,12 @@ impl Engine {
         Ok(state)
     }
 
-    pub fn register(&self) -> Result<(EngineRegistration, EngineReceiver)>
+    pub fn register(&self, callback: EngineCallback) -> Result<EngineRegistration>
     {
-        let (sink, receiver) = EngineSink::create(engine_flags::SEND_PAUSED |
-                                                  engine_flags::SEND_ATTRIBUTE);
+        let sink = EngineSink::create(engine_flags::SEND_PAUSED |
+                                      engine_flags::SEND_ATTRIBUTE,
+                                      callback);
+
         let mut key = 0;
         let rc = unsafe {
             self.central
@@ -118,26 +117,19 @@ impl Engine {
 
         try!(rc.result());
 
-        let (tx, rx) = oneshot::channel();
-        let event_stream = with_cancellation(receiver, rx.map_err(|_| ()));
-
         let registration = EngineRegistration {
-            cancel: Cancel::new(tx),
-        };
-
-        let engine_receiver = EngineReceiver {
             central: self.central.clone(),
             register_key: key,
-            receiver: event_stream,
         };
 
-        Ok((registration, engine_receiver))
+        Ok(registration)
     }
 
     pub fn grammar_load(&self,
                         grammar: &Grammar,
-                        all_recognitions: bool)
-                        -> Result<(GrammarControl, GrammarReceiver)>
+                        all_recognitions: bool,
+                        callback: GrammarCallback)
+                        -> Result<GrammarControl>
     {
         let compiled = compile_grammar(grammar)?;
         let data = SDATA {
@@ -153,7 +145,7 @@ impl Engine {
             flags |= grammar_flags::SEND_FOREIGN_FINISH;
         }
 
-        let (sink, receiver) = GrammarSink::create(flags);
+        let sink = GrammarSink::create(flags, callback);
         let raw_sink = &sink as &IUnknown as *const _ as RawComPtr;
 
         let rc = unsafe {
@@ -172,25 +164,12 @@ impl Engine {
         let grammar_control = query_interface::<ISRGramCommon>(&grammar_control)?;
         let grammar_lists = query_interface::<ISRGramCFG>(&grammar_control)?;
 
-        let (tx, rx) = oneshot::channel();
-        let event_stream = with_cancellation(receiver, rx.map_err(|_| ()));
-
-        let pointers = Arc::new(GrammarPointers {
+        let control = GrammarControl {
             grammar_control: grammar_control,
             grammar_lists: grammar_lists,
-        });
-
-        let control = GrammarControl {
-            pointers: Arc::downgrade(&pointers),
-            cancel: Cancel::new(tx),
         };
 
-        let receiver = GrammarReceiver {
-            pointers: Some(pointers),
-            receiver: event_stream,
-        };
-
-        Ok((control, receiver))
+        Ok(control)
     }
 }
 
@@ -219,51 +198,15 @@ pub enum GrammarEvent {
     PhraseStart,
 }
 
-struct GrammarPointers {
+pub struct GrammarControl {
     grammar_control: ComPtr<ISRGramCommon>,
     grammar_lists: ComPtr<ISRGramCFG>,
 }
 
-pub struct GrammarControl {
-    pointers: Weak<GrammarPointers>,
-    cancel: Cancel,
-}
-
-type EventStream<T, E> = Box<Stream<Item=T, Error=E> + Send>;
-
-pub struct GrammarReceiver {
-    pointers: Option<Arc<GrammarPointers>>,
-    receiver: EventStream<GrammarEvent, ()>,
-}
-
-impl Drop for GrammarReceiver {
-    fn drop(&mut self) {
-        // make sure pointers are dropped before receiver
-        self.pointers = None;
-    }
-}
-
-impl Stream for GrammarReceiver {
-    type Item = GrammarEvent;
-    type Error = ();
-
-    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
-        self.receiver.poll()
-    }
-}
-
 impl GrammarControl {
-    fn get_pointers(&self) -> Result<Arc<GrammarPointers>> {
-        self.pointers
-            .upgrade()
-            .ok_or(ErrorKind::GrammarGone.into())
-    }
-
     pub fn rule_activate(&self, name: &str) -> Result<()> {
-        let pointers = self.get_pointers()?;
-
         let rc = unsafe {
-            pointers.grammar_control
+            self.grammar_control
                 .activate(ptr::null(), 0, BString::from(name).as_ref())
         };
 
@@ -272,9 +215,8 @@ impl GrammarControl {
     }
 
     pub fn rule_deactivate(&self, name: &str) -> Result<()> {
-        let pointers = self.get_pointers()?;
         let rc = unsafe {
-            pointers.grammar_control
+            self.grammar_control
                 .deactivate(BString::from(name).as_ref())
         };
 
@@ -283,7 +225,6 @@ impl GrammarControl {
     }
 
     pub fn list_append(&self, name: &str, word: &str) -> Result<()> {
-        let pointers = self.get_pointers()?;
         let name = BString::from(name);
         let srword: SRWORD = word.into();
 
@@ -292,14 +233,13 @@ impl GrammarControl {
             size: mem::size_of::<SRWORD>() as u32,
         };
 
-        let rc = unsafe { pointers.grammar_lists.list_append(name.as_ref(), data) };
+        let rc = unsafe { self.grammar_lists.list_append(name.as_ref(), data) };
 
         try!(rc.result());
         Ok(())
     }
 
     pub fn list_remove(&self, name: &str, word: &str) -> Result<()> {
-        let pointers = self.get_pointers()?;
         let name = BString::from(name);
         let srword: SRWORD = word.into();
 
@@ -308,14 +248,13 @@ impl GrammarControl {
             size: mem::size_of::<SRWORD>() as u32,
         };
 
-        let rc = unsafe { pointers.grammar_lists.list_remove(name.as_ref(), data) };
+        let rc = unsafe { self.grammar_lists.list_remove(name.as_ref(), data) };
 
         try!(rc.result());
         Ok(())
     }
 
     pub fn list_clear(&self, name: &str) -> Result<()> {
-        let pointers = self.get_pointers()?;
         let name = BString::from(name);
         let srword: SRWORD = "".into();
 
@@ -324,34 +263,19 @@ impl GrammarControl {
             size: mem::size_of::<SRWORD>() as u32,
         };
 
-        let rc = unsafe { pointers.grammar_lists.list_set(name.as_ref(), data) };
+        let rc = unsafe { self.grammar_lists.list_set(name.as_ref(), data) };
 
         try!(rc.result());
         Ok(())
     }
 }
 
-
 pub struct EngineRegistration {
-    cancel: Cancel,
-}
-
-pub struct EngineReceiver {
     central: ComPtr<ISRCentral>,
     register_key: u32,
-    receiver: EventStream<EngineEvent, ()>,
 }
 
-impl Stream for EngineReceiver {
-    type Item = EngineEvent;
-    type Error = ();
-
-    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
-        self.receiver.poll()
-    }
-}
-
-impl Drop for EngineReceiver {
+impl Drop for EngineRegistration {
     fn drop(&mut self) {
         unsafe {
             let result = self.central.unregister(self.register_key);
@@ -368,49 +292,4 @@ fn get_central() -> Result<ComPtr<ISRCentral>> {
         try!(rc.result());
         Ok(raw_to_comptr::<ISRCentral>(central, true))
     }
-}
-
-struct Cancel {
-    cancel_events: Option<oneshot::Sender<()>>,
-}
-
-impl Cancel {
-    fn new(s: oneshot::Sender<()>) -> Self {
-        Cancel {
-            cancel_events: Some(s)
-        }
-    }
-}
-
-impl Drop for Cancel {
-    fn drop(&mut self) {
-        let cancel = mem::replace(&mut self.cancel_events, None);
-        let _result = cancel.unwrap().send(());
-    }
-}
-
-fn with_cancellation<T, U, R, E>(stream: T, cancellation: U) -> EventStream<R, E>
-    where T: Stream<Item=R, Error=E> + 'static + Send,
-          U: Future<Item=(), Error=E> + 'static + Send,
-          E: Send + 'static,
-          R: Send
-{
-    let result = stream.merge(cancellation.into_stream())
-        .take_while(|e| {
-            // stream continues as long as not canceled
-            if let MergedItem::First(_) = *e {
-                future::ok(true)
-            } else {
-                future::ok(false)
-            }
-        })
-        .filter_map(|e| {
-            match e {
-                MergedItem::First(x) => Some(x),
-                MergedItem::Second(_) => None,
-                MergedItem::Both(x, _) => Some(x),
-            }
-        });
-
-    Box::new(result)
 }

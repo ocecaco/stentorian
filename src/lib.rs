@@ -18,8 +18,6 @@ extern crate components;
 #[macro_use]
 extern crate error_chain;
 
-extern crate futures;
-
 pub mod errors {
     error_chain! {
         links {

@@ -1,5 +1,3 @@
-use futures::sync::mpsc;
-use futures::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use components::*;
 use components::comptr::*;
 use components::refcount::*;
@@ -15,6 +13,8 @@ fn _ensure_kinds() {
     ensure_sync::<EngineSink>();
 }
 
+pub type Callback = Box<Fn(EngineEvent) + Sync>;
+
 #[repr(C)]
 pub struct EngineSink {
     vtable1: &'static ISRNotifySinkVtable,
@@ -22,32 +22,27 @@ pub struct EngineSink {
     vtable3: &'static IDgnSREngineNotifySinkVtable,
     ref_count: RefCount,
     flags: EngineSinkFlags,
-    events: UnboundedSender<EngineEvent>,
+    callback: Callback,
 }
 
 impl EngineSink {
-    pub fn create(flags: EngineSinkFlags)
-                  -> (ComPtr<IUnknown>, UnboundedReceiver<EngineEvent>)
+    pub fn create(flags: EngineSinkFlags, callback: Callback) -> ComPtr<IUnknown>
     {
-        let (tx, rx) = mpsc::unbounded();
-
         let sink = EngineSink {
             vtable1: &v1::VTABLE,
             vtable2: &v2::VTABLE,
             vtable3: &v3::VTABLE,
             ref_count: RefCount::new(1),
             flags: flags,
-            events: tx,
+            callback: callback,
         };
 
         let raw = Box::into_raw(Box::new(sink)) as RawComPtr;
-        let unk = unsafe { raw_to_comptr(raw, true) };
-        (unk, rx)
+        unsafe { raw_to_comptr(raw, true) }
     }
 
     fn send(&self, event: EngineEvent) {
-        self.events.send(event)
-            .expect("receiving end of channel closed before unregister");
+        (self.callback)(event);
     }
 
     unsafe fn query_interface(&self, iid: *const IID, v: *mut RawComPtr) -> HRESULT {

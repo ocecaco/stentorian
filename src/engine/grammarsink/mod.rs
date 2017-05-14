@@ -10,8 +10,6 @@ use std::mem;
 use dragon::*;
 use super::{GrammarEvent, Recognition};
 use super::grammar_flags::GrammarSinkFlags;
-use futures::sync::mpsc;
-use futures::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 use std::os::raw::c_void;
 
@@ -20,38 +18,34 @@ fn _ensure_kinds() {
     ensure_sync::<GrammarSink>();
 }
 
+pub type Callback = Box<Fn(GrammarEvent) + Sync>;
+
 #[repr(C)]
 pub struct GrammarSink {
     vtable1: &'static ISRGramNotifySinkVtable,
     vtable2: &'static IDgnGetSinkFlagsVtable,
     ref_count: RefCount,
     flags: GrammarSinkFlags,
-    events: UnboundedSender<GrammarEvent>,
+    callback: Callback,
 }
 
 impl GrammarSink {
-    pub fn create(flags: GrammarSinkFlags)
-                  -> (ComPtr<IUnknown>, UnboundedReceiver<GrammarEvent>)
+    pub fn create(flags: GrammarSinkFlags, callback: Callback) -> ComPtr<IUnknown>
     {
-        let (tx, rx) = mpsc::unbounded();
-
         let result = GrammarSink {
             vtable1: &v1::VTABLE,
             vtable2: &v2::VTABLE,
             ref_count: RefCount::new(1),
             flags: flags,
-            events: tx,
+            callback: callback,
         };
 
         let raw = Box::into_raw(Box::new(result)) as RawComPtr;
-        let unk = unsafe { raw_to_comptr(raw, true) };
-
-        (unk, rx)
+        unsafe { raw_to_comptr(raw, true) }
     }
 
     fn send(&self, event: GrammarEvent) {
-        self.events.send(event)
-            .expect("receiving end of channel closed before unregister");
+        (self.callback)(event);
     }
 
     unsafe fn query_interface(&self, iid: *const IID, v: *mut RawComPtr) -> HRESULT {
