@@ -94,9 +94,9 @@ impl Engine {
         let central = get_central()?;
         let engine_control = query_interface::<IDgnSREngineControl>(&central)?;
         Ok(Engine {
-            central: central,
-            engine_control: engine_control,
-        })
+               central: central,
+               engine_control: engine_control,
+           })
     }
 
     pub fn resume(&self, cookie: PauseCookie) -> Result<()> {
@@ -125,11 +125,10 @@ impl Engine {
         Ok(state)
     }
 
-    pub fn register<F>(&self, callback: F) -> Result<EngineRegistration> where
-        F: Fn(EngineEvent) + Sync + 'static
+    pub fn register<F>(&self, callback: F) -> Result<EngineRegistration>
+        where F: Fn(EngineEvent) + Sync + 'static
     {
-        let sink = EngineSink::create(engine_flags::SEND_PAUSED |
-                                      engine_flags::SEND_ATTRIBUTE,
+        let sink = EngineSink::create(engine_flags::SEND_PAUSED | engine_flags::SEND_ATTRIBUTE,
                                       Box::new(callback));
 
         let mut key = 0;
@@ -154,8 +153,8 @@ impl Engine {
                            grammar: &Grammar,
                            all_recognitions: bool,
                            callback: F)
-                           -> Result<GrammarControl> where
-        F: Fn(GrammarEvent) + Sync + 'static
+                           -> Result<GrammarControl>
+        where F: Fn(GrammarEvent) + Sync + 'static
     {
         let compiled = compile_grammar(grammar)?;
         let data = SDATA {
@@ -164,8 +163,7 @@ impl Engine {
         };
         let mut raw_control = ptr::null();
 
-        let mut flags = grammar_flags::SEND_PHRASE_START
-            | grammar_flags::SEND_PHRASE_FINISH;
+        let mut flags = grammar_flags::SEND_PHRASE_START | grammar_flags::SEND_PHRASE_FINISH;
 
         if all_recognitions {
             flags |= grammar_flags::SEND_FOREIGN_FINISH;

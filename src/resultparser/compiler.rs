@@ -166,7 +166,10 @@ impl<'a> Compiler<'a> {
 
                 self.emit(Instruction::Label(no_label));
             }
-            Element::Capture { ref name, ref child } => {
+            Element::Capture {
+                ref name,
+                ref child,
+            } => {
                 self.emit(Instruction::CaptureStart(name.clone()));
                 self.compile_element(child);
                 self.emit(Instruction::CaptureStop);

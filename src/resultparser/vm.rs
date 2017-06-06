@@ -27,9 +27,7 @@ impl Capture {
 }
 
 fn complete_capture_tree<'a>(tree: &CaptureTree<'a, Capture>) -> Match<'a> {
-    let completed_children = tree.children
-        .iter()
-        .map(|c| complete_capture_tree(c));
+    let completed_children = tree.children.iter().map(|c| complete_capture_tree(c));
 
     CaptureTree {
         name: tree.name,
@@ -67,11 +65,12 @@ impl<'a, 'c> Thread<'a, 'c> {
     fn capture_start(&mut self, name: &'a str) {
         let position = self.string_pointer;
 
-        self.captures.push(CaptureTree {
-            name: name,
-            slice: Capture::Started(position),
-            children: Vec::new(),
-        });
+        self.captures
+            .push(CaptureTree {
+                      name: name,
+                      slice: Capture::Started(position),
+                      children: Vec::new(),
+                  });
     }
 
     fn capture_stop(&mut self) -> Option<CaptureTree<'a, Capture>> {

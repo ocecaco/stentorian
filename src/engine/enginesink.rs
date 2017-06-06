@@ -26,8 +26,7 @@ pub struct EngineSink {
 }
 
 impl EngineSink {
-    pub fn create(flags: EngineSinkFlags, callback: Callback) -> ComPtr<IUnknown>
-    {
+    pub fn create(flags: EngineSinkFlags, callback: Callback) -> ComPtr<IUnknown> {
         let sink = EngineSink {
             vtable1: &v1::VTABLE,
             vtable2: &v2::VTABLE,
