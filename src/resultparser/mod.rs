@@ -4,7 +4,7 @@ mod instructions;
 
 use grammar::Grammar;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct CaptureTree<'a, T> {
     pub name: &'a str,
     pub slice: T,

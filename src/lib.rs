@@ -36,10 +36,10 @@ pub mod errors {
 
 pub mod engine;
 pub mod grammar;
+pub mod resultparser;
 
 mod interfaces;
 mod dragon;
-mod resultparser;
 mod grammarcompiler;
 
 use errors::*;
