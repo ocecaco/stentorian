@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
-use super::{Match, CaptureTree};
+use super::{Match, CaptureTree, CaptureName};
 use super::instructions::*;
 
 pub fn perform_match<'a, 'c>(instructions: &'a [Instruction],
@@ -62,7 +62,7 @@ impl<'a, 'c> Thread<'a, 'c> {
         }
     }
 
-    fn capture_start(&mut self, name: &'a str) {
+    fn capture_start(&mut self, name: CaptureName<'a>) {
         let position = self.string_pointer;
 
         self.captures
@@ -103,7 +103,7 @@ impl<'a, 'c> Thread<'a, 'c> {
             match *next {
                 Instruction::RuleStart(id, ref name) => {
                     self.rule_stack.push(id);
-                    self.capture_start(name);
+                    self.capture_start(CaptureName::Rule { name });
                 }
                 Instruction::Literal(ref grammar_word) => {
                     if let Some(&(ref word, id)) = self.string.get(self.string_pointer) {
@@ -150,7 +150,7 @@ impl<'a, 'c> Thread<'a, 'c> {
                     }
                 }
                 Instruction::CaptureStart(ref name) => {
-                    self.capture_start(name);
+                    self.capture_start(CaptureName::Capture { name });
                 }
                 Instruction::CaptureStop => {
                     self.capture_stop();
