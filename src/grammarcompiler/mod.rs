@@ -4,7 +4,7 @@ use grammar::*;
 use self::errors::*;
 use self::ruletoken::*;
 use self::intern::*;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::Entry;
 pub use self::ruletoken::RuleId;
 
@@ -20,8 +20,8 @@ pub mod errors {
             }
 
             DuplicateRule(name: String) {
-                description("duplicate rule name in grammar definition")
-                    display("duplicate rule name in grammar definition: {}", name)
+                description("duplicate rule/capture name in grammar definition")
+                    display("duplicate rule/capture name in grammar definition: {}", name)
             }
 
             ReservedRule(name: String) {
@@ -70,6 +70,7 @@ struct GrammarCompiler<'a> {
     words: Interner<'a>,
     lists: Interner<'a>,
     grammar: &'a Grammar,
+    unique_names: HashSet<&'a str>,
 }
 
 impl<'a> GrammarCompiler<'a> {
@@ -81,7 +82,25 @@ impl<'a> GrammarCompiler<'a> {
             words: Interner::new(),
             lists: Interner::new(),
             grammar: grammar,
+            unique_names: HashSet::new(),
         }
+    }
+
+    fn ensure_unique(&mut self, name: &'a str) -> Result<()> {
+        match name.chars().next() {
+            // capture names that start with an underscore don't have
+            // to be unique
+            Some('_') | None => return Ok(()),
+            Some(_) => {}
+        }
+
+        let already_present = !self.unique_names.insert(name);
+
+        if already_present {
+            return Err(ErrorKind::DuplicateRule(name.to_owned()).into())
+        }
+
+        return Ok(())
     }
 
     fn compile_grammar(mut self) -> Result<Vec<u8>> {
@@ -188,7 +207,8 @@ impl<'a> GrammarCompiler<'a> {
                 let id = self.lists.intern(name);
                 output.push(RuleToken::List(id));
             }
-            Element::Capture { ref child, .. } => {
+            Element::Capture { ref child, ref name } => {
+                self.ensure_unique(name)?;
                 self.compile_element(child, output)?;
             }
             Element::Dictation => {

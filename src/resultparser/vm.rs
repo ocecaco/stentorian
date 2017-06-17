@@ -30,6 +30,7 @@ fn complete_capture_tree<'a>(tree: &CaptureTree<'a, Capture>) -> Match<'a> {
     let completed_children = tree.children.iter().map(|c| complete_capture_tree(c));
 
     CaptureTree {
+        rule: tree.rule,
         name: tree.name,
         slice: tree.slice.complete(),
         children: completed_children.collect(),
@@ -42,7 +43,7 @@ struct Thread<'a, 'c> {
     string: &'c [(String, u32)],
     program_pointer: usize,
     string_pointer: usize,
-    rule_stack: Vec<u32>,
+    rule_stack: Vec<(u32, &'a str)>,
     call_stack: Vec<usize>,
     captures: Vec<CaptureTree<'a, Capture>>,
     progress: HashMap<usize, usize>,
@@ -64,34 +65,35 @@ impl<'a, 'c> Thread<'a, 'c> {
 
     fn capture_start(&mut self, name: &'a str) {
         let position = self.string_pointer;
-
+        let rule = self.current_rule().1;
         self.captures
             .push(CaptureTree {
+                      rule: rule,
                       name: name,
                       slice: Capture::Started(position),
                       children: Vec::new(),
                   });
     }
 
-    fn capture_stop(&mut self) -> Option<CaptureTree<'a, Capture>> {
-        let position = self.string_pointer;
-
-        let mut child = self.captures.pop().unwrap();
-        if let Capture::Started(start) = child.slice {
-            child.slice = Capture::Complete(start, position);
-        } else {
-            panic!("attempt to stop capture twice");
+    fn capture_stop(&mut self) {
+        {
+            let mut child = self.captures.last_mut().unwrap();
+            if let Capture::Started(start) = child.slice {
+                let position = self.string_pointer;
+                child.slice = Capture::Complete(start, position);
+            } else {
+                panic!("attempt to stop capture twice");
+            }
         }
 
-        if let Some(parent) = self.captures.last_mut() {
+        if self.captures.len() >= 2 {
+            let child = self.captures.pop().unwrap();
+            let parent = self.captures.last_mut().unwrap();
             parent.children.push(child);
-            None
-        } else {
-            Some(child)
         }
     }
 
-    fn current_rule(&self) -> u32 {
+    fn current_rule(&self) -> (u32, &'a str) {
         *self.rule_stack.last().unwrap()
     }
 
@@ -102,12 +104,11 @@ impl<'a, 'c> Thread<'a, 'c> {
 
             match *next {
                 Instruction::RuleStart(id, ref name) => {
-                    self.rule_stack.push(id);
-                    self.capture_start(name);
+                    self.rule_stack.push((id, name));
                 }
                 Instruction::Literal(ref grammar_word) => {
                     if let Some(&(ref word, id)) = self.string.get(self.string_pointer) {
-                        if (word, id) == (grammar_word, self.current_rule()) {
+                        if (word, id) == (grammar_word, self.current_rule().0) {
                             self.string_pointer += 1;
                         } else {
                             return None;
@@ -118,7 +119,7 @@ impl<'a, 'c> Thread<'a, 'c> {
                 }
                 Instruction::AnyWord => {
                     if let Some(&(_, id)) = self.string.get(self.string_pointer) {
-                        if id == self.current_rule() {
+                        if id == self.current_rule().0 {
                             self.string_pointer += 1;
                         } else {
                             return None;
@@ -137,14 +138,14 @@ impl<'a, 'c> Thread<'a, 'c> {
                     }
                 }
                 Instruction::RuleStop => {
-                    let maybe_node = self.capture_stop();
-
                     self.rule_stack.pop();
 
                     if let Some(return_address) = self.call_stack.pop() {
                         self.program_pointer = return_address;
                     } else if self.string_pointer == self.string.len() {
-                        return Some(complete_capture_tree(&maybe_node.unwrap()));
+                        assert_eq!(self.captures.len(), 1);
+                        let c = &self.captures[0];
+                        return Some(complete_capture_tree(c));
                     } else {
                         return None;
                     }

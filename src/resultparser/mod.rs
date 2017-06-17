@@ -6,6 +6,7 @@ use grammar::Grammar;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct CaptureTree<'a, T> {
+    pub rule: &'a str,
     pub name: &'a str,
     pub slice: T,
     pub children: Vec<CaptureTree<'a, T>>,
