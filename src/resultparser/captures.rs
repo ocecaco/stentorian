@@ -11,12 +11,12 @@ pub type Match<'a> = CaptureTree<'a, (usize, usize)>;
 #[derive(Debug, Copy, Clone)]
 enum Capture {
     Started(usize),
-    Complete(usize, usize),
+    Stopped(usize, usize),
 }
 
 impl Capture {
     fn complete(&self) -> (usize, usize) {
-        if let Capture::Complete(a, b) = *self {
+        if let Capture::Stopped(a, b) = *self {
             (a, b)
         } else {
             panic!("attempt to unwrap incomplete capture");
@@ -60,26 +60,39 @@ impl<'a> CaptureBuilder<'a> {
     pub fn capture_stop(&mut self, position: usize) {
         {
             let mut child = self.captures.last_mut().unwrap();
+
             if let Capture::Started(start) = child.slice {
-                child.slice = Capture::Complete(start, position);
+                child.slice = Capture::Stopped(start, position);
             } else {
                 panic!("attempt to stop capture twice");
             }
         }
 
-        if self.captures.len() >= 2 {
-            let child = self.captures.pop().unwrap();
-
-            let parent = self.captures.last_mut().unwrap();
-            if let Capture::Complete(_, _) = parent.slice {
-                panic!("attempt to add child to completed parent");
-            }
-
-            parent.children.push(child);
+        if self.captures.len() < 2 {
+            return;
         }
+
+        let child = self.captures.pop().unwrap();
+
+        {
+            let parent = self.captures.last_mut().unwrap();
+            if let Capture::Started(_) = parent.slice {
+                parent.children.push(child);
+                return;
+            }
+        }
+
+        self.captures.push(child);
     }
 
     pub fn done(self) -> Match<'a> {
-        complete_capture_tree(&self.captures[0])
+        let children = self.captures.iter().map(|c| complete_capture_tree(c)).collect();
+
+        CaptureTree {
+            rule: "__top",
+            name: "__top",
+            slice: (0, 0),
+            children: children,
+        }
     }
 }

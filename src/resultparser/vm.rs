@@ -10,7 +10,7 @@ pub fn perform_match<'a, 'c>(program: &'a [Instruction],
     threads.push(Thread::new(program, string));
 
     while let Some(t) = threads.pop() {
-        let result = t.run_wrap(&mut threads).ok();
+        let result = t.run(&mut threads).ok();
 
         if result.is_some() {
             return result;
@@ -74,14 +74,7 @@ impl<'a, 'c> Thread<'a, 'c> {
         }
     }
 
-    fn run_wrap(mut self, threads: &mut Vec<Thread<'a, 'c>>) -> Result<Match<'a>> {
-        self.captures.capture_start("__top", "__top", self.string_pointer);
-        self.run(threads)?;
-        self.captures.capture_stop(self.string_pointer);
-        Ok(self.captures.done())
-    }
-
-    fn run(&mut self, threads: &mut Vec<Thread<'a, 'c>>) -> Result<()> {
+    fn run(mut self, threads: &mut Vec<Thread<'a, 'c>>) -> Result<Match<'a>> {
         loop {
             let next = &self.instructions[self.program_pointer];
             self.program_pointer += 1;
@@ -116,7 +109,7 @@ impl<'a, 'c> Thread<'a, 'c> {
                     if let Some(return_address) = self.call_stack.pop() {
                         self.program_pointer = return_address;
                     } else if self.string_pointer == self.string.len() {
-                        return Ok(());
+                        return Ok(self.captures.done());
                     } else {
                         return Err(());
                     }
