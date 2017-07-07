@@ -1,41 +1,26 @@
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
-use super::{Match, CaptureTree};
+use super::captures::{CaptureBuilder, Match};
 use super::instructions::*;
 
-pub fn perform_match<'a, 'c>(instructions: &'a [Instruction],
+pub fn perform_match<'a, 'c>(program: &'a [Instruction],
                              string: &'c [(String, u32)])
                              -> Option<Match<'a>> {
-    let vm = Vm::new(instructions, string);
-    vm.perform_match()
-}
+    let mut threads = Vec::new();
+    threads.push(Thread::new(program, string));
 
-#[derive(Debug, Copy, Clone)]
-enum Capture {
-    Started(usize),
-    Complete(usize, usize),
-}
+    while let Some(t) = threads.pop() {
+        let result = t.run_wrap(&mut threads).ok();
 
-impl Capture {
-    fn complete(&self) -> (usize, usize) {
-        if let Capture::Complete(a, b) = *self {
-            (a, b)
-        } else {
-            panic!("attempt to unwrap incomplete capture");
+        if result.is_some() {
+            return result;
         }
     }
+
+    None
 }
 
-fn complete_capture_tree<'a>(tree: &CaptureTree<'a, Capture>) -> Match<'a> {
-    let completed_children = tree.children.iter().map(|c| complete_capture_tree(c));
-
-    CaptureTree {
-        rule: tree.rule,
-        name: tree.name,
-        slice: tree.slice.complete(),
-        children: completed_children.collect(),
-    }
-}
+type Result<T> = ::std::result::Result<T, ()>;
 
 #[derive(Debug, Clone)]
 struct Thread<'a, 'c> {
@@ -45,7 +30,7 @@ struct Thread<'a, 'c> {
     string_pointer: usize,
     rule_stack: Vec<(u32, &'a str)>,
     call_stack: Vec<usize>,
-    captures: Vec<CaptureTree<'a, Capture>>,
+    captures: CaptureBuilder<'a>,
     progress: HashMap<usize, usize>,
 }
 
@@ -58,43 +43,8 @@ impl<'a, 'c> Thread<'a, 'c> {
             string_pointer: 0,
             rule_stack: Vec::new(),
             call_stack: Vec::new(),
-            captures: Vec::new(),
+            captures: CaptureBuilder::new(),
             progress: HashMap::new(),
-        }
-    }
-
-    fn capture_start(&mut self, name: &'a str) {
-        let position = self.string_pointer;
-        let rule = self.current_rule().1;
-        self.captures
-            .push(CaptureTree {
-                      rule: rule,
-                      name: name,
-                      slice: Capture::Started(position),
-                      children: Vec::new(),
-                  });
-    }
-
-    fn capture_stop(&mut self) {
-        {
-            let mut child = self.captures.last_mut().unwrap();
-            if let Capture::Started(start) = child.slice {
-                let position = self.string_pointer;
-                child.slice = Capture::Complete(start, position);
-            } else {
-                panic!("attempt to stop capture twice");
-            }
-        }
-
-        if self.captures.len() >= 2 {
-            let child = self.captures.pop().unwrap();
-
-            let parent = self.captures.last_mut().unwrap();
-            if let Capture::Complete(_, _) = parent.slice {
-                panic!("attempt to add child to completed parent");
-            }
-
-            parent.children.push(child);
         }
     }
 
@@ -102,45 +52,63 @@ impl<'a, 'c> Thread<'a, 'c> {
         *self.rule_stack.last().unwrap()
     }
 
-    fn run(mut self, threads: &mut Vec<Thread<'a, 'c>>) -> Option<Match<'a>> {
+    fn match_token(&mut self, word: Option<&'a str>, rule_id: Option<u32>) -> Result<()> {
+        let current = self.string.get(self.string_pointer);
+        if let Some(&(ref current_word, current_rule_id)) = current {
+            if let Some(word) = word {
+                if word != current_word {
+                    return Err(());
+                }
+            }
+
+            if let Some(rule_id) = rule_id {
+                if rule_id != current_rule_id {
+                    return Err(());
+                }
+            }
+
+            self.string_pointer += 1;
+            return Ok(());
+        } else {
+            return Err(());
+        }
+    }
+
+    fn run_wrap(mut self, threads: &mut Vec<Thread<'a, 'c>>) -> Result<Match<'a>> {
+        self.captures.capture_start("__top", "__top", self.string_pointer);
+        self.run(threads)?;
+        self.captures.capture_stop(self.string_pointer);
+        Ok(self.captures.done())
+    }
+
+    fn run(&mut self, threads: &mut Vec<Thread<'a, 'c>>) -> Result<()> {
         loop {
             let next = &self.instructions[self.program_pointer];
             self.program_pointer += 1;
 
             match *next {
-                Instruction::RuleStart(id, ref name) => {
-                    self.rule_stack.push((id, name));
-                }
                 Instruction::Literal(ref grammar_word) => {
-                    if let Some(&(ref word, id)) = self.string.get(self.string_pointer) {
-                        if (word, id) == (grammar_word, self.current_rule().0) {
-                            self.string_pointer += 1;
-                        } else {
-                            return None;
-                        }
-                    } else {
-                        return None;
-                    }
+                    let id = self.current_rule().0;
+                    self.match_token(Some(grammar_word), Some(id))?;
                 }
                 Instruction::AnyWord => {
-                    if let Some(&(_, id)) = self.string.get(self.string_pointer) {
-                        if id == self.current_rule().0 {
-                            self.string_pointer += 1;
-                        } else {
-                            return None;
-                        }
-                    } else {
-                        return None;
+                    let id = self.current_rule().0;
+                    self.match_token(None, Some(id))?;
+                }
+                Instruction::GreedyRule(rule_id) => {
+                    while let Ok(_) = self.match_token(None, Some(rule_id)) {
+                        // empty loop body
                     }
                 }
-                Instruction::GreedyRule(rule) => {
-                    while let Some(&(_, id)) = self.string.get(self.string_pointer) {
-                        if id == rule {
-                            self.string_pointer += 1;
-                        } else {
-                            break;
-                        }
-                    }
+                Instruction::CaptureStart(ref name) => {
+                    let (_, rule) = self.current_rule();
+                    self.captures.capture_start(rule, name, self.string_pointer);
+                }
+                Instruction::CaptureStop => {
+                    self.captures.capture_stop(self.string_pointer);
+                }
+                Instruction::RuleStart(id, ref name) => {
+                    self.rule_stack.push((id, name));
                 }
                 Instruction::RuleStop => {
                     self.rule_stack.pop();
@@ -148,18 +116,10 @@ impl<'a, 'c> Thread<'a, 'c> {
                     if let Some(return_address) = self.call_stack.pop() {
                         self.program_pointer = return_address;
                     } else if self.string_pointer == self.string.len() {
-                        assert_eq!(self.captures.len(), 1);
-                        let c = &self.captures[0];
-                        return Some(complete_capture_tree(c));
+                        return Ok(());
                     } else {
-                        return None;
+                        return Err(());
                     }
-                }
-                Instruction::CaptureStart(ref name) => {
-                    self.capture_start(name);
-                }
-                Instruction::CaptureStop => {
-                    self.capture_stop();
                 }
                 Instruction::RuleCall(ref t) => {
                     self.call_stack.push(self.program_pointer);
@@ -192,7 +152,7 @@ impl<'a, 'c> Thread<'a, 'c> {
 
                             // stop we haven't made progress
                             if current == *previous {
-                                return None;
+                                return Err(());
                             }
 
                             *previous = current;
@@ -206,36 +166,5 @@ impl<'a, 'c> Thread<'a, 'c> {
                 Instruction::Label(_) => {}
             }
         }
-    }
-}
-
-#[derive(Debug, Clone)]
-struct Vm<'a, 'c> {
-    program: &'a [Instruction],
-    string: &'c [(String, u32)],
-    threads: Vec<Thread<'a, 'c>>,
-}
-
-impl<'a, 'c> Vm<'a, 'c> {
-    fn new(program: &'a [Instruction], string: &'c [(String, u32)]) -> Self {
-        Vm {
-            program: program,
-            string: string,
-            threads: Vec::new(),
-        }
-    }
-
-    fn perform_match(mut self) -> Option<Match<'a>> {
-        self.threads.push(Thread::new(self.program, self.string));
-
-        while let Some(t) = self.threads.pop() {
-            let result = t.run(&mut self.threads);
-
-            if result.is_some() {
-                return result;
-            }
-        }
-
-        None
     }
 }

@@ -1,18 +1,11 @@
 mod compiler;
 mod vm;
+mod captures;
 mod instructions;
 
 use grammar::Grammar;
 
-#[derive(Debug, Clone, Serialize)]
-pub struct CaptureTree<'a, T> {
-    pub rule: &'a str,
-    pub name: &'a str,
-    pub slice: T,
-    pub children: Vec<CaptureTree<'a, T>>,
-}
-
-pub type Match<'a> = CaptureTree<'a, (usize, usize)>;
+pub use self::captures::{CaptureTree, Match};
 
 pub struct Matcher {
     instructions: Vec<instructions::Instruction>,
