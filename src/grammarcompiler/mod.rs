@@ -20,8 +20,8 @@ pub mod errors {
             }
 
             DuplicateRule(name: String) {
-                description("duplicate rule/capture name in grammar definition")
-                    display("duplicate rule/capture name in grammar definition: {}", name)
+                description("duplicate rule name in grammar definition")
+                    display("duplicate rule name in grammar definition: {}", name)
             }
 
             ReservedRule(name: String) {

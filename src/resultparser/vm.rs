@@ -88,7 +88,12 @@ impl<'a, 'c> Thread<'a, 'c> {
 
         if self.captures.len() >= 2 {
             let child = self.captures.pop().unwrap();
+
             let parent = self.captures.last_mut().unwrap();
+            if let Capture::Complete(_, _) = parent.slice {
+                panic!("attempt to add child to completed parent");
+            }
+
             parent.children.push(child);
         }
     }
