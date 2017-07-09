@@ -1,5 +1,5 @@
 [package]
-name = "rustlink"
+name = "stentorian"
 version = "0.1.0"
 authors = ["Daniël Louwrink <daniel.louwrink@gmail.com>"]
 
