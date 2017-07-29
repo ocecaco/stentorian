@@ -106,3 +106,22 @@ com_interface! {
         fn resume(cookie: u64) -> HRESULT;
     }
 }
+
+define_guid!(IID_ISRSpeaker = 0x090CD9AE,
+             0xDA1A, 0x11CD, 0xB3, 0xCA, 0x0, 0xAA, 0x0, 0x47, 0xBA, 0x4F);
+
+com_interface! {
+    interface ISRSpeaker : IUnknown {
+        iid: IID_ISRSpeaker,
+        vtable: ISRSpeakerVtable,
+        fn delete(name: BStr) -> HRESULT;
+        fn enumerate(name: *mut *const u16, size: *mut u32) -> HRESULT;
+        fn merge(name: BStr, a: *const (), b: u32) -> HRESULT;
+        fn new(name: BStr) -> HRESULT;
+        fn query(name: *mut u16, buffer_size: u32, required: *mut u32) -> HRESULT;
+        fn read(name: BStr) -> HRESULT;
+        fn revert(name: BStr) -> HRESULT;
+        fn select(name: BStr, lock: i32) -> HRESULT;
+        fn write(name: BStr, a: *const (), b: u32) -> HRESULT;
+    }
+}

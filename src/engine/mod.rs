@@ -3,6 +3,7 @@ use components::*;
 use interfaces::*;
 use self::interfaces::*;
 use std::ptr;
+use std::mem;
 use dragon::*;
 use grammar::Grammar;
 use self::enginesink::*;
@@ -123,6 +124,29 @@ impl Engine {
 
         try!(rc.result());
         Ok(state)
+    }
+
+    pub fn get_current_user(&self) -> Result<Option<String>> {
+        const SIZE: usize = 128;
+        const NO_USER_SELECTED: HRESULT = HRESULT(0x8004041a);
+        type Buffer = [u16; SIZE];
+
+        let speaker = query_interface::<ISRSpeaker>(&self.central)?;
+        let mut buffer: Buffer = [0u16; SIZE];
+        let mut required = 0;
+
+        let rc = unsafe {
+            speaker.query(buffer.as_mut_ptr(),
+                          mem::size_of::<Buffer>() as u32,
+                          &mut required)
+        };
+
+        if rc == NO_USER_SELECTED {
+            return Ok(None);
+        }
+
+        try!(rc.result());
+        Ok(Some(String::from_utf16_lossy(&buffer[..(required / 2 - 1) as usize])))
     }
 
     pub fn register<F>(&self, callback: F) -> Result<EngineRegistration>
