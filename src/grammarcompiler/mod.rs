@@ -37,6 +37,20 @@ pub fn compile_grammar(grammar: &Grammar) -> Result<Vec<u8>> {
     compiler.compile_grammar()
 }
 
+pub fn compile_select_grammar(select_words: &[String], through_words: &[String]) -> Vec<u8> {
+    let mut output = Vec::new();
+
+    output.write_u32::<LittleEndian>(10).unwrap();
+    output.write_u32::<LittleEndian>(1).unwrap();
+
+    let select_chunk = compile_id_chunk(select_words.iter().map(|s| (0, s as &str)));
+    write_chunk(&mut output, ChunkType::SelectWords, select_chunk);
+    let through_chunk = compile_id_chunk(through_words.iter().map(|s| (0, s as &str)));
+    write_chunk(&mut output, ChunkType::ThroughWords, through_chunk);
+
+    output
+}
+
 pub enum ImportedRule {
     Dictation,
     DictationWord,
@@ -93,12 +107,12 @@ impl<'a> GrammarCompiler<'a> {
         let rule_chunk = rule_chunk;
 
         let words = self.words.done();
-        let word_chunk = compile_id_chunk(&words);
+        let word_chunk = compile_id_chunk(words);
         let lists = self.lists.done();
-        let list_chunk = compile_id_chunk(&lists);
+        let list_chunk = compile_id_chunk(lists);
 
-        let export_chunk = compile_id_chunk(&self.exported_rules);
-        let import_chunk = compile_id_chunk(&self.imported_rules);
+        let export_chunk = compile_id_chunk(self.exported_rules);
+        let import_chunk = compile_id_chunk(self.imported_rules);
 
         let mut output = Vec::new();
         output.write_u32::<LittleEndian>(0).unwrap();
@@ -231,6 +245,8 @@ enum ChunkType {
     Lists = 6,
     Words = 2,
     Rules = 3,
+    SelectWords = 0x1017,
+    ThroughWords = 0x1018,
 }
 
 fn write_chunk(output: &mut Vec<u8>, chunk_type: ChunkType, mut data: Vec<u8>) {
@@ -253,7 +269,9 @@ fn write_entry(output: &mut Vec<u8>, id: u32, mut data: Vec<u8>) {
     output.append(&mut data);
 }
 
-fn compile_id_chunk(entries: &[(u32, &str)]) -> Vec<u8> {
+fn compile_id_chunk<'a, E>(entries: E) -> Vec<u8>
+    where E: IntoIterator<Item=(u32, &'a str)>
+{
     fn add_padding(v: &mut Vec<u8>, multiple: usize) {
         let extra_padding = multiple - (v.len() % multiple);
         for _ in 0..extra_padding {
@@ -271,7 +289,7 @@ fn compile_id_chunk(entries: &[(u32, &str)]) -> Vec<u8> {
 
     let mut chunk = Vec::new();
 
-    for &(id, name) in entries.iter() {
+    for (id, name) in entries {
         let mut encoded = encode(name);
 
         // make sure word is terminated by at least *two* null bytes

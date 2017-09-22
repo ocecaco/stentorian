@@ -9,7 +9,7 @@ use grammar::Grammar;
 use self::enginesink::*;
 use self::grammarsink::*;
 use self::grammarsink::interfaces::{ISRGramCommon, ISRGramNotifySink, ISRGramCFG};
-use grammarcompiler::compile_grammar;
+use grammarcompiler::{compile_grammar, compile_select_grammar};
 use errors::*;
 
 mod interfaces;
@@ -173,14 +173,9 @@ impl Engine {
         Ok(registration)
     }
 
-    pub fn grammar_load<F>(&self,
-                           grammar: &Grammar,
-                           all_recognitions: bool,
-                           callback: F)
-                           -> Result<GrammarControl>
+    fn grammar_helper<F>(&self, grammar_type: SRGRMFMT, compiled: Vec<u8>, all_recognitions: bool, callback: F) -> Result<GrammarControl>
         where F: Fn(GrammarEvent) + Sync + 'static
     {
-        let compiled = compile_grammar(grammar)?;
         let data = SDATA {
             data: compiled.as_ptr(),
             size: compiled.len() as u32,
@@ -198,7 +193,7 @@ impl Engine {
 
         let rc = unsafe {
             self.central
-                .grammar_load(SRGRMFMT::SRGRMFMT_CFG,
+                .grammar_load(grammar_type,
                               data,
                               raw_sink,
                               ISRGramNotifySink::iid(),
@@ -208,13 +203,33 @@ impl Engine {
         try!(rc.result());
 
         let grammar_control = unsafe { raw_to_comptr::<IUnknown>(raw_control, true) };
-
         let grammar_control = query_interface::<ISRGramCommon>(&grammar_control)?;
-        let grammar_lists = query_interface::<ISRGramCFG>(&grammar_control)?;
-
-        let control = grammarcontrol::create(grammar_control, grammar_lists);
+        let control = grammarcontrol::create(grammar_control);
 
         Ok(control)
+    }
+
+    pub fn select_grammar_load<F>(&self,
+                           select_words: &[String],
+                           through_words: &[String],
+                           all_recognitions: bool,
+                           callback: F)
+                           -> Result<GrammarControl>
+        where F: Fn(GrammarEvent) + Sync + 'static
+    {
+        let compiled = compile_select_grammar(select_words, through_words);
+        self.grammar_helper(SRGRMFMT::SRGRMFMT_DRAGONNATIVE1, compiled, all_recognitions, callback)
+    }
+
+    pub fn grammar_load<F>(&self,
+                           grammar: &Grammar,
+                           all_recognitions: bool,
+                           callback: F)
+                           -> Result<GrammarControl>
+        where F: Fn(GrammarEvent) + Sync + 'static
+    {
+        let compiled = compile_grammar(grammar)?;
+        self.grammar_helper(SRGRMFMT::SRGRMFMT_CFG, compiled, all_recognitions, callback)
     }
 }
 

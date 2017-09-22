@@ -125,3 +125,19 @@ com_interface! {
         fn write(name: BStr, a: *const (), b: u32) -> HRESULT;
     }
 }
+
+define_guid!(IID_IDgnSRGramSelect =
+        0xdd10901a, 0x6205, 0x11cf, 0xae, 0x61,
+        0x00, 0x00, 0xe8, 0xa2, 0x86, 0x47);
+
+com_interface! {
+    interface IDgnSRGramSelect : IUnknown {
+        iid: IID_IDgnSRGramSelect,
+        vtable: IDgnSRGramSelectVtable,
+        fn words_set(words: SDATA) -> HRESULT;
+        fn words_change(start: u32, stop: u32, words: SDATA) -> HRESULT;
+        fn words_delete(start: u32, stop: u32) -> HRESULT;
+        fn words_insert(start: u32, words: SDATA) -> HRESULT;
+        fn words_get(words: *mut SDATA) -> HRESULT;
+    }
+}
