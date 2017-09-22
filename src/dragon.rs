@@ -1,5 +1,8 @@
 use components::*;
 use std::mem;
+use std::ptr;
+use std::slice;
+use std::marker::PhantomData;
 
 type LANGID = u16;
 
@@ -50,9 +53,52 @@ pub enum SRGRMFMT {
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
-pub struct SDATA {
-    pub data: *const u8,
-    pub size: u32,
+pub struct SDATA<'a> {
+    data: *const u8,
+    size: u32,
+    phantom: PhantomData<&'a u8>
+}
+
+impl<'a> From<&'a [u8]> for SDATA<'a> {
+    fn from(data: &'a [u8]) -> SDATA<'a> {
+        SDATA {
+            data: data.as_ptr(),
+            size: data.len() as u32,
+            phantom: PhantomData,
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct RECEIVE_SDATA {
+    data: *const u8,
+    size: u32,
+}
+
+impl RECEIVE_SDATA {
+    pub fn new() -> RECEIVE_SDATA {
+        RECEIVE_SDATA {
+            data: ptr::null(),
+            size: 0,
+        }
+    }
+
+    pub fn as_slice(&self) -> Option<&[u8]> {
+        if self.data.is_null() {
+            return None;
+        }
+
+        unsafe {
+            Some(slice::from_raw_parts(self.data, self.size as usize))
+        }
+    }
+}
+
+impl Drop for RECEIVE_SDATA {
+    fn drop(&mut self) {
+        unsafe { com_memory_free(self.data as *const _) };
+    }
 }
 
 #[repr(C)]

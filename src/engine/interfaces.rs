@@ -138,6 +138,6 @@ com_interface! {
         fn words_change(start: u32, stop: u32, words: SDATA) -> HRESULT;
         fn words_delete(start: u32, stop: u32) -> HRESULT;
         fn words_insert(start: u32, words: SDATA) -> HRESULT;
-        fn words_get(words: *mut SDATA) -> HRESULT;
+        fn words_get(words: *mut RECEIVE_SDATA) -> HRESULT;
     }
 }

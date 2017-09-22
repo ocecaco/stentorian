@@ -5,6 +5,7 @@ use errors::*;
 use super::grammarsink::interfaces::{ISRGramCommon, ISRGramCFG};
 use super::interfaces::IDgnSRGramSelect;
 use std::ptr;
+use std::slice;
 use std::mem;
 use byteorder::{LittleEndian, WriteBytesExt};
 use dragon::*;
@@ -106,44 +107,86 @@ pub struct GrammarSelect {
 }
 
 impl GrammarSelect {
-    pub fn words_set(&self, text: &str) -> Result<()> {
-        fn add_padding(v: &mut Vec<u8>, multiple: usize) {
-            let extra_padding = multiple - (v.len() % multiple);
-            for _ in 0..extra_padding {
-                v.push(0u8);
-            }
-        }
+    pub fn text_set(&self, text: &str) -> Result<()> {
+        let encoded = encode_text(text);
 
-        fn encode(s: &str) -> Vec<u8> {
-            let mut result = Vec::new();
-            for c in s.encode_utf16() {
-                result.write_u16::<LittleEndian>(c).unwrap();
-            }
-            result
-        }
-
-        let mut encoded = encode(text);
-
-        // make sure word is terminated by at least *two* null bytes
-        // after padding
-        encoded.push(0u8);
-        add_padding(&mut encoded, 4);
-
-        let data = SDATA {
-            data: encoded.as_ptr(),
-            size: encoded.len() as u32,
-        };
-
-        let rc = unsafe { self.grammar_select.words_set(data) };
+        let rc = unsafe { self.grammar_select.words_set(encoded.as_slice().into()) };
         rc.result()?;
 
         Ok(())
     }
+
+    pub fn text_change(&self, start: u32, stop: u32, text: &str) -> Result<()> {
+        let encoded = encode_text(text);
+
+        let rc = unsafe { self.grammar_select.words_change(start, stop, encoded.as_slice().into()) };
+        rc.result()?;
+
+        Ok(())
+    }
+
+    pub fn text_delete(&self, start: u32, stop: u32) -> Result<()> {
+        let rc = unsafe { self.grammar_select.words_delete(start, stop) };
+        rc.result()?;
+
+        Ok(())
+    }
+
+    pub fn text_insert(&self, start: u32, text: &str) -> Result<()> {
+        let encoded = encode_text(text);
+
+        let rc = unsafe { self.grammar_select.words_insert(start, encoded.as_slice().into()) };
+        rc.result()?;
+
+        Ok(())
+    }
+
+    pub fn text_get(&self) -> Result<String> {
+        let mut data = RECEIVE_SDATA::new();
+
+        let rc = unsafe { self.grammar_select.words_get(&mut data) };
+        rc.result()?;
+
+        let slice = data.as_slice().unwrap();
+        let slice_16 = unsafe { slice::from_raw_parts(slice.as_ptr() as *const u16, slice.len() / 2) };
+        let (_, without_terminator) = slice_16.split_last().unwrap();
+
+        let text = String::from_utf16_lossy(without_terminator);
+
+        Ok(text)
+    }
 }
 
-fn word_into_data(word: &SRWORD) -> SDATA {
-    SDATA {
-        data: word as *const SRWORD as *const u8,
-        size: mem::size_of::<SRWORD>() as u32,
+
+fn encode_text(text: &str) -> Vec<u8> {
+    fn add_padding(v: &mut Vec<u8>, multiple: usize) {
+        let extra_padding = multiple - (v.len() % multiple);
+        for _ in 0..extra_padding {
+            v.push(0u8);
+        }
     }
+
+    fn encode(s: &str) -> Vec<u8> {
+        let mut result = Vec::new();
+        for c in s.encode_utf16() {
+            result.write_u16::<LittleEndian>(c).unwrap();
+        }
+        result
+    }
+
+    let mut encoded = encode(text);
+
+    // make sure word is terminated by at least *two* null bytes
+    // after padding
+    encoded.push(0u8);
+    add_padding(&mut encoded, 4);
+    encoded
+}
+
+fn word_into_data<'a>(word: &'a SRWORD) -> SDATA<'a> {
+    let ptr = word as *const SRWORD as *const u8;
+    let count = mem::size_of::<SRWORD>();
+    let slice: &'a [u8] = unsafe { slice::from_raw_parts(ptr, count) };
+
+    slice.into()
 }

@@ -8,7 +8,7 @@ use dragon::*;
 use grammar::Grammar;
 use self::enginesink::*;
 use self::grammarsink::*;
-use self::grammarsink::interfaces::{ISRGramCommon, ISRGramNotifySink, ISRGramCFG};
+use self::grammarsink::interfaces::{ISRGramCommon, ISRGramNotifySink};
 use grammarcompiler::{compile_grammar, compile_select_grammar};
 use errors::*;
 
@@ -18,7 +18,7 @@ mod grammarsink;
 mod grammarcontrol;
 
 pub use self::enginesink::PauseCookie;
-pub use self::grammarcontrol::GrammarControl;
+pub use self::grammarcontrol::{GrammarControl, GrammarLists, GrammarSelect};
 
 mod grammar_flags {
     bitflags! {
@@ -173,13 +173,9 @@ impl Engine {
         Ok(registration)
     }
 
-    fn grammar_helper<F>(&self, grammar_type: SRGRMFMT, compiled: Vec<u8>, all_recognitions: bool, callback: F) -> Result<GrammarControl>
+    fn grammar_helper<F>(&self, grammar_type: SRGRMFMT, compiled: &[u8], all_recognitions: bool, callback: F) -> Result<GrammarControl>
         where F: Fn(GrammarEvent) + Sync + 'static
     {
-        let data = SDATA {
-            data: compiled.as_ptr(),
-            size: compiled.len() as u32,
-        };
         let mut raw_control = ptr::null();
 
         let mut flags = grammar_flags::SEND_PHRASE_START | grammar_flags::SEND_PHRASE_FINISH;
@@ -194,7 +190,7 @@ impl Engine {
         let rc = unsafe {
             self.central
                 .grammar_load(grammar_type,
-                              data,
+                              compiled.into(),
                               raw_sink,
                               ISRGramNotifySink::iid(),
                               &mut raw_control)
@@ -218,7 +214,7 @@ impl Engine {
         where F: Fn(GrammarEvent) + Sync + 'static
     {
         let compiled = compile_select_grammar(select_words, through_words);
-        self.grammar_helper(SRGRMFMT::SRGRMFMT_DRAGONNATIVE1, compiled, all_recognitions, callback)
+        self.grammar_helper(SRGRMFMT::SRGRMFMT_DRAGONNATIVE1, &compiled, all_recognitions, callback)
     }
 
     pub fn grammar_load<F>(&self,
@@ -229,7 +225,7 @@ impl Engine {
         where F: Fn(GrammarEvent) + Sync + 'static
     {
         let compiled = compile_grammar(grammar)?;
-        self.grammar_helper(SRGRMFMT::SRGRMFMT_CFG, compiled, all_recognitions, callback)
+        self.grammar_helper(SRGRMFMT::SRGRMFMT_CFG, &compiled, all_recognitions, callback)
     }
 }
 
