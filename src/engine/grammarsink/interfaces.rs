@@ -78,7 +78,7 @@ com_interface! {
         iid: IID_IDgnSRGramCommon,
         vtable: IDgnSRGramCommonVtable,
         fn special_grammar(exclusive: i32) -> HRESULT;
-        fn identify(g: *const GUID) -> HRESULT;
+        fn identify(g: *mut GUID) -> HRESULT;
     }
 }
 
@@ -140,5 +140,71 @@ com_interface! {
         fn list_remove(list_name: BStr, word: SDATA) -> HRESULT;
         fn list_set(list_name: BStr, word: SDATA) -> HRESULT;
         fn list_query(list_name: BStr, result: *mut i32) -> HRESULT;
+    }
+}
+
+define_guid!(IID_IDgnSRGramSelect = 0xdd10901a,
+            0x6205,
+            0x11cf,
+            0xae,
+            0x61,
+            0x00,
+            0x00,
+            0xe8,
+            0xa2,
+            0x86,
+            0x47);
+
+com_interface! {
+    interface IDgnSRGramSelect : IUnknown {
+        iid: IID_IDgnSRGramSelect,
+        vtable: IDgnSRGramSelectVtable,
+        fn words_set(words: SDATA) -> HRESULT;
+        fn words_change(start: u32, stop: u32, words: SDATA) -> HRESULT;
+        fn words_delete(start: u32, stop: u32) -> HRESULT;
+        fn words_insert(start: u32, words: SDATA) -> HRESULT;
+        fn words_get(words: *mut SDATA) -> HRESULT;
+    }
+}
+
+define_guid!(IID_IDgnSRResSelect = 0xdd10801b,
+             0x6205,
+             0x11cf,
+             0xae,
+             0x61,
+             0x00,
+             0x00,
+             0xe8,
+             0xa2,
+             0x86,
+             0x47);
+
+com_interface! {
+    interface IDgnSRResSelect : IUnknown {
+        iid: IID_IDgnSRResSelect,
+        vtable: IDgnSRResSelectVtable,
+        fn get_info(guid: GUID, choice: u32, start: *mut u32, stop: *mut u32, word_num: *mut u32) -> HRESULT;
+    }
+}
+
+define_guid!(IID_ISRGramDictation = 0x090CD9A3,
+             0xDA1A,
+             0x11CD,
+             0xB3,
+             0xCA,
+             0x0,
+             0xAA,
+             0x0,
+             0x47,
+             0xBA,
+             0x4F);
+
+com_interface! {
+    interface ISRGramDictation : IUnknown {
+        iid: IID_ISRGramDictation,
+        vtable: ISRGramDictationVtable,
+        fn context(before: BStr, after: BStr) -> HRESULT;
+        fn hint(hint: BStr) -> HRESULT;
+        fn words(words: BStr) -> HRESULT;
     }
 }
