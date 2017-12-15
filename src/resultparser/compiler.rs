@@ -138,20 +138,15 @@ impl<'a> Compiler<'a> {
             }
             Element::Repetition { ref child } => {
                 let loop_label = self.new_label();
-                let child_label = self.new_label();
                 let done_label = self.new_label();
 
                 self.emit(Instruction::Label(loop_label));
 
                 self.emit(Instruction::Progress);
 
-                self.emit(make_split(&[child_label, done_label]));
-
-                self.emit(Instruction::Label(child_label));
-
                 self.compile_element(child);
 
-                self.emit(Instruction::Jump(JumpTarget::Symbolic(loop_label)));
+                self.emit(make_split(&[loop_label, done_label]));
 
                 self.emit(Instruction::Label(done_label));
             }

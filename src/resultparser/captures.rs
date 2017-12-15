@@ -59,7 +59,7 @@ impl<'a> CaptureBuilder<'a> {
 
     pub fn capture_stop(&mut self, position: usize) {
         {
-            let mut child = self.captures.last_mut().unwrap();
+            let child = self.captures.last_mut().unwrap();
 
             if let Capture::Started(start) = child.slice {
                 child.slice = Capture::Stopped(start, position);
