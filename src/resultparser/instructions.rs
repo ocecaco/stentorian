@@ -19,7 +19,7 @@ impl JumpTarget {
 
 #[derive(Debug, Clone)]
 pub enum Instruction {
-    RuleStart(u32, String),
+    RuleStart(u32),
     RuleStop,
 
     Literal(String),

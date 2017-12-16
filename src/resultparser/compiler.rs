@@ -105,7 +105,7 @@ impl<'a> Compiler<'a> {
 
     fn compile_single_rule(&mut self, rule_id: u32, rule: &'a Rule, start_label: LabelName) {
         self.emit(Instruction::Label(start_label));
-        self.emit(Instruction::RuleStart(rule_id, rule.name.clone()));
+        self.emit(Instruction::RuleStart(rule_id));
         self.compile_element(&rule.definition);
         self.emit(Instruction::RuleStop);
     }

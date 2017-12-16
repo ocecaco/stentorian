@@ -5,7 +5,7 @@ use super::instructions::*;
 
 pub fn perform_match<'a, 'c>(program: &'a [Instruction],
                              string: &'c [(String, u32)])
-                             -> Option<Match<'a>> {
+                             -> Option<Vec<Match<'a>>> {
     let mut threads = Vec::new();
     threads.push(Thread::new(program, string));
 
@@ -28,7 +28,7 @@ struct Thread<'a, 'c> {
     string: &'c [(String, u32)],
     program_pointer: usize,
     string_pointer: usize,
-    rule_stack: Vec<(u32, &'a str)>,
+    rule_stack: Vec<u32>,
     call_stack: Vec<usize>,
     captures: CaptureBuilder<'a>,
     progress: HashMap<usize, usize>,
@@ -48,7 +48,7 @@ impl<'a, 'c> Thread<'a, 'c> {
         }
     }
 
-    fn current_rule(&self) -> (u32, &'a str) {
+    fn current_rule(&self) -> u32 {
         *self.rule_stack.last().unwrap()
     }
 
@@ -74,18 +74,18 @@ impl<'a, 'c> Thread<'a, 'c> {
         }
     }
 
-    fn run(mut self, threads: &mut Vec<Thread<'a, 'c>>) -> Result<Match<'a>> {
+    fn run(mut self, threads: &mut Vec<Thread<'a, 'c>>) -> Result<Vec<Match<'a>>> {
         loop {
             let next = &self.instructions[self.program_pointer];
             self.program_pointer += 1;
 
             match *next {
                 Instruction::Literal(ref grammar_word) => {
-                    let id = self.current_rule().0;
+                    let id = self.current_rule();
                     self.match_token(Some(grammar_word), Some(id))?;
                 }
                 Instruction::AnyWord => {
-                    let id = self.current_rule().0;
+                    let id = self.current_rule();
                     self.match_token(None, Some(id))?;
                 }
                 Instruction::GreedyRule(rule_id) => {
@@ -94,14 +94,13 @@ impl<'a, 'c> Thread<'a, 'c> {
                     }
                 }
                 Instruction::CaptureStart(ref name) => {
-                    let (_, rule) = self.current_rule();
-                    self.captures.capture_start(rule, name, self.string_pointer);
+                    self.captures.capture_start(name, self.string_pointer);
                 }
                 Instruction::CaptureStop => {
                     self.captures.capture_stop(self.string_pointer);
                 }
-                Instruction::RuleStart(id, ref name) => {
-                    self.rule_stack.push((id, name));
+                Instruction::RuleStart(id) => {
+                    self.rule_stack.push(id);
                 }
                 Instruction::RuleStop => {
                     self.rule_stack.pop();

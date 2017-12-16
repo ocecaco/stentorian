@@ -16,7 +16,7 @@ impl Matcher {
         Matcher { instructions: compiler::compile_matcher(grammar) }
     }
 
-    pub fn perform_match<'a>(&'a self, string: &[(String, u32)]) -> Option<Match<'a>> {
+    pub fn perform_match<'a>(&'a self, string: &[(String, u32)]) -> Option<Vec<Match<'a>>> {
         vm::perform_match(&self.instructions, string)
     }
 }

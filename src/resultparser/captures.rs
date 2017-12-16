@@ -1,6 +1,5 @@
 #[derive(Debug, Clone, Serialize)]
 pub struct CaptureTree<'a, T> {
-    pub rule: &'a str,
     pub name: &'a str,
     pub slice: T,
     pub children: Vec<CaptureTree<'a, T>>,
@@ -28,7 +27,6 @@ fn complete_capture_tree<'a>(tree: &CaptureTree<'a, Capture>) -> Match<'a> {
     let completed_children = tree.children.iter().map(|c| complete_capture_tree(c));
 
     CaptureTree {
-        rule: tree.rule,
         name: tree.name,
         slice: tree.slice.complete(),
         children: completed_children.collect(),
@@ -47,10 +45,9 @@ impl<'a> CaptureBuilder<'a> {
         }
     }
 
-    pub fn capture_start(&mut self, rule: &'a str, name: &'a str, position: usize) {
+    pub fn capture_start(&mut self, name: &'a str, position: usize) {
         self.captures
             .push(CaptureTree {
-                      rule: rule,
                       name: name,
                       slice: Capture::Started(position),
                       children: Vec::new(),
@@ -85,14 +82,9 @@ impl<'a> CaptureBuilder<'a> {
         self.captures.push(child);
     }
 
-    pub fn done(self) -> Match<'a> {
+    pub fn done(self) -> Vec<Match<'a>> {
         let children = self.captures.iter().map(|c| complete_capture_tree(c)).collect();
 
-        CaptureTree {
-            rule: "__top",
-            name: "__top",
-            slice: (0, 0),
-            children: children,
-        }
+        children
     }
 }
