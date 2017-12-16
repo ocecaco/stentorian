@@ -1,23 +1,22 @@
 use components::comptr::ComPtr;
 use components::*;
 use interfaces::*;
-use self::interfaces::*;
 use std::ptr;
 use std::mem;
 use dragon::*;
 use grammar::Grammar;
 use self::enginesink::*;
 use self::grammarsink::*;
-use self::grammarsink::interfaces::{ISRGramCommon, ISRGramNotifySink};
-use grammarcompiler::{compile_grammar, compile_select_grammar};
+use grammarcompiler::{compile_command_grammar, compile_select_grammar};
 use errors::*;
+use self::events::*;
 
-mod interfaces;
 mod enginesink;
 mod grammarsink;
 mod grammarcontrol;
+mod events;
+mod results;
 
-pub use self::enginesink::PauseCookie;
 pub use self::grammarcontrol::{GrammarControl, GrammarLists, GrammarSelect};
 
 mod grammar_flags {
@@ -48,31 +47,6 @@ mod engine_flags {
             const SEND_ALL = 0x3ff,
         }
     }
-}
-
-type Words = Box<[(String, u32)]>;
-
-#[derive(Debug)]
-pub struct Recognition {
-    pub foreign: bool,
-    pub words: Words,
-}
-
-#[derive(Debug)]
-pub enum GrammarEvent {
-    PhraseFinish(Option<Recognition>),
-    PhraseStart,
-}
-
-#[derive(Debug)]
-pub enum Attribute {
-    MicrophoneState,
-}
-
-#[derive(Debug)]
-pub enum EngineEvent {
-    AttributeChanged(Attribute),
-    Paused(PauseCookie),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -174,7 +148,7 @@ impl Engine {
     }
 
     fn grammar_helper<F>(&self, grammar_type: SRGRMFMT, compiled: &[u8], all_recognitions: bool, callback: F) -> Result<GrammarControl>
-        where F: Fn(GrammarEvent) + Sync + 'static
+        where F: Fn(RawGrammarEvent) + Sync + 'static
     {
         let mut raw_control = ptr::null();
 
@@ -206,26 +180,32 @@ impl Engine {
     }
 
     pub fn select_grammar_load<F>(&self,
-                           select_words: &[String],
-                           through_words: &[String],
-                           all_recognitions: bool,
-                           callback: F)
-                           -> Result<GrammarControl>
-        where F: Fn(GrammarEvent) + Sync + 'static
+                                  select_words: &[String],
+                                  through_words: &[String],
+                                  callback: F)
+                                  -> Result<GrammarControl>
+        where F: Fn(CommandGrammarEvent) + Sync + 'static
     {
         let compiled = compile_select_grammar(select_words, through_words);
-        self.grammar_helper(SRGRMFMT::SRGRMFMT_DRAGONNATIVE1, &compiled, all_recognitions, callback)
+        let wrapped = move |e: RawGrammarEvent| { 
+            let new_event = e.map(|r| results::retrieve_words(&r.ptr).unwrap());
+            callback(new_event);
+        };
+        self.grammar_helper(SRGRMFMT::SRGRMFMT_DRAGONNATIVE1, &compiled, false, wrapped)
     }
 
-    pub fn grammar_load<F>(&self,
-                           grammar: &Grammar,
-                           all_recognitions: bool,
-                           callback: F)
-                           -> Result<GrammarControl>
-        where F: Fn(GrammarEvent) + Sync + 'static
+    pub fn command_grammar_load<F>(&self,
+                                   grammar: &Grammar,
+                                   callback: F)
+                                   -> Result<GrammarControl>
+        where F: Fn(CommandGrammarEvent) + Sync + 'static
     {
-        let compiled = compile_grammar(grammar)?;
-        self.grammar_helper(SRGRMFMT::SRGRMFMT_CFG, &compiled, all_recognitions, callback)
+        let compiled = compile_command_grammar(grammar)?;
+        let wrapped = move |e: RawGrammarEvent| { 
+            let new_event = e.map(|r| results::retrieve_words(&r.ptr).unwrap());
+            callback(new_event);
+        };
+        self.grammar_helper(SRGRMFMT::SRGRMFMT_CFG, &compiled, false, wrapped)
     }
 }
 

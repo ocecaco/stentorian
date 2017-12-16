@@ -2,7 +2,6 @@ use components::*;
 use components::comptr::*;
 use components::refcount::*;
 use components::bstr::BStr;
-use super::interfaces::*;
 use interfaces::*;
 use super::{EngineEvent, Attribute};
 use super::engine_flags::EngineSinkFlags;

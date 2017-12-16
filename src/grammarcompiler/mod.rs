@@ -32,7 +32,7 @@ pub mod errors {
     }
 }
 
-pub fn compile_grammar(grammar: &Grammar) -> Result<Vec<u8>> {
+pub fn compile_command_grammar(grammar: &Grammar) -> Result<Vec<u8>> {
     let compiler = GrammarCompiler::new(grammar);
     compiler.compile_grammar()
 }

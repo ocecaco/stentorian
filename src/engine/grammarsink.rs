@@ -1,14 +1,9 @@
-pub mod interfaces;
-
-use self::interfaces::*;
 use interfaces::*;
 use components::*;
 use components::comptr::ComPtr;
 use components::refcount::*;
 use std::boxed::Box;
-use std::mem;
-use dragon::*;
-use super::{GrammarEvent, Recognition};
+use super::GrammarEvent;
 use super::grammar_flags::GrammarSinkFlags;
 
 use std::os::raw::c_void;
@@ -18,7 +13,13 @@ fn _ensure_kinds() {
     ensure_sync::<GrammarSink>();
 }
 
-pub type Callback = Box<Fn(GrammarEvent) + Sync>;
+pub struct Recognition {
+    pub foreign: bool,
+    pub ptr: ComPtr<IUnknown>,
+}
+
+pub type RawGrammarEvent = GrammarEvent<Recognition>;
+pub type Callback = Box<Fn(RawGrammarEvent) + Sync>;
 
 #[repr(C)]
 pub struct GrammarSink {
@@ -43,7 +44,7 @@ impl GrammarSink {
         unsafe { raw_to_comptr(raw, true) }
     }
 
-    fn send(&self, event: GrammarEvent) {
+    fn send(&self, event: RawGrammarEvent) {
         (self.callback)(event);
     }
 
@@ -98,15 +99,15 @@ impl GrammarSink {
         let foreign = (flags & THIS_GRAMMAR) == 0;
 
         if reject {
-            let event = GrammarEvent::PhraseFinish(None);
+            let event = GrammarEvent::PhraseRecognitionFailure;
             self.send(event);
         } else {
-            let words = retrieve_words(results);
+            let results = raw_to_comptr::<IUnknown>(results, false);
             let recognition = Recognition {
                 foreign: foreign,
-                words: words,
+                ptr: results,
             };
-            let event = GrammarEvent::PhraseFinish(Some(recognition));
+            let event = GrammarEvent::PhraseFinish(recognition);
             self.send(event);
         }
 
@@ -152,48 +153,6 @@ impl GrammarSink {
     }
 }
 
-fn string_from_slice(s: &[u16]) -> String {
-    String::from_utf16_lossy(&s.iter()
-                                  .cloned()
-                                  .take_while(|&x| x != 0)
-                                  .collect::<Vec<u16>>())
-}
-
-unsafe fn retrieve_words(results: RawComPtr) -> Box<[(String, u32)]> {
-    let results = raw_to_comptr::<IUnknown>(results, false);
-    let results = query_interface::<ISRResGraph>(&results).unwrap();
-
-    type Path = [u32; 512];
-    let mut path: Path = [0u32; 512];
-    let mut actual_path_size: u32 = 0;
-
-    let rc = results.best_path_word(0,
-                                    &mut path[0],
-                                    mem::size_of::<Path>() as u32,
-                                    &mut actual_path_size);
-    assert_eq!(rc.0, 0);
-
-    // bytes to number of elements
-    let actual_path_size = actual_path_size / mem::size_of::<u32>() as u32;
-
-    let mut word_node: SRRESWORDNODE = mem::uninitialized();
-    let mut word: SRWORD = mem::uninitialized();
-    let mut size_needed = 0u32;
-
-    let mut words = Vec::new();
-    for i in 0..actual_path_size {
-        let rc = results.get_word_node(path[i as usize],
-                                       &mut word_node,
-                                       &mut word,
-                                       mem::size_of::<SRWORD>() as u32,
-                                       &mut size_needed);
-        assert_eq!(rc.0, 0);
-
-        words.push((string_from_slice(&word.buffer), word_node.dwCFGParse));
-    }
-
-    words.into_boxed_slice()
-}
 
 coclass! {
     GrammarSink {
