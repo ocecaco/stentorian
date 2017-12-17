@@ -1,6 +1,6 @@
 use super::enginesink::PauseCookie;
 
-type Words = Box<[(String, u32)]>;
+type Words = Vec<(String, u32)>;
 
 #[derive(Debug)]
 pub enum GrammarEvent<T> {

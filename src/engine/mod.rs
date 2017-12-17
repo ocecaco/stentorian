@@ -4,7 +4,7 @@ use interfaces::*;
 use std::ptr;
 use std::mem;
 use dragon::*;
-use grammar::Grammar;
+use grammar::*;
 use self::enginesink::*;
 use self::grammarsink::*;
 use grammarcompiler::{compile_command_grammar, compile_select_grammar};
@@ -188,7 +188,7 @@ impl Engine {
     {
         let compiled = compile_select_grammar(select_words, through_words);
         let wrapped = move |e: RawGrammarEvent| { 
-            let new_event = e.map(|r| results::retrieve_words(&r.ptr).unwrap());
+            let new_event = e.map(|r| results::retrieve_words(&r.ptr, 0).unwrap().unwrap());
             callback(new_event);
         };
         self.grammar_helper(SRGRMFMT::SRGRMFMT_DRAGONNATIVE1, &compiled, false, wrapped)
@@ -202,10 +202,31 @@ impl Engine {
     {
         let compiled = compile_command_grammar(grammar)?;
         let wrapped = move |e: RawGrammarEvent| { 
-            let new_event = e.map(|r| results::retrieve_words(&r.ptr).unwrap());
+            let new_event = e.map(|r| results::retrieve_words(&r.ptr, 0).unwrap().unwrap());
             callback(new_event);
         };
         self.grammar_helper(SRGRMFMT::SRGRMFMT_CFG, &compiled, false, wrapped)
+    }
+
+    pub fn catchall_grammar_load<F>(&self,
+                                    callback: F)
+                                    -> Result<GrammarControl>
+        where F: Fn(CommandGrammarEvent) + Sync + 'static
+    {
+        let rule = Rule {
+            name: "dummy".to_owned(),
+            exported: true,
+            definition: Element::List { name: "_impossible".to_owned() },
+        };
+
+        let grammar = Grammar { rules: vec![rule].into_boxed_slice() };
+        let compiled = compile_command_grammar(&grammar)?;
+
+        let wrapped = move |e: RawGrammarEvent| { 
+            let new_event = e.map(|r| results::retrieve_words(&r.ptr, 0).unwrap().unwrap());
+            callback(new_event);
+        };
+        self.grammar_helper(SRGRMFMT::SRGRMFMT_CFG, &compiled, true, wrapped)
     }
 }
 

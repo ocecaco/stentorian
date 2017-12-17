@@ -11,19 +11,23 @@ fn string_from_slice(s: &[u16]) -> String {
                                   .collect::<Vec<u16>>())
 }
 
-pub fn retrieve_words(results: &IUnknown) -> Result<Box<[(String, u32)]>> {
+pub fn retrieve_words(results: &IUnknown, choice: u32) -> Result<Option<Vec<(String, u32)>>> {
     let results = query_interface::<ISRResGraph>(&results)?;
 
     type Path = [u32; 512];
     let mut path: Path = [0u32; 512];
     let mut actual_path_size: u32 = 0;
+    const VALUE_OUT_OF_RANGE: u32 = 0x8000FFFF;
 
     let rc = unsafe {
-        results.best_path_word(0,
+        results.best_path_word(choice,
                                &mut path[0],
                                mem::size_of::<Path>() as u32,
                                &mut actual_path_size)
     };
+    if rc.0 == VALUE_OUT_OF_RANGE {
+        return Ok(None);
+    }
     rc.result()?;
 
     // bytes to number of elements
@@ -47,5 +51,5 @@ pub fn retrieve_words(results: &IUnknown) -> Result<Box<[(String, u32)]>> {
         words.push((string_from_slice(&word.buffer), word_node.dwCFGParse));
     }
 
-    Ok(words.into_boxed_slice())
+    Ok(Some(words))
 }
