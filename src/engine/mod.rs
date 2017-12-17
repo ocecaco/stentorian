@@ -189,7 +189,7 @@ impl Engine {
     {
         let compiled = compile_select_grammar(select_words, through_words);
         let wrapped = move |e: RawGrammarEvent| { 
-            let new_event = e.map(|r| results::retrieve_words(&r.ptr, 0).unwrap().unwrap());
+            let new_event = e.map(|r| results::retrieve_command_choices(&r.ptr).unwrap());
             callback(new_event);
         };
         self.grammar_helper(SRGRMFMT::SRGRMFMT_DRAGONNATIVE1, &compiled, false, wrapped)
@@ -203,7 +203,7 @@ impl Engine {
     {
         let compiled = compile_command_grammar(grammar)?;
         let wrapped = move |e: RawGrammarEvent| { 
-            let new_event = e.map(|r| results::retrieve_words(&r.ptr, 0).unwrap().unwrap());
+            let new_event = e.map(|r| results::retrieve_command_choices(&r.ptr).unwrap());
             callback(new_event);
         };
         self.grammar_helper(SRGRMFMT::SRGRMFMT_CFG, &compiled, false, wrapped)
@@ -224,7 +224,7 @@ impl Engine {
         let compiled = compile_command_grammar(&grammar)?;
 
         let wrapped = move |e: RawGrammarEvent| { 
-            let new_event = e.map(|r| results::retrieve_words(&r.ptr, 0).unwrap().unwrap());
+            let new_event = e.map(|r| results::retrieve_command_choices(&r.ptr).unwrap());
             callback(new_event);
         };
         self.grammar_helper(SRGRMFMT::SRGRMFMT_CFG, &compiled, true, wrapped)

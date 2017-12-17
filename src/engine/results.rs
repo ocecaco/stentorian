@@ -7,7 +7,7 @@ use super::events::GrammarEvent;
 
 const VALUE_OUT_OF_RANGE: u32 = 0x8000FFFF;
 
-pub type CommandGrammarEvent = GrammarEvent<Words>;
+pub type CommandGrammarEvent = GrammarEvent<Vec<Words>>;
 pub type Words = Vec<WordInfo>;
 
 pub struct WordInfo {
@@ -24,7 +24,19 @@ fn string_from_slice(s: &[u16]) -> String {
                                   .collect::<Vec<u16>>())
 }
 
-pub fn retrieve_words(results: &IUnknown, choice: u32) -> Result<Option<Words>> {
+pub fn retrieve_command_choices(results: &IUnknown) -> Result<Vec<Words>> {
+    let mut choices = Vec::new();
+
+    let mut i = 0;
+    while let Some(words) = retrieve_words(results, i)? {
+        choices.push(words);
+        i += 1;
+    }
+
+    Ok(choices)
+}
+
+fn retrieve_words(results: &IUnknown, choice: u32) -> Result<Option<Words>> {
     let results = query_interface::<ISRResGraph>(&results)?;
 
     type Path = [u32; 512];
