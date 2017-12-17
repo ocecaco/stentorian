@@ -3,6 +3,19 @@ use dragon::*;
 use interfaces::*;
 use components::*;
 use errors::*;
+use super::events::GrammarEvent;
+
+const VALUE_OUT_OF_RANGE: u32 = 0x8000FFFF;
+
+pub type CommandGrammarEvent = GrammarEvent<Words>;
+pub type Words = Vec<WordInfo>;
+
+pub struct WordInfo {
+    pub text: String,
+    pub rule: u32,
+    pub start_time: u64,
+    pub end_time: u64,
+}
 
 fn string_from_slice(s: &[u16]) -> String {
     String::from_utf16_lossy(&s.iter()
@@ -11,13 +24,12 @@ fn string_from_slice(s: &[u16]) -> String {
                                   .collect::<Vec<u16>>())
 }
 
-pub fn retrieve_words(results: &IUnknown, choice: u32) -> Result<Option<Vec<(String, u32)>>> {
+pub fn retrieve_words(results: &IUnknown, choice: u32) -> Result<Option<Words>> {
     let results = query_interface::<ISRResGraph>(&results)?;
 
     type Path = [u32; 512];
     let mut path: Path = [0u32; 512];
     let mut actual_path_size: u32 = 0;
-    const VALUE_OUT_OF_RANGE: u32 = 0x8000FFFF;
 
     let rc = unsafe {
         results.best_path_word(choice,
@@ -48,8 +60,33 @@ pub fn retrieve_words(results: &IUnknown, choice: u32) -> Result<Option<Vec<(Str
         };
         rc.result()?;
 
-        words.push((string_from_slice(&word.buffer), word_node.dwCFGParse));
+        let info = WordInfo {
+            text: string_from_slice(&word.buffer),
+            rule: word_node.dwCFGParse,
+            start_time: word_node.qwStartTime,
+            end_time: word_node.qwEndTime,
+        };
+
+        words.push(info);
     }
 
     Ok(Some(words))
+}
+
+pub fn retrieve_selection(results: &IUnknown, guid: GUID, choice: u32) -> Result<Option<(u32, u32)>> {
+    let results = query_interface::<IDgnSRResSelect>(&results)?;
+
+    let mut start = 0;
+    let mut stop = 0;
+    let mut word_number = 0;
+
+    let rc = unsafe {
+        results.get_info(guid, choice, &mut start, &mut stop, &mut word_number)
+    };
+    if rc.0 == VALUE_OUT_OF_RANGE {
+        return Ok(None);
+    }
+    rc.result()?;
+
+    Ok(Some((start, stop)))
 }

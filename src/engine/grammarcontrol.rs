@@ -10,7 +10,7 @@ use byteorder::{LittleEndian, WriteBytesExt};
 use dragon::*;
 
 pub fn create(grammar_control: ComPtr<ISRGramCommon>)
-              -> GrammarControl {
+              -> Result<GrammarControl> {
     let grammar_lists = query_interface::<ISRGramCFG>(&grammar_control)
         .ok()
         .map(|v| GrammarLists { grammar_lists: v });
@@ -19,20 +19,34 @@ pub fn create(grammar_control: ComPtr<ISRGramCommon>)
         .ok()
         .map(|v| GrammarSelect { grammar_select: v });
 
-    GrammarControl {
+    let grammar_dragon = query_interface::<IDgnSRGramCommon>(&grammar_control)?;
+
+    let mut guid: GUID = unsafe { mem::uninitialized() };
+    let rc = unsafe {
+        grammar_dragon.identify(&mut guid)
+    };
+    rc.result()?;
+
+    Ok(GrammarControl {
+        guid: guid,
         grammar_control: grammar_control,
         grammar_lists: grammar_lists,
         grammar_select: grammar_select,
-    }
+    })
 }
 
 pub struct GrammarControl {
+    guid: GUID,
     grammar_control: ComPtr<ISRGramCommon>,
     grammar_lists: Option<GrammarLists>,
     grammar_select: Option<GrammarSelect>,
 }
 
 impl GrammarControl {
+    pub fn guid(&self) -> GUID {
+        self.guid
+    }
+
     pub fn rule_activate(&self, name: &str) -> Result<()> {
         let rc = unsafe {
             self.grammar_control

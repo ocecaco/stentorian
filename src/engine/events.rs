@@ -1,7 +1,5 @@
 use super::enginesink::PauseCookie;
 
-type Words = Vec<(String, u32)>;
-
 #[derive(Debug)]
 pub enum GrammarEvent<T> {
     PhraseFinish(T),
@@ -19,8 +17,6 @@ impl<T> GrammarEvent<T> {
         }
     }
 }
-
-pub type CommandGrammarEvent = GrammarEvent<Words>;
 
 #[derive(Debug)]
 pub enum Attribute {

@@ -10,6 +10,7 @@ use self::grammarsink::*;
 use grammarcompiler::{compile_command_grammar, compile_select_grammar};
 use errors::*;
 use self::events::*;
+use self::results::*;
 
 mod enginesink;
 mod grammarsink;
@@ -174,7 +175,7 @@ impl Engine {
 
         let grammar_control = unsafe { raw_to_comptr::<IUnknown>(raw_control, true) };
         let grammar_control = query_interface::<ISRGramCommon>(&grammar_control)?;
-        let control = grammarcontrol::create(grammar_control);
+        let control = grammarcontrol::create(grammar_control)?;
 
         Ok(control)
     }
