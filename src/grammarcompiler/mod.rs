@@ -51,6 +51,16 @@ pub fn compile_select_grammar(select_words: &[String], through_words: &[String])
     output
 }
 
+pub fn compile_dictation_grammar() -> Vec<u8> {
+    let mut output = Vec::new();
+
+    output.write_u32::<LittleEndian>(2).unwrap();
+    output.write_u32::<LittleEndian>(1).unwrap();
+
+    output
+}
+
+
 pub enum ImportedRule {
     Dictation,
     DictationWord,

@@ -17,6 +17,9 @@ pub struct WordInfo {
     pub end_time: u64,
 }
 
+pub type Selection = (u32, u32);
+pub type SelectGrammarEvent = GrammarEvent<Vec<Selection>>;
+
 fn string_from_slice(s: &[u16]) -> String {
     String::from_utf16_lossy(&s.iter()
                                   .cloned()
@@ -85,7 +88,19 @@ fn retrieve_words(results: &IUnknown, choice: u32) -> Result<Option<Words>> {
     Ok(Some(words))
 }
 
-pub fn retrieve_selection(results: &IUnknown, guid: GUID, choice: u32) -> Result<Option<(u32, u32)>> {
+pub fn retrieve_selection_choices(results: &IUnknown, guid: GUID) -> Result<Vec<Selection>> {
+    let mut choices = Vec::new();
+
+    let mut i = 0;
+    while let Some(selection) = retrieve_selection(results, guid, i)? {
+        choices.push(selection);
+        i += 1;
+    }
+
+    Ok(choices)
+}
+
+fn retrieve_selection(results: &IUnknown, guid: GUID, choice: u32) -> Result<Option<(u32, u32)>> {
     let results = query_interface::<IDgnSRResSelect>(&results)?;
 
     let mut start = 0;

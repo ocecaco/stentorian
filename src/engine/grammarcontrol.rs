@@ -9,42 +9,21 @@ use std::mem;
 use byteorder::{LittleEndian, WriteBytesExt};
 use dragon::*;
 
-pub fn create(grammar_control: ComPtr<ISRGramCommon>)
-              -> Result<GrammarControl> {
-    let grammar_lists = query_interface::<ISRGramCFG>(&grammar_control)
-        .ok()
-        .map(|v| GrammarLists { grammar_lists: v });
 
-    let grammar_select = query_interface::<IDgnSRGramSelect>(&grammar_control)
-        .ok()
-        .map(|v| GrammarSelect { grammar_select: v });
-
-    let grammar_dragon = query_interface::<IDgnSRGramCommon>(&grammar_control)?;
-
-    let mut guid: GUID = unsafe { mem::uninitialized() };
-    let rc = unsafe {
-        grammar_dragon.identify(&mut guid)
-    };
-    rc.result()?;
-
-    Ok(GrammarControl {
-        guid: guid,
-        grammar_control: grammar_control,
-        grammar_lists: grammar_lists,
-        grammar_select: grammar_select,
-    })
-}
-
-pub struct GrammarControl {
-    guid: GUID,
+pub struct CommandGrammarControl {
     grammar_control: ComPtr<ISRGramCommon>,
-    grammar_lists: Option<GrammarLists>,
-    grammar_select: Option<GrammarSelect>,
+    grammar_lists: ComPtr<ISRGramCFG>,
 }
 
-impl GrammarControl {
-    pub fn guid(&self) -> GUID {
-        self.guid
+impl CommandGrammarControl {
+    pub fn create(grammar_control: ComPtr<ISRGramCommon>)
+                -> Result<Self> {
+        let grammar_lists = query_interface::<ISRGramCFG>(&grammar_control)?;
+
+        Ok(CommandGrammarControl {
+            grammar_control: grammar_control,
+            grammar_lists: grammar_lists,
+        })
     }
 
     pub fn rule_activate(&self, name: &str) -> Result<()> {
@@ -67,20 +46,6 @@ impl GrammarControl {
         Ok(())
     }
 
-    pub fn lists(&self) -> Option<&GrammarLists> {
-        self.grammar_lists.as_ref()
-    }
-
-    pub fn select_context(&self) -> Option<&GrammarSelect> {
-        self.grammar_select.as_ref()
-    }
-}
-
-pub struct GrammarLists {
-    grammar_lists: ComPtr<ISRGramCFG>,
-}
-
-impl GrammarLists {
     pub fn list_append(&self, name: &str, word: &str) -> Result<()> {
         let name = BString::from(name);
         let srword: SRWORD = word.into();
@@ -115,11 +80,52 @@ impl GrammarLists {
     }
 }
 
-pub struct GrammarSelect {
+struct GrammarActivation(ComPtr<ISRGramCommon>);
+
+impl GrammarActivation {
+    fn activate(&self) -> Result<()> {
+        let rc = unsafe {
+            self.0.activate(ptr::null(), 0, BString::from("").as_ref())
+        };
+
+        try!(rc.result());
+        Ok(())
+    }
+
+    fn deactivate(&self) -> Result<()> {
+        let rc = unsafe {
+            self.0.deactivate(BString::from("").as_ref())
+        };
+
+        try!(rc.result());
+        Ok(())
+    }
+}
+
+pub struct SelectGrammarControl {
+    grammar_activation: GrammarActivation,
     grammar_select: ComPtr<IDgnSRGramSelect>,
 }
 
-impl GrammarSelect {
+impl SelectGrammarControl {
+    pub fn create(grammar_control: ComPtr<ISRGramCommon>)
+                -> Result<Self> {
+        let grammar_select = query_interface::<IDgnSRGramSelect>(&grammar_control)?;
+
+        Ok(SelectGrammarControl {
+            grammar_activation: GrammarActivation(grammar_control),
+            grammar_select: grammar_select,
+        })
+    }
+
+    pub fn activate(&self) -> Result<()> {
+        self.grammar_activation.activate()
+    }
+
+    pub fn deactivate(&self) -> Result<()> {
+        self.grammar_activation.deactivate()
+    }
+
     pub fn text_set(&self, text: &str) -> Result<()> {
         let encoded = encode_text(text);
 
@@ -170,6 +176,60 @@ impl GrammarSelect {
     }
 }
 
+pub struct DictationGrammarControl {
+    grammar_activation: GrammarActivation,
+    grammar_dictation: ComPtr<ISRGramDictation>,
+}
+
+impl DictationGrammarControl {
+    pub fn create(grammar_control: ComPtr<ISRGramCommon>)
+                -> Result<Self> {
+        let grammar_dictation = query_interface::<ISRGramDictation>(&grammar_control)?;
+
+        Ok(DictationGrammarControl {
+            grammar_activation: GrammarActivation(grammar_control),
+            grammar_dictation: grammar_dictation,
+        })
+    }
+
+    pub fn activate(&self) -> Result<()> {
+        self.grammar_activation.activate()
+    }
+
+    pub fn deactivate(&self) -> Result<()> {
+        self.grammar_activation.deactivate()
+    }
+
+    pub fn context_set(&self, context: &str) -> Result<()> {
+        let rc = unsafe {
+            self.grammar_dictation.context(BString::from(context).as_ref(), BString::from("").as_ref())
+        };
+        rc.result()?;
+
+        Ok(())
+    }
+}
+
+pub struct CatchallGrammarControl {
+    grammar_activation: GrammarActivation,
+}
+
+impl CatchallGrammarControl {
+    pub fn create(grammar_control: ComPtr<ISRGramCommon>)
+                -> Result<Self> {
+        Ok(CatchallGrammarControl {
+            grammar_activation: GrammarActivation(grammar_control),
+        })
+    }
+
+    pub fn activate(&self) -> Result<()> {
+        self.grammar_activation.activate()
+    }
+
+    pub fn deactivate(&self) -> Result<()> {
+        self.grammar_activation.deactivate()
+    }
+}
 
 fn encode_text(text: &str) -> Vec<u8> {
     fn add_padding(v: &mut Vec<u8>, multiple: usize) {
