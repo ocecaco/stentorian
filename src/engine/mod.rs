@@ -1,7 +1,5 @@
 use self::enginesink::{EngineSink, PauseCookie};
-use self::events::{EngineEvent, GrammarEvent};
 use self::grammarsink::{GrammarSink, RawGrammarEvent};
-use self::results::{CommandGrammarEvent, SelectGrammarEvent};
 use components::{create_instance, query_interface, raw_to_comptr, ComInterface, IUnknown,
                  RawComPtr, CLSCTX_LOCAL_SERVER, GUID, HRESULT};
 use components::comptr::ComPtr;
@@ -24,6 +22,9 @@ mod results;
 
 pub use self::grammarcontrol::{CatchallGrammarControl, CommandGrammarControl,
                                DictationGrammarControl, SelectGrammarControl};
+
+pub use self::events::{EngineEvent, GrammarEvent};
+pub use self::results::{SelectGrammarEvent, CommandGrammarEvent};
 
 mod grammar_flags {
     bitflags! {

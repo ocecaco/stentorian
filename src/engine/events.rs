@@ -1,6 +1,7 @@
 use super::enginesink::PauseCookie;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
 pub enum GrammarEvent<T> {
     PhraseFinish(T),
     PhraseRecognitionFailure,

@@ -10,6 +10,7 @@ const VALUE_OUT_OF_RANGE: u32 = 0x8000_FFFF;
 pub type CommandGrammarEvent = GrammarEvent<Vec<Words>>;
 pub type Words = Vec<WordInfo>;
 
+#[derive(Debug, Serialize)]
 pub struct WordInfo {
     pub text: String,
     pub rule: u32,
