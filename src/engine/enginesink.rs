@@ -1,4 +1,4 @@
-use super::{Attribute, EngineEvent};
+use super::EngineEvent;
 use super::engine_flags::EngineSinkFlags;
 use components::{raw_to_comptr, ComInterface, IUnknown, IUnknownVtable, RawComPtr, HRESULT, IID,
                  ULONG};
@@ -75,7 +75,7 @@ impl EngineSink {
     fn attrib_changed(&self, a: u32) -> HRESULT {
         debug!("engine event: attrib_changed {}", a);
         if let Some(attr) = convert_attribute(a) {
-            self.send(EngineEvent::AttributeChanged(attr));
+            self.send(attr);
         }
         HRESULT(0)
     }
@@ -114,7 +114,7 @@ impl EngineSink {
     fn attrib_changed_2(&self, a: u32) -> HRESULT {
         debug!("engine event: attrib_changed_2 {}", a);
         if let Some(attr) = convert_attribute(a) {
-            self.send(EngineEvent::AttributeChanged(attr));
+            self.send(attr);
         }
         HRESULT(0)
     }
@@ -135,16 +135,17 @@ impl EngineSink {
         HRESULT(0)
     }
 
-    #[cfg_attr(feature = "cargo-clippy", allow(needless_pass_by_value))]
     fn progress(&self, x: u32, _s: BStr) -> HRESULT {
         debug!("engine event: progress {}", x);
         HRESULT(0)
     }
 }
 
-fn convert_attribute(a: u32) -> Option<Attribute> {
+fn convert_attribute(a: u32) -> Option<EngineEvent> {
     if a == 1001 {
-        Some(Attribute::MicrophoneState)
+        Some(EngineEvent::MicrophoneState)
+    } else if a == 7 {
+        Some(EngineEvent::UserChanged)
     } else {
         None
     }

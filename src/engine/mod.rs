@@ -1,5 +1,5 @@
 use self::enginesink::{EngineSink, PauseCookie};
-use self::events::{Attribute, EngineEvent, GrammarEvent};
+use self::events::{EngineEvent, GrammarEvent};
 use self::grammarsink::{GrammarSink, RawGrammarEvent};
 use self::results::{CommandGrammarEvent, SelectGrammarEvent};
 use components::{create_instance, query_interface, raw_to_comptr, ComInterface, IUnknown,

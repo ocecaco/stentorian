@@ -21,12 +21,8 @@ impl<T> GrammarEvent<T> {
 }
 
 #[derive(Debug)]
-pub enum Attribute {
-    MicrophoneState,
-}
-
-#[derive(Debug)]
 pub enum EngineEvent {
-    AttributeChanged(Attribute),
+    UserChanged,
+    MicrophoneState,
     Paused(PauseCookie),
 }
