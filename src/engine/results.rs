@@ -5,7 +5,7 @@ use components::*;
 use errors::*;
 use super::events::GrammarEvent;
 
-const VALUE_OUT_OF_RANGE: u32 = 0x8000FFFF;
+const VALUE_OUT_OF_RANGE: u32 = 0x8000_FFFF;
 
 pub type CommandGrammarEvent = GrammarEvent<Vec<Words>>;
 pub type Words = Vec<WordInfo>;
@@ -40,7 +40,7 @@ pub fn retrieve_command_choices(results: &IUnknown) -> Result<Vec<Words>> {
 }
 
 fn retrieve_words(results: &IUnknown, choice: u32) -> Result<Option<Words>> {
-    let results = query_interface::<ISRResGraph>(&results)?;
+    let results = query_interface::<ISRResGraph>(results)?;
 
     type Path = [u32; 512];
     let mut path: Path = [0u32; 512];
@@ -105,7 +105,7 @@ pub fn retrieve_selection_choices(results: &IUnknown, guid: GUID) -> Result<Vec<
 }
 
 fn retrieve_selection(results: &IUnknown, guid: GUID, choice: u32) -> Result<Option<(u32, u32)>> {
-    let results = query_interface::<IDgnSRResSelect>(&results)?;
+    let results = query_interface::<IDgnSRResSelect>(results)?;
 
     let mut start = 0;
     let mut stop = 0;

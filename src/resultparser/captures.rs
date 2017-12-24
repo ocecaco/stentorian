@@ -82,11 +82,9 @@ impl<'a> CaptureBuilder<'a> {
     }
 
     pub fn done(self) -> Vec<Match<'a>> {
-        let children = self.captures
+        self.captures
             .iter()
             .map(|c| complete_capture_tree(c))
-            .collect();
-
-        children
+            .collect()
     }
 }

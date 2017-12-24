@@ -104,7 +104,7 @@ impl Engine {
 
     pub fn get_current_user(&self) -> Result<Option<String>> {
         const SIZE: usize = 128;
-        const NO_USER_SELECTED: HRESULT = HRESULT(0x8004041a);
+        const NO_USER_SELECTED: HRESULT = HRESULT(0x8004_041a);
         type Buffer = [u16; SIZE];
 
         let speaker = query_interface::<ISRSpeaker>(&self.central)?;
@@ -208,7 +208,7 @@ impl Engine {
         let compiled = compile_select_grammar(select_words, through_words);
 
         let guid_field = Arc::new(RwLock::new(None));
-        let guid_clone = guid_field.clone();
+        let guid_clone = Arc::clone(&guid_field);
 
         let wrapped = move |e: RawGrammarEvent| {
             let guid = guid_clone.read().unwrap().unwrap();
@@ -299,7 +299,7 @@ impl Drop for EngineRegistration {
 }
 
 fn grammar_guid(grammar_control: &IUnknown) -> Result<GUID> {
-    let grammar_dragon = query_interface::<IDgnSRGramCommon>(&grammar_control)?;
+    let grammar_dragon = query_interface::<IDgnSRGramCommon>(grammar_control)?;
 
     let mut guid: GUID = unsafe { mem::uninitialized() };
     let rc = unsafe { grammar_dragon.identify(&mut guid) };

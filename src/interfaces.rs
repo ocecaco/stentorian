@@ -1,7 +1,32 @@
+#![cfg_attr(feature = "cargo-clippy", allow(unreadable_literal))]
 use components::*;
 use components::bstr::*;
 use dragon::*;
 use std::os::raw::c_void;
+
+define_guid!(pub CLSID_DgnDictate = 0xdd100001,
+             0x6205,
+             0x11cf,
+             0xae,
+             0x61,
+             0x00,
+             0x00,
+             0xe8,
+             0xa2,
+             0x86,
+             0x47);
+
+define_guid!(pub CLSID_DgnSite = 0xdd100006,
+             0x6205,
+             0x11cf,
+             0xae,
+             0x61,
+             0x00,
+             0x00,
+             0xe8,
+             0xa2,
+             0x86,
+             0x47);
 
 define_guid!(
     IID_IServiceProvider = 0x6d5140c1,

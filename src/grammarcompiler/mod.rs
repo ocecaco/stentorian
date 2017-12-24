@@ -60,6 +60,7 @@ pub fn compile_dictation_grammar() -> Vec<u8> {
     output
 }
 
+#[derive(Copy, Clone)]
 pub enum ImportedRule {
     Dictation,
     DictationWord,

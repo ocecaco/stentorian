@@ -169,27 +169,3 @@ impl<'a> From<&'a str> for SRWORD {
         word
     }
 }
-
-define_guid!(pub CLSID_DgnDictate = 0xdd100001,
-             0x6205,
-             0x11cf,
-             0xae,
-             0x61,
-             0x00,
-             0x00,
-             0xe8,
-             0xa2,
-             0x86,
-             0x47);
-
-define_guid!(pub CLSID_DgnSite = 0xdd100006,
-             0x6205,
-             0x11cf,
-             0xae,
-             0x61,
-             0x00,
-             0x00,
-             0xe8,
-             0xa2,
-             0x86,
-             0x47);

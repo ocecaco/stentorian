@@ -133,6 +133,7 @@ impl EngineSink {
         HRESULT(0)
     }
 
+    #[cfg_attr(feature = "cargo-clippy", allow(needless_pass_by_value))]
     fn progress(&self, x: u32, _s: BStr) -> HRESULT {
         debug!("engine event: progress {}", x);
         HRESULT(0)

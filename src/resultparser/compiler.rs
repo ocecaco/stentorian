@@ -176,10 +176,10 @@ impl<'a> Compiler<'a> {
                 self.emit(Instruction::AnyWord);
             }
             Element::Dictation => {
-                self.emit(Instruction::GreedyRule(1000000));
+                self.emit(Instruction::GreedyRule(1_000_000));
             }
             Element::SpellingLetter => {
-                self.emit(Instruction::GreedyRule(1000001));
+                self.emit(Instruction::GreedyRule(1_000_001));
             }
         }
     }
