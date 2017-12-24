@@ -1,4 +1,4 @@
-use components::*;
+use components::{com_memory_free, GUID};
 use std::mem;
 use std::ptr;
 use std::slice;

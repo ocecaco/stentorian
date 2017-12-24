@@ -1,8 +1,8 @@
 use std::mem;
-use dragon::*;
-use interfaces::*;
-use components::*;
-use errors::*;
+use dragon::{SRRESWORDNODE, SRWORD};
+use interfaces::{IDgnSRResSelect, ISRResGraph};
+use components::{query_interface, IUnknown, GUID};
+use errors::Result;
 use super::events::GrammarEvent;
 
 const VALUE_OUT_OF_RANGE: u32 = 0x8000_FFFF;

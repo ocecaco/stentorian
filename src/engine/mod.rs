@@ -1,17 +1,20 @@
 use components::comptr::ComPtr;
-use components::*;
-use interfaces::*;
+use components::{create_instance, query_interface, raw_to_comptr, ComInterface, IUnknown,
+                 RawComPtr, CLSCTX_LOCAL_SERVER, GUID, HRESULT};
+use interfaces::{CLSID_DgnDictate, CLSID_DgnSite, IDgnSREngineControl, IDgnSREngineNotifySink,
+                 IDgnSRGramCommon, ISRCentral, ISRGramCommon, ISRGramNotifySink, ISRSpeaker,
+                 IServiceProvider};
 use std::ptr;
 use std::mem;
 use std::sync::{Arc, RwLock};
-use dragon::*;
-use grammar::*;
-use self::enginesink::*;
-use self::grammarsink::*;
+use dragon::SRGRMFMT;
+use grammar::{Element, Grammar, Rule};
 use grammarcompiler::{compile_command_grammar, compile_dictation_grammar, compile_select_grammar};
+use self::enginesink::{EngineSink, PauseCookie};
+use self::grammarsink::{GrammarSink, RawGrammarEvent};
+use self::events::{Attribute, EngineEvent, GrammarEvent};
+use self::results::{CommandGrammarEvent, SelectGrammarEvent};
 use errors::*;
-use self::events::*;
-use self::results::*;
 
 mod enginesink;
 mod grammarsink;
@@ -19,7 +22,8 @@ mod grammarcontrol;
 mod events;
 mod results;
 
-pub use self::grammarcontrol::*;
+pub use self::grammarcontrol::{CatchallGrammarControl, CommandGrammarControl,
+                               DictationGrammarControl, SelectGrammarControl};
 
 mod grammar_flags {
     bitflags! {
@@ -292,8 +296,8 @@ pub struct EngineRegistration {
 impl Drop for EngineRegistration {
     fn drop(&mut self) {
         unsafe {
-            let result = self.central.unregister(self.register_key);
-            assert_eq!(result, S_OK, "engine unregister failed: {}", result);
+            let rc = self.central.unregister(self.register_key);
+            rc.result().expect("engine unregister failed");
         }
     }
 }

@@ -1,8 +1,10 @@
-use components::*;
-use components::comptr::*;
-use components::refcount::*;
+use components::{raw_to_comptr, ComInterface, IUnknown, IUnknownVtable, RawComPtr, HRESULT, IID,
+                 ULONG};
+use components::comptr::ComPtr;
+use components::refcount::RefCount;
 use components::bstr::BStr;
-use interfaces::*;
+use interfaces::{IDgnGetSinkFlags, IDgnGetSinkFlagsVtable, IDgnSREngineNotifySink,
+                 IDgnSREngineNotifySinkVtable, ISRNotifySink, ISRNotifySinkVtable};
 use super::{Attribute, EngineEvent};
 use super::engine_flags::EngineSinkFlags;
 use std::boxed::Box;

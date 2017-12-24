@@ -1,13 +1,13 @@
 use components::comptr::ComPtr;
 use components::bstr::BString;
-use components::*;
+use components::query_interface;
 use errors::*;
-use interfaces::*;
+use interfaces::{IDgnSRGramSelect, ISRGramCFG, ISRGramCommon, ISRGramDictation};
 use std::ptr;
 use std::slice;
 use std::mem;
 use byteorder::{LittleEndian, WriteBytesExt};
-use dragon::*;
+use dragon::{RECEIVE_SDATA, SDATA, SRWORD};
 
 pub struct CommandGrammarControl {
     grammar_control: ComPtr<ISRGramCommon>,
