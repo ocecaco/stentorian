@@ -14,16 +14,16 @@ pub struct CommandGrammarControl {
     grammar_lists: ComPtr<ISRGramCFG>,
 }
 
+pub fn create_command(grammar_control: ComPtr<ISRGramCommon>) -> Result<CommandGrammarControl> {
+    let grammar_lists = query_interface::<ISRGramCFG>(&grammar_control)?;
+
+    Ok(CommandGrammarControl {
+        grammar_control: grammar_control,
+        grammar_lists: grammar_lists,
+    })
+}
+
 impl CommandGrammarControl {
-    pub fn create(grammar_control: ComPtr<ISRGramCommon>) -> Result<Self> {
-        let grammar_lists = query_interface::<ISRGramCFG>(&grammar_control)?;
-
-        Ok(CommandGrammarControl {
-            grammar_control: grammar_control,
-            grammar_lists: grammar_lists,
-        })
-    }
-
     pub fn rule_activate(&self, name: &str) -> Result<()> {
         let rc = unsafe {
             self.grammar_control
@@ -101,16 +101,16 @@ pub struct SelectGrammarControl {
     grammar_select: ComPtr<IDgnSRGramSelect>,
 }
 
+pub fn create_select(grammar_control: ComPtr<ISRGramCommon>) -> Result<SelectGrammarControl> {
+    let grammar_select = query_interface::<IDgnSRGramSelect>(&grammar_control)?;
+
+    Ok(SelectGrammarControl {
+        grammar_activation: GrammarActivation(grammar_control),
+        grammar_select: grammar_select,
+    })
+}
+
 impl SelectGrammarControl {
-    pub fn create(grammar_control: ComPtr<ISRGramCommon>) -> Result<Self> {
-        let grammar_select = query_interface::<IDgnSRGramSelect>(&grammar_control)?;
-
-        Ok(SelectGrammarControl {
-            grammar_activation: GrammarActivation(grammar_control),
-            grammar_select: grammar_select,
-        })
-    }
-
     pub fn activate(&self) -> Result<()> {
         self.grammar_activation.activate()
     }
@@ -181,16 +181,16 @@ pub struct DictationGrammarControl {
     grammar_dictation: ComPtr<ISRGramDictation>,
 }
 
+pub fn create_dictation(grammar_control: ComPtr<ISRGramCommon>) -> Result<DictationGrammarControl> {
+    let grammar_dictation = query_interface::<ISRGramDictation>(&grammar_control)?;
+
+    Ok(DictationGrammarControl {
+        grammar_activation: GrammarActivation(grammar_control),
+        grammar_dictation: grammar_dictation,
+    })
+}
+
 impl DictationGrammarControl {
-    pub fn create(grammar_control: ComPtr<ISRGramCommon>) -> Result<Self> {
-        let grammar_dictation = query_interface::<ISRGramDictation>(&grammar_control)?;
-
-        Ok(DictationGrammarControl {
-            grammar_activation: GrammarActivation(grammar_control),
-            grammar_dictation: grammar_dictation,
-        })
-    }
-
     pub fn activate(&self) -> Result<()> {
         self.grammar_activation.activate()
     }
@@ -214,13 +214,13 @@ pub struct CatchallGrammarControl {
     grammar_activation: GrammarActivation,
 }
 
-impl CatchallGrammarControl {
-    pub fn create(grammar_control: ComPtr<ISRGramCommon>) -> Result<Self> {
-        Ok(CatchallGrammarControl {
-            grammar_activation: GrammarActivation(grammar_control),
-        })
-    }
+pub fn create_catchall(grammar_control: ComPtr<ISRGramCommon>) -> Result<CatchallGrammarControl> {
+    Ok(CatchallGrammarControl {
+        grammar_activation: GrammarActivation(grammar_control),
+    })
+}
 
+impl CatchallGrammarControl {
     pub fn activate(&self) -> Result<()> {
         self.grammar_activation.activate()
     }

@@ -227,7 +227,7 @@ impl Engine {
         let mut guid_data = guid_field.write().unwrap();
         *guid_data = Some(guid);
 
-        SelectGrammarControl::create(control)
+        grammarcontrol::create_select(control)
     }
 
     pub fn command_grammar_load<F>(
@@ -246,7 +246,7 @@ impl Engine {
         };
         let control = self.grammar_helper(SRGRMFMT::SRGRMFMT_CFG, &compiled, false, wrapped)?;
 
-        CommandGrammarControl::create(control)
+        grammarcontrol::create_command(control)
     }
 
     pub fn dictation_grammar_load<F>(&self, callback: F) -> Result<DictationGrammarControl>
@@ -260,7 +260,7 @@ impl Engine {
         };
         let control = self.grammar_helper(SRGRMFMT::SRGRMFMT_CFG, &compiled, false, wrapped)?;
 
-        DictationGrammarControl::create(control)
+        grammarcontrol::create_dictation(control)
     }
 
     pub fn catchall_grammar_load<F>(&self, callback: F) -> Result<CatchallGrammarControl>
@@ -284,7 +284,7 @@ impl Engine {
         };
         let control = self.grammar_helper(SRGRMFMT::SRGRMFMT_CFG, &compiled, true, wrapped)?;
 
-        CatchallGrammarControl::create(control)
+        grammarcontrol::create_catchall(control)
     }
 }
 
