@@ -46,12 +46,11 @@ impl<'a> CaptureBuilder<'a> {
     }
 
     pub fn capture_start(&mut self, name: &'a str, position: usize) {
-        self.captures
-            .push(CaptureTree {
-                      name: name,
-                      slice: Capture::Started(position),
-                      children: Vec::new(),
-                  });
+        self.captures.push(CaptureTree {
+            name: name,
+            slice: Capture::Started(position),
+            children: Vec::new(),
+        });
     }
 
     pub fn capture_stop(&mut self, position: usize) {
@@ -83,7 +82,10 @@ impl<'a> CaptureBuilder<'a> {
     }
 
     pub fn done(self) -> Vec<Match<'a>> {
-        let children = self.captures.iter().map(|c| complete_capture_tree(c)).collect();
+        let children = self.captures
+            .iter()
+            .map(|c| complete_capture_tree(c))
+            .collect();
 
         children
     }

@@ -8,7 +8,7 @@ use dragon::*;
 use grammar::*;
 use self::enginesink::*;
 use self::grammarsink::*;
-use grammarcompiler::{compile_command_grammar, compile_select_grammar, compile_dictation_grammar};
+use grammarcompiler::{compile_command_grammar, compile_dictation_grammar, compile_select_grammar};
 use errors::*;
 use self::events::*;
 use self::results::*;
@@ -71,9 +71,9 @@ impl Engine {
         let central = get_central()?;
         let engine_control = query_interface::<IDgnSREngineControl>(&central)?;
         Ok(Engine {
-               central: central,
-               engine_control: engine_control,
-           })
+            central: central,
+            engine_control: engine_control,
+        })
     }
 
     pub fn resume(&self, cookie: PauseCookie) -> Result<()> {
@@ -112,9 +112,11 @@ impl Engine {
         let mut required = 0;
 
         let rc = unsafe {
-            speaker.query(buffer.as_mut_ptr(),
-                          mem::size_of::<Buffer>() as u32,
-                          &mut required)
+            speaker.query(
+                buffer.as_mut_ptr(),
+                mem::size_of::<Buffer>() as u32,
+                &mut required,
+            )
         };
 
         if rc == NO_USER_SELECTED {
@@ -122,21 +124,27 @@ impl Engine {
         }
 
         try!(rc.result());
-        Ok(Some(String::from_utf16_lossy(&buffer[..(required / 2 - 1) as usize])))
+        Ok(Some(String::from_utf16_lossy(
+            &buffer[..(required / 2 - 1) as usize],
+        )))
     }
 
     pub fn register<F>(&self, callback: F) -> Result<EngineRegistration>
-        where F: Fn(EngineEvent) + Sync + 'static
+    where
+        F: Fn(EngineEvent) + Sync + 'static,
     {
-        let sink = EngineSink::create(engine_flags::SEND_PAUSED | engine_flags::SEND_ATTRIBUTE,
-                                      Box::new(callback));
+        let sink = EngineSink::create(
+            engine_flags::SEND_PAUSED | engine_flags::SEND_ATTRIBUTE,
+            Box::new(callback),
+        );
 
         let mut key = 0;
         let rc = unsafe {
-            self.central
-                .register(&sink as &IUnknown as *const _ as RawComPtr,
-                          IDgnSREngineNotifySink::iid(),
-                          &mut key)
+            self.central.register(
+                &sink as &IUnknown as *const _ as RawComPtr,
+                IDgnSREngineNotifySink::iid(),
+                &mut key,
+            )
         };
 
         try!(rc.result());
@@ -149,8 +157,15 @@ impl Engine {
         Ok(registration)
     }
 
-    fn grammar_helper<F>(&self, grammar_type: SRGRMFMT, compiled: &[u8], all_recognitions: bool, callback: F) -> Result<ComPtr<ISRGramCommon>>
-        where F: Fn(RawGrammarEvent) + Sync + 'static
+    fn grammar_helper<F>(
+        &self,
+        grammar_type: SRGRMFMT,
+        compiled: &[u8],
+        all_recognitions: bool,
+        callback: F,
+    ) -> Result<ComPtr<ISRGramCommon>>
+    where
+        F: Fn(RawGrammarEvent) + Sync + 'static,
     {
         let mut raw_control = ptr::null();
 
@@ -164,12 +179,13 @@ impl Engine {
         let raw_sink = &sink as &IUnknown as *const _ as RawComPtr;
 
         let rc = unsafe {
-            self.central
-                .grammar_load(grammar_type,
-                              compiled.into(),
-                              raw_sink,
-                              ISRGramNotifySink::iid(),
-                              &mut raw_control)
+            self.central.grammar_load(
+                grammar_type,
+                compiled.into(),
+                raw_sink,
+                ISRGramNotifySink::iid(),
+                &mut raw_control,
+            )
         };
 
         try!(rc.result());
@@ -180,12 +196,14 @@ impl Engine {
         Ok(grammar_control)
     }
 
-    pub fn select_grammar_load<F>(&self,
-                                  select_words: &[String],
-                                  through_words: &[String],
-                                  callback: F)
-                                  -> Result<SelectGrammarControl>
-        where F: Fn(SelectGrammarEvent) + Sync + 'static
+    pub fn select_grammar_load<F>(
+        &self,
+        select_words: &[String],
+        through_words: &[String],
+        callback: F,
+    ) -> Result<SelectGrammarControl>
+    where
+        F: Fn(SelectGrammarEvent) + Sync + 'static,
     {
         let compiled = compile_select_grammar(select_words, through_words);
 
@@ -198,7 +216,8 @@ impl Engine {
             callback(new_event);
         };
 
-        let control = self.grammar_helper(SRGRMFMT::SRGRMFMT_DRAGONNATIVE1, &compiled, false, wrapped)?;
+        let control =
+            self.grammar_helper(SRGRMFMT::SRGRMFMT_DRAGONNATIVE1, &compiled, false, wrapped)?;
 
         let guid = grammar_guid(&control)?;
         let mut guid_data = guid_field.write().unwrap();
@@ -207,15 +226,17 @@ impl Engine {
         SelectGrammarControl::create(control)
     }
 
-    pub fn command_grammar_load<F>(&self,
-                                   grammar: &Grammar,
-                                   callback: F)
-                                   -> Result<CommandGrammarControl>
-        where F: Fn(CommandGrammarEvent) + Sync + 'static
+    pub fn command_grammar_load<F>(
+        &self,
+        grammar: &Grammar,
+        callback: F,
+    ) -> Result<CommandGrammarControl>
+    where
+        F: Fn(CommandGrammarEvent) + Sync + 'static,
     {
         let compiled = compile_command_grammar(grammar)?;
 
-        let wrapped = move |e: RawGrammarEvent| { 
+        let wrapped = move |e: RawGrammarEvent| {
             let new_event = e.map(|r| results::retrieve_command_choices(&r.ptr).unwrap());
             callback(new_event);
         };
@@ -224,13 +245,12 @@ impl Engine {
         CommandGrammarControl::create(control)
     }
 
-    pub fn dictation_grammar_load<F>(&self,
-                                     callback: F)
-                                     -> Result<DictationGrammarControl>
-        where F: Fn(CommandGrammarEvent) + Sync + 'static
+    pub fn dictation_grammar_load<F>(&self, callback: F) -> Result<DictationGrammarControl>
+    where
+        F: Fn(CommandGrammarEvent) + Sync + 'static,
     {
         let compiled = compile_dictation_grammar();
-        let wrapped = move |e: RawGrammarEvent| { 
+        let wrapped = move |e: RawGrammarEvent| {
             let new_event = e.map(|r| results::retrieve_command_choices(&r.ptr).unwrap());
             callback(new_event);
         };
@@ -239,21 +259,22 @@ impl Engine {
         DictationGrammarControl::create(control)
     }
 
-    pub fn catchall_grammar_load<F>(&self,
-                                    callback: F)
-                                    -> Result<CatchallGrammarControl>
-        where F: Fn(CommandGrammarEvent) + Sync + 'static
+    pub fn catchall_grammar_load<F>(&self, callback: F) -> Result<CatchallGrammarControl>
+    where
+        F: Fn(CommandGrammarEvent) + Sync + 'static,
     {
         let rule = Rule {
             name: "".to_owned(),
             exported: true,
-            definition: Element::List { name: "_impossible".to_owned() },
+            definition: Element::List {
+                name: "_impossible".to_owned(),
+            },
         };
 
         let grammar = Grammar { rules: vec![rule] };
         let compiled = compile_command_grammar(&grammar)?;
 
-        let wrapped = move |e: RawGrammarEvent| { 
+        let wrapped = move |e: RawGrammarEvent| {
             let new_event = e.map(|r| results::retrieve_command_choices(&r.ptr).unwrap());
             callback(new_event);
         };

@@ -83,13 +83,14 @@ impl GrammarSink {
         HRESULT(0)
     }
 
-    unsafe fn phrase_finish(&self,
-                            flags: u32,
-                            b: u64,
-                            c: u64,
-                            _phrase: *const c_void,
-                            results: RawComPtr)
-                            -> HRESULT {
+    unsafe fn phrase_finish(
+        &self,
+        flags: u32,
+        b: u64,
+        c: u64,
+        _phrase: *const c_void,
+        results: RawComPtr,
+    ) -> HRESULT {
         debug!("grammar event: phrase_finish {} {} {}", flags, b, c);
 
         const RECOGNIZED: u32 = 0x1;
@@ -114,13 +115,14 @@ impl GrammarSink {
         HRESULT(0)
     }
 
-    fn phrase_hypothesis(&self,
-                         flags: u32,
-                         b: u64,
-                         c: u64,
-                         _phrase: *const c_void,
-                         _results: RawComPtr)
-                         -> HRESULT {
+    fn phrase_hypothesis(
+        &self,
+        flags: u32,
+        b: u64,
+        c: u64,
+        _phrase: *const c_void,
+        _results: RawComPtr,
+    ) -> HRESULT {
         debug!("grammar event: phrase_hypothesis {} {} {}", flags, b, c);
         HRESULT(0)
     }
@@ -152,7 +154,6 @@ impl GrammarSink {
         HRESULT(0)
     }
 }
-
 
 coclass! {
     GrammarSink {

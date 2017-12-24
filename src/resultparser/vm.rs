@@ -3,9 +3,10 @@ use std::collections::hash_map::Entry;
 use super::captures::{CaptureBuilder, Match};
 use super::instructions::*;
 
-pub fn perform_match<'a, 'c>(program: &'a [Instruction],
-                             string: &'c [(String, u32)])
-                             -> Option<Vec<Match<'a>>> {
+pub fn perform_match<'a, 'c>(
+    program: &'a [Instruction],
+    string: &'c [(String, u32)],
+) -> Option<Vec<Match<'a>>> {
     let mut threads = Vec::new();
     threads.push(Thread::new(program, string));
 
@@ -154,8 +155,7 @@ impl<'a, 'c> Thread<'a, 'c> {
                         }
                     }
                 }
-                Instruction::NoOp |
-                Instruction::Label(_) => {}
+                Instruction::NoOp | Instruction::Label(_) => {}
             }
         }
     }

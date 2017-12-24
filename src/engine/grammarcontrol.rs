@@ -9,15 +9,13 @@ use std::mem;
 use byteorder::{LittleEndian, WriteBytesExt};
 use dragon::*;
 
-
 pub struct CommandGrammarControl {
     grammar_control: ComPtr<ISRGramCommon>,
     grammar_lists: ComPtr<ISRGramCFG>,
 }
 
 impl CommandGrammarControl {
-    pub fn create(grammar_control: ComPtr<ISRGramCommon>)
-                -> Result<Self> {
+    pub fn create(grammar_control: ComPtr<ISRGramCommon>) -> Result<Self> {
         let grammar_lists = query_interface::<ISRGramCFG>(&grammar_control)?;
 
         Ok(CommandGrammarControl {
@@ -84,18 +82,14 @@ struct GrammarActivation(ComPtr<ISRGramCommon>);
 
 impl GrammarActivation {
     fn activate(&self) -> Result<()> {
-        let rc = unsafe {
-            self.0.activate(ptr::null(), 0, BString::from("").as_ref())
-        };
+        let rc = unsafe { self.0.activate(ptr::null(), 0, BString::from("").as_ref()) };
 
         try!(rc.result());
         Ok(())
     }
 
     fn deactivate(&self) -> Result<()> {
-        let rc = unsafe {
-            self.0.deactivate(BString::from("").as_ref())
-        };
+        let rc = unsafe { self.0.deactivate(BString::from("").as_ref()) };
 
         try!(rc.result());
         Ok(())
@@ -108,8 +102,7 @@ pub struct SelectGrammarControl {
 }
 
 impl SelectGrammarControl {
-    pub fn create(grammar_control: ComPtr<ISRGramCommon>)
-                -> Result<Self> {
+    pub fn create(grammar_control: ComPtr<ISRGramCommon>) -> Result<Self> {
         let grammar_select = query_interface::<IDgnSRGramSelect>(&grammar_control)?;
 
         Ok(SelectGrammarControl {
@@ -138,7 +131,10 @@ impl SelectGrammarControl {
     pub fn text_change(&self, start: u32, stop: u32, text: &str) -> Result<()> {
         let encoded = encode_text(text);
 
-        let rc = unsafe { self.grammar_select.words_change(start, stop, encoded.as_slice().into()) };
+        let rc = unsafe {
+            self.grammar_select
+                .words_change(start, stop, encoded.as_slice().into())
+        };
         rc.result()?;
 
         Ok(())
@@ -154,7 +150,10 @@ impl SelectGrammarControl {
     pub fn text_insert(&self, start: u32, text: &str) -> Result<()> {
         let encoded = encode_text(text);
 
-        let rc = unsafe { self.grammar_select.words_insert(start, encoded.as_slice().into()) };
+        let rc = unsafe {
+            self.grammar_select
+                .words_insert(start, encoded.as_slice().into())
+        };
         rc.result()?;
 
         Ok(())
@@ -167,7 +166,8 @@ impl SelectGrammarControl {
         rc.result()?;
 
         let slice = data.as_slice().unwrap();
-        let slice_16 = unsafe { slice::from_raw_parts(slice.as_ptr() as *const u16, slice.len() / 2) };
+        let slice_16 =
+            unsafe { slice::from_raw_parts(slice.as_ptr() as *const u16, slice.len() / 2) };
         let (_, without_terminator) = slice_16.split_last().unwrap();
 
         let text = String::from_utf16_lossy(without_terminator);
@@ -182,8 +182,7 @@ pub struct DictationGrammarControl {
 }
 
 impl DictationGrammarControl {
-    pub fn create(grammar_control: ComPtr<ISRGramCommon>)
-                -> Result<Self> {
+    pub fn create(grammar_control: ComPtr<ISRGramCommon>) -> Result<Self> {
         let grammar_dictation = query_interface::<ISRGramDictation>(&grammar_control)?;
 
         Ok(DictationGrammarControl {
@@ -202,7 +201,8 @@ impl DictationGrammarControl {
 
     pub fn context_set(&self, context: &str) -> Result<()> {
         let rc = unsafe {
-            self.grammar_dictation.context(BString::from(context).as_ref(), BString::from("").as_ref())
+            self.grammar_dictation
+                .context(BString::from(context).as_ref(), BString::from("").as_ref())
         };
         rc.result()?;
 
@@ -215,8 +215,7 @@ pub struct CatchallGrammarControl {
 }
 
 impl CatchallGrammarControl {
-    pub fn create(grammar_control: ComPtr<ISRGramCommon>)
-                -> Result<Self> {
+    pub fn create(grammar_control: ComPtr<ISRGramCommon>) -> Result<Self> {
         Ok(CatchallGrammarControl {
             grammar_activation: GrammarActivation(grammar_control),
         })

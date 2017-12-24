@@ -3,17 +3,19 @@ use components::bstr::*;
 use dragon::*;
 use std::os::raw::c_void;
 
-define_guid!(IID_IServiceProvider = 0x6d5140c1,
-             0x7436,
-             0x11ce,
-             0x80,
-             0x34,
-             0x00,
-             0xaa,
-             0x00,
-             0x60,
-             0x09,
-             0xfa);
+define_guid!(
+    IID_IServiceProvider = 0x6d5140c1,
+    0x7436,
+    0x11ce,
+    0x80,
+    0x34,
+    0x00,
+    0xaa,
+    0x00,
+    0x60,
+    0x09,
+    0xfa
+);
 
 com_interface! {
     interface IServiceProvider : IUnknown {
@@ -23,17 +25,19 @@ com_interface! {
     }
 }
 
-define_guid!(IID_IDgnGetSinkFlags = 0xdd108010,
-             0x6205,
-             0x11cf,
-             0xae,
-             0x61,
-             0x00,
-             0x00,
-             0xe8,
-             0xa2,
-             0x86,
-             0x47);
+define_guid!(
+    IID_IDgnGetSinkFlags = 0xdd108010,
+    0x6205,
+    0x11cf,
+    0xae,
+    0x61,
+    0x00,
+    0x00,
+    0xe8,
+    0xa2,
+    0x86,
+    0x47
+);
 
 com_interface! {
     interface IDgnGetSinkFlags : IUnknown {
@@ -43,17 +47,19 @@ com_interface! {
     }
 }
 
-define_guid!(IID_ISRGramNotifySink = 0xf106bfa0,
-             0xc743,
-             0x11cd,
-             0x80,
-             0xe5,
-             0x0,
-             0xaa,
-             0x0,
-             0x3e,
-             0x4b,
-             0x50);
+define_guid!(
+    IID_ISRGramNotifySink = 0xf106bfa0,
+    0xc743,
+    0x11cd,
+    0x80,
+    0xe5,
+    0x0,
+    0xaa,
+    0x0,
+    0x3e,
+    0x4b,
+    0x50
+);
 
 com_interface! {
     interface ISRGramNotifySink : IUnknown {
@@ -78,17 +84,19 @@ com_interface! {
     }
 }
 
-define_guid!(IID_ISRGramCommon = 0xe8c3e160,
-             0xc743,
-             0x11cd,
-             0x80,
-             0xe5,
-             0x0,
-             0xaa,
-             0x0,
-             0x3e,
-             0x4b,
-             0x50);
+define_guid!(
+    IID_ISRGramCommon = 0xe8c3e160,
+    0xc743,
+    0x11cd,
+    0x80,
+    0xe5,
+    0x0,
+    0xaa,
+    0x0,
+    0x3e,
+    0x4b,
+    0x50
+);
 
 com_interface! {
     interface ISRGramCommon : IUnknown {
@@ -101,17 +109,19 @@ com_interface! {
     }
 }
 
-define_guid!(IID_IDgnSRGramCommon = 0xdd108006,
-             0x6205,
-             0x11cf,
-             0xae,
-             0x61,
-             0x00,
-             0x00,
-             0xe8,
-             0xa2,
-             0x86,
-             0x47);
+define_guid!(
+    IID_IDgnSRGramCommon = 0xdd108006,
+    0x6205,
+    0x11cf,
+    0xae,
+    0x61,
+    0x00,
+    0x00,
+    0xe8,
+    0xa2,
+    0x86,
+    0x47
+);
 
 com_interface! {
     interface IDgnSRGramCommon : IUnknown {
@@ -122,17 +132,19 @@ com_interface! {
     }
 }
 
-define_guid!(IID_ISRResGraph = 0x090CD9AA,
-             0xDA1A,
-             0x11CD,
-             0xB3,
-             0xCA,
-             0x0,
-             0xAA,
-             0x0,
-             0x47,
-             0xBA,
-             0x4F);
+define_guid!(
+    IID_ISRResGraph = 0x090CD9AA,
+    0xDA1A,
+    0x11CD,
+    0xB3,
+    0xCA,
+    0x0,
+    0xAA,
+    0x0,
+    0x47,
+    0xBA,
+    0x4F
+);
 
 com_interface! {
     interface ISRResGraph : IUnknown {
@@ -158,17 +170,19 @@ com_interface! {
     }
 }
 
-define_guid!(IID_ISRGramCFG = 0xecc0b180,
-             0xc743,
-             0x11cd,
-             0x80,
-             0xe5,
-             0x0,
-             0xaa,
-             0x0,
-             0x3e,
-             0x4b,
-             0x50);
+define_guid!(
+    IID_ISRGramCFG = 0xecc0b180,
+    0xc743,
+    0x11cd,
+    0x80,
+    0xe5,
+    0x0,
+    0xaa,
+    0x0,
+    0x3e,
+    0x4b,
+    0x50
+);
 
 com_interface! {
     interface ISRGramCFG : IUnknown {
@@ -183,37 +197,43 @@ com_interface! {
     }
 }
 
-define_guid!(IID_IDgnSRResSelect = 0xdd10801b,
-             0x6205,
-             0x11cf,
-             0xae,
-             0x61,
-             0x00,
-             0x00,
-             0xe8,
-             0xa2,
-             0x86,
-             0x47);
+define_guid!(
+    IID_IDgnSRResSelect = 0xdd10801b,
+    0x6205,
+    0x11cf,
+    0xae,
+    0x61,
+    0x00,
+    0x00,
+    0xe8,
+    0xa2,
+    0x86,
+    0x47
+);
 
 com_interface! {
     interface IDgnSRResSelect : IUnknown {
         iid: IID_IDgnSRResSelect,
         vtable: IDgnSRResSelectVtable,
-        fn get_info(guid: GUID, choice: u32, start: *mut u32, stop: *mut u32, word_num: *mut u32) -> HRESULT;
+        fn get_info(guid: GUID, choice: u32,
+                    start: *mut u32, stop: *mut u32,
+                    word_num: *mut u32) -> HRESULT;
     }
 }
 
-define_guid!(IID_ISRGramDictation = 0x090CD9A3,
-             0xDA1A,
-             0x11CD,
-             0xB3,
-             0xCA,
-             0x0,
-             0xAA,
-             0x0,
-             0x47,
-             0xBA,
-             0x4F);
+define_guid!(
+    IID_ISRGramDictation = 0x090CD9A3,
+    0xDA1A,
+    0x11CD,
+    0xB3,
+    0xCA,
+    0x0,
+    0xAA,
+    0x0,
+    0x47,
+    0xBA,
+    0x4F
+);
 
 com_interface! {
     interface ISRGramDictation : IUnknown {
@@ -225,17 +245,19 @@ com_interface! {
     }
 }
 
-define_guid!(IID_ISRCentral = 0xB9BD3860,
-             0x44DB,
-             0x101B,
-             0x90,
-             0xA8,
-             0x00,
-             0xAA,
-             0x00,
-             0x3E,
-             0x4B,
-             0x50);
+define_guid!(
+    IID_ISRCentral = 0xB9BD3860,
+    0x44DB,
+    0x101B,
+    0x90,
+    0xA8,
+    0x00,
+    0xAA,
+    0x00,
+    0x3E,
+    0x4B,
+    0x50
+);
 
 com_interface! {
     interface ISRCentral : IUnknown {
@@ -256,17 +278,19 @@ com_interface! {
     }
 }
 
-define_guid!(IID_ISRNotifySink = 0x090CD9B0,
-             0xDA1A,
-             0x11CD,
-             0xB3,
-             0xCA,
-             0x00,
-             0xAA,
-             0x00,
-             0x47,
-             0xBA,
-             0x4F);
+define_guid!(
+    IID_ISRNotifySink = 0x090CD9B0,
+    0xDA1A,
+    0x11CD,
+    0xB3,
+    0xCA,
+    0x00,
+    0xAA,
+    0x00,
+    0x47,
+    0xBA,
+    0x4F
+);
 
 com_interface! {
     interface ISRNotifySink : IUnknown {
@@ -281,17 +305,19 @@ com_interface! {
     }
 }
 
-define_guid!(IID_IDgnSREngineNotifySink = 0xdd109001,
-             0x6205,
-             0x11cf,
-             0xae,
-             0x61,
-             0x00,
-             0x00,
-             0xe8,
-             0xa2,
-             0x86,
-             0x47);
+define_guid!(
+    IID_IDgnSREngineNotifySink = 0xdd109001,
+    0x6205,
+    0x11cf,
+    0xae,
+    0x61,
+    0x00,
+    0x00,
+    0xe8,
+    0xa2,
+    0x86,
+    0x47
+);
 
 com_interface! {
     interface IDgnSREngineNotifySink : IUnknown {
@@ -305,17 +331,19 @@ com_interface! {
     }
 }
 
-define_guid!(IID_IDgnSREngineControl = 0xdd109000,
-             0x6205,
-             0x11cf,
-             0xae,
-             0x61,
-             0x00,
-             0x00,
-             0xe8,
-             0xa2,
-             0x86,
-             0x47);
+define_guid!(
+    IID_IDgnSREngineControl = 0xdd109000,
+    0x6205,
+    0x11cf,
+    0xae,
+    0x61,
+    0x00,
+    0x00,
+    0xe8,
+    0xa2,
+    0x86,
+    0x47
+);
 
 com_interface! {
     interface IDgnSREngineControl : IUnknown {
@@ -330,8 +358,19 @@ com_interface! {
     }
 }
 
-define_guid!(IID_ISRSpeaker = 0x090CD9AE,
-             0xDA1A, 0x11CD, 0xB3, 0xCA, 0x0, 0xAA, 0x0, 0x47, 0xBA, 0x4F);
+define_guid!(
+    IID_ISRSpeaker = 0x090CD9AE,
+    0xDA1A,
+    0x11CD,
+    0xB3,
+    0xCA,
+    0x0,
+    0xAA,
+    0x0,
+    0x47,
+    0xBA,
+    0x4F
+);
 
 com_interface! {
     interface ISRSpeaker : IUnknown {
@@ -349,9 +388,19 @@ com_interface! {
     }
 }
 
-define_guid!(IID_IDgnSRGramSelect =
-        0xdd10901a, 0x6205, 0x11cf, 0xae, 0x61,
-        0x00, 0x00, 0xe8, 0xa2, 0x86, 0x47);
+define_guid!(
+    IID_IDgnSRGramSelect = 0xdd10901a,
+    0x6205,
+    0x11cf,
+    0xae,
+    0x61,
+    0x00,
+    0x00,
+    0xe8,
+    0xa2,
+    0x86,
+    0x47
+);
 
 com_interface! {
     interface IDgnSRGramSelect : IUnknown {

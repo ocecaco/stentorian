@@ -60,7 +60,6 @@ pub fn compile_dictation_grammar() -> Vec<u8> {
     output
 }
 
-
 pub enum ImportedRule {
     Dictation,
     DictationWord,
@@ -204,8 +203,7 @@ impl<'a> GrammarCompiler<'a> {
             }
             Element::RuleRef { ref name } => {
                 let maybe_id = self.rule_name_to_id.get::<str>(name);
-                let result = maybe_id
-                    .ok_or_else(|| ErrorKind::UnknownRule(name.clone()))?;
+                let result = maybe_id.ok_or_else(|| ErrorKind::UnknownRule(name.clone()))?;
                 output.push(RuleToken::Rule(*result));
             }
             Element::List { ref name } => {
@@ -260,12 +258,8 @@ enum ChunkType {
 }
 
 fn write_chunk(output: &mut Vec<u8>, chunk_type: ChunkType, mut data: Vec<u8>) {
-    output
-        .write_u32::<LittleEndian>(chunk_type as u32)
-        .unwrap();
-    output
-        .write_u32::<LittleEndian>(data.len() as u32)
-        .unwrap();
+    output.write_u32::<LittleEndian>(chunk_type as u32).unwrap();
+    output.write_u32::<LittleEndian>(data.len() as u32).unwrap();
     output.append(&mut data);
 }
 
@@ -280,7 +274,8 @@ fn write_entry(output: &mut Vec<u8>, id: u32, mut data: Vec<u8>) {
 }
 
 fn compile_id_chunk<'a, E>(entries: E) -> Vec<u8>
-    where E: IntoIterator<Item=(u32, &'a str)>
+where
+    E: IntoIterator<Item = (u32, &'a str)>,
 {
     fn add_padding(v: &mut Vec<u8>, multiple: usize) {
         let extra_padding = multiple - (v.len() % multiple);

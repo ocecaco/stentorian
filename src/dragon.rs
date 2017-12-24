@@ -56,7 +56,7 @@ pub enum SRGRMFMT {
 pub struct SDATA<'a> {
     data: *const u8,
     size: u32,
-    phantom: PhantomData<&'a u8>
+    phantom: PhantomData<&'a u8>,
 }
 
 impl<'a> From<&'a [u8]> for SDATA<'a> {
@@ -89,9 +89,7 @@ impl RECEIVE_SDATA {
             return None;
         }
 
-        unsafe {
-            Some(slice::from_raw_parts(self.data, self.size as usize))
-        }
+        unsafe { Some(slice::from_raw_parts(self.data, self.size as usize)) }
     }
 }
 

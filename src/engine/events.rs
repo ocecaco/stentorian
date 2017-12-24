@@ -9,7 +9,9 @@ pub enum GrammarEvent<T> {
 
 impl<T> GrammarEvent<T> {
     pub fn map<F, U>(self, f: F) -> GrammarEvent<U>
-        where F: FnOnce(T) -> U {
+    where
+        F: FnOnce(T) -> U,
+    {
         match self {
             GrammarEvent::PhraseFinish(v) => GrammarEvent::PhraseFinish(f(v)),
             GrammarEvent::PhraseRecognitionFailure => GrammarEvent::PhraseRecognitionFailure,

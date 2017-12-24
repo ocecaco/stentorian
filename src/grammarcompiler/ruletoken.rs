@@ -42,20 +42,20 @@ impl RuleToken {
     }
 }
 
-pub const SEQUENCE_START: RuleToken = RuleToken::Nested(NestedPosition::Start,
-                                                        NestedType::Sequence);
+pub const SEQUENCE_START: RuleToken =
+    RuleToken::Nested(NestedPosition::Start, NestedType::Sequence);
 pub const SEQUENCE_END: RuleToken = RuleToken::Nested(NestedPosition::End, NestedType::Sequence);
 
-pub const ALTERNATIVE_START: RuleToken = RuleToken::Nested(NestedPosition::Start,
-                                                           NestedType::Alternative);
-pub const ALTERNATIVE_END: RuleToken = RuleToken::Nested(NestedPosition::End,
-                                                         NestedType::Alternative);
+pub const ALTERNATIVE_START: RuleToken =
+    RuleToken::Nested(NestedPosition::Start, NestedType::Alternative);
+pub const ALTERNATIVE_END: RuleToken =
+    RuleToken::Nested(NestedPosition::End, NestedType::Alternative);
 
-pub const REPETITION_START: RuleToken = RuleToken::Nested(NestedPosition::Start,
-                                                          NestedType::Repetition);
-pub const REPETITION_END: RuleToken = RuleToken::Nested(NestedPosition::End,
-                                                        NestedType::Repetition);
+pub const REPETITION_START: RuleToken =
+    RuleToken::Nested(NestedPosition::Start, NestedType::Repetition);
+pub const REPETITION_END: RuleToken =
+    RuleToken::Nested(NestedPosition::End, NestedType::Repetition);
 
-pub const OPTIONAL_START: RuleToken = RuleToken::Nested(NestedPosition::Start,
-                                                        NestedType::Optional);
+pub const OPTIONAL_START: RuleToken =
+    RuleToken::Nested(NestedPosition::Start, NestedType::Optional);
 pub const OPTIONAL_END: RuleToken = RuleToken::Nested(NestedPosition::End, NestedType::Optional);

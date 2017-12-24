@@ -22,9 +22,9 @@ pub type SelectGrammarEvent = GrammarEvent<Vec<Selection>>;
 
 fn string_from_slice(s: &[u16]) -> String {
     String::from_utf16_lossy(&s.iter()
-                                  .cloned()
-                                  .take_while(|&x| x != 0)
-                                  .collect::<Vec<u16>>())
+        .cloned()
+        .take_while(|&x| x != 0)
+        .collect::<Vec<u16>>())
 }
 
 pub fn retrieve_command_choices(results: &IUnknown) -> Result<Vec<Words>> {
@@ -47,10 +47,12 @@ fn retrieve_words(results: &IUnknown, choice: u32) -> Result<Option<Words>> {
     let mut actual_path_size: u32 = 0;
 
     let rc = unsafe {
-        results.best_path_word(choice,
-                               &mut path[0],
-                               mem::size_of::<Path>() as u32,
-                               &mut actual_path_size)
+        results.best_path_word(
+            choice,
+            &mut path[0],
+            mem::size_of::<Path>() as u32,
+            &mut actual_path_size,
+        )
     };
     if rc.0 == VALUE_OUT_OF_RANGE {
         return Ok(None);
@@ -67,11 +69,13 @@ fn retrieve_words(results: &IUnknown, choice: u32) -> Result<Option<Words>> {
     let mut words = Vec::new();
     for i in 0..actual_path_size {
         let rc = unsafe {
-            results.get_word_node(path[i as usize],
-                                  &mut word_node,
-                                  &mut word,
-                                  mem::size_of::<SRWORD>() as u32,
-                                  &mut size_needed)
+            results.get_word_node(
+                path[i as usize],
+                &mut word_node,
+                &mut word,
+                mem::size_of::<SRWORD>() as u32,
+                &mut size_needed,
+            )
         };
         rc.result()?;
 
@@ -107,9 +111,7 @@ fn retrieve_selection(results: &IUnknown, guid: GUID, choice: u32) -> Result<Opt
     let mut stop = 0;
     let mut word_number = 0;
 
-    let rc = unsafe {
-        results.get_info(guid, choice, &mut start, &mut stop, &mut word_number)
-    };
+    let rc = unsafe { results.get_info(guid, choice, &mut start, &mut stop, &mut word_number) };
     if rc.0 == VALUE_OUT_OF_RANGE {
         return Ok(None);
     }

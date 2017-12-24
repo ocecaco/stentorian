@@ -3,7 +3,7 @@ use components::comptr::*;
 use components::refcount::*;
 use components::bstr::BStr;
 use interfaces::*;
-use super::{EngineEvent, Attribute};
+use super::{Attribute, EngineEvent};
 use super::engine_flags::EngineSinkFlags;
 use std::boxed::Box;
 
@@ -103,13 +103,11 @@ impl EngineSink {
         HRESULT(0)
     }
 
-
     unsafe fn sink_flags_get(&self, flags: *mut u32) -> HRESULT {
         debug!("engine event: sink_flags_get");
         *flags = self.flags.bits();
         HRESULT(0)
     }
-
 
     fn attrib_changed_2(&self, a: u32) -> HRESULT {
         debug!("engine event: attrib_changed_2 {}", a);

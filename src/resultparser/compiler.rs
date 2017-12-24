@@ -31,15 +31,12 @@ fn relabel(instructions: &mut [Instruction], locations: &HashMap<LabelName, usiz
 
     for i in instructions.iter_mut() {
         match *i {
-            Instruction::Jump(ref mut target) |
-            Instruction::RuleCall(ref mut target) => {
+            Instruction::Jump(ref mut target) | Instruction::RuleCall(ref mut target) => {
                 relabel_target(target, locations);
             }
-            Instruction::Split(ref mut targets) => {
-                for t in targets.iter_mut() {
-                    relabel_target(t, locations);
-                }
-            }
+            Instruction::Split(ref mut targets) => for t in targets.iter_mut() {
+                relabel_target(t, locations);
+            },
             Instruction::Label(_) => {
                 *i = Instruction::NoOp;
             }
@@ -112,11 +109,9 @@ impl<'a> Compiler<'a> {
 
     fn compile_element(&mut self, element: &'a Element) {
         match *element {
-            Element::Sequence { ref children } => {
-                for c in children.iter() {
-                    self.compile_element(c);
-                }
-            }
+            Element::Sequence { ref children } => for c in children.iter() {
+                self.compile_element(c);
+            },
             Element::Alternative { ref children } => {
                 let mut labels = Vec::new();
                 for _ in 0..children.len() {
@@ -177,8 +172,7 @@ impl<'a> Compiler<'a> {
                 let target = JumpTarget::Symbolic(self.rule_name_to_label[name]);
                 self.emit(Instruction::RuleCall(target));
             }
-            Element::List { .. } |
-            Element::DictationWord => {
+            Element::List { .. } | Element::DictationWord => {
                 self.emit(Instruction::AnyWord);
             }
             Element::Dictation => {

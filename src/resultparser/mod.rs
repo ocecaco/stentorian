@@ -13,7 +13,9 @@ pub struct Matcher {
 
 impl Matcher {
     pub fn new(grammar: &Grammar) -> Self {
-        Matcher { instructions: compiler::compile_matcher(grammar) }
+        Matcher {
+            instructions: compiler::compile_matcher(grammar),
+        }
     }
 
     pub fn perform_match<'a>(&'a self, string: &[(String, u32)]) -> Option<Vec<Match<'a>>> {
