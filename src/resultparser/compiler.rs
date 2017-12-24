@@ -1,6 +1,6 @@
-use std::collections::HashMap;
-use grammar::{Element, Grammar, Rule};
 use super::instructions::{Instruction, JumpTarget, LabelName};
+use grammar::{Element, Grammar, Rule};
+use std::collections::HashMap;
 
 pub fn compile_matcher(grammar: &Grammar) -> Vec<Instruction> {
     let compiler = Compiler::new();

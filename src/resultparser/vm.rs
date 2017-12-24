@@ -1,7 +1,7 @@
-use std::collections::HashMap;
-use std::collections::hash_map::Entry;
 use super::captures::{CaptureBuilder, Match};
 use super::instructions::Instruction;
+use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 
 pub fn perform_match<'a, 'c>(
     program: &'a [Instruction],

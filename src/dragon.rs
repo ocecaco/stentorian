@@ -1,8 +1,8 @@
 use components::{com_memory_free, GUID};
+use std::marker::PhantomData;
 use std::mem;
 use std::ptr;
 use std::slice;
-use std::marker::PhantomData;
 
 type LANGID = u16;
 

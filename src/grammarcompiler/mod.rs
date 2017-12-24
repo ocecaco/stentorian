@@ -1,13 +1,13 @@
-use byteorder::{LittleEndian, WriteBytesExt};
-use std::mem;
-use grammar::{Element, Grammar, Rule};
+use self::errors::*;
+use self::intern::Interner;
 use self::ruletoken::{RuleToken, ALTERNATIVE_END, ALTERNATIVE_START, OPTIONAL_END, OPTIONAL_START,
                       REPETITION_END, REPETITION_START, SEQUENCE_END, SEQUENCE_START};
-use self::intern::Interner;
+pub use self::ruletoken::RuleId;
+use byteorder::{LittleEndian, WriteBytesExt};
+use grammar::{Element, Grammar, Rule};
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
-use self::errors::*;
-pub use self::ruletoken::RuleId;
+use std::mem;
 
 mod intern;
 mod ruletoken;

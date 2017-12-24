@@ -3,9 +3,8 @@ mod vm;
 mod captures;
 mod instructions;
 
-use grammar::Grammar;
-
 pub use self::captures::{CaptureTree, Match};
+use grammar::Grammar;
 
 pub struct Matcher {
     instructions: Vec<instructions::Instruction>,

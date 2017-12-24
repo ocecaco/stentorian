@@ -1,13 +1,12 @@
-use interfaces::{IDgnGetSinkFlags, IDgnGetSinkFlagsVtable, ISRGramNotifySink,
-                 ISRGramNotifySinkVtable};
+use super::GrammarEvent;
+use super::grammar_flags::GrammarSinkFlags;
 use components::{raw_to_comptr, ComInterface, IUnknown, IUnknownVtable, RawComPtr, HRESULT, IID,
                  ULONG};
 use components::comptr::ComPtr;
 use components::refcount::RefCount;
+use interfaces::{IDgnGetSinkFlags, IDgnGetSinkFlagsVtable, ISRGramNotifySink,
+                 ISRGramNotifySinkVtable};
 use std::boxed::Box;
-use super::GrammarEvent;
-use super::grammar_flags::GrammarSinkFlags;
-
 use std::os::raw::c_void;
 
 fn _ensure_kinds() {

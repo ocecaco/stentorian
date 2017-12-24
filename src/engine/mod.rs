@@ -1,20 +1,20 @@
-use components::comptr::ComPtr;
+use self::enginesink::{EngineSink, PauseCookie};
+use self::events::{Attribute, EngineEvent, GrammarEvent};
+use self::grammarsink::{GrammarSink, RawGrammarEvent};
+use self::results::{CommandGrammarEvent, SelectGrammarEvent};
 use components::{create_instance, query_interface, raw_to_comptr, ComInterface, IUnknown,
                  RawComPtr, CLSCTX_LOCAL_SERVER, GUID, HRESULT};
+use components::comptr::ComPtr;
+use dragon::SRGRMFMT;
+use errors::*;
+use grammar::{Element, Grammar, Rule};
+use grammarcompiler::{compile_command_grammar, compile_dictation_grammar, compile_select_grammar};
 use interfaces::{CLSID_DgnDictate, CLSID_DgnSite, IDgnSREngineControl, IDgnSREngineNotifySink,
                  IDgnSRGramCommon, ISRCentral, ISRGramCommon, ISRGramNotifySink, ISRSpeaker,
                  IServiceProvider};
-use std::ptr;
 use std::mem;
+use std::ptr;
 use std::sync::{Arc, RwLock};
-use dragon::SRGRMFMT;
-use grammar::{Element, Grammar, Rule};
-use grammarcompiler::{compile_command_grammar, compile_dictation_grammar, compile_select_grammar};
-use self::enginesink::{EngineSink, PauseCookie};
-use self::grammarsink::{GrammarSink, RawGrammarEvent};
-use self::events::{Attribute, EngineEvent, GrammarEvent};
-use self::results::{CommandGrammarEvent, SelectGrammarEvent};
-use errors::*;
 
 mod enginesink;
 mod grammarsink;
