@@ -1,5 +1,5 @@
 use super::events::GrammarEvent;
-use components::{query_interface, IUnknown, GUID};
+use components::{Cast, IUnknown, GUID};
 use dragon::{SRRESWORDNODE, SRWORD};
 use errors::Result;
 use interfaces::{IDgnSRResSelect, ISRResGraph};
@@ -41,7 +41,7 @@ pub fn retrieve_command_choices(results: &IUnknown) -> Result<Vec<Words>> {
 }
 
 fn retrieve_words(results: &IUnknown, choice: u32) -> Result<Option<Words>> {
-    let results = query_interface::<ISRResGraph>(results)?;
+    let results = results.cast::<ISRResGraph>()?;
 
     type Path = [u32; 512];
     let mut path: Path = [0u32; 512];
@@ -106,7 +106,7 @@ pub fn retrieve_selection_choices(results: &IUnknown, guid: GUID) -> Result<Vec<
 }
 
 fn retrieve_selection(results: &IUnknown, guid: GUID, choice: u32) -> Result<Option<(u32, u32)>> {
-    let results = query_interface::<IDgnSRResSelect>(results)?;
+    let results = results.cast::<IDgnSRResSelect>()?;
 
     let mut start = 0;
     let mut stop = 0;

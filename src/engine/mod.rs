@@ -1,7 +1,7 @@
 use self::enginesink::{EngineSink, PauseCookie};
 use self::grammarsink::{GrammarSink, RawGrammarEvent};
-use components::{create_instance, query_interface, raw_to_comptr, ComInterface, IUnknown,
-                 RawComPtr, CLSCTX_LOCAL_SERVER, GUID, HRESULT};
+use components::{create_instance, raw_to_comptr, Cast, ComInterface, IUnknown, RawComPtr,
+                 CLSCTX_LOCAL_SERVER, GUID, HRESULT};
 use components::comptr::ComPtr;
 use dragon::SRGRMFMT;
 use errors::*;
@@ -20,11 +20,10 @@ mod grammarcontrol;
 mod events;
 mod results;
 
+pub use self::events::{EngineEvent, GrammarEvent};
 pub use self::grammarcontrol::{CatchallGrammarControl, CommandGrammarControl,
                                DictationGrammarControl, SelectGrammarControl};
-
-pub use self::events::{EngineEvent, GrammarEvent};
-pub use self::results::{SelectGrammarEvent, CommandGrammarEvent};
+pub use self::results::{CommandGrammarEvent, SelectGrammarEvent};
 
 mod grammar_flags {
     bitflags! {
@@ -74,7 +73,7 @@ pub struct Engine {
 impl Engine {
     pub fn connect() -> Result<Self> {
         let central = get_central()?;
-        let engine_control = query_interface::<IDgnSREngineControl>(&central)?;
+        let engine_control = central.cast()?;
         Ok(Engine {
             central: central,
             engine_control: engine_control,
@@ -112,7 +111,7 @@ impl Engine {
         const NO_USER_SELECTED: HRESULT = HRESULT(0x8004_041a);
         type Buffer = [u16; SIZE];
 
-        let speaker = query_interface::<ISRSpeaker>(&self.central)?;
+        let speaker = self.central.cast::<ISRSpeaker>()?;
         let mut buffer: Buffer = [0u16; SIZE];
         let mut required = 0;
 
@@ -196,7 +195,7 @@ impl Engine {
         try!(rc.result());
 
         let grammar_control = unsafe { raw_to_comptr::<IUnknown>(raw_control, true) };
-        let grammar_control = query_interface::<ISRGramCommon>(&grammar_control)?;
+        let grammar_control = grammar_control.cast()?;
 
         Ok(grammar_control)
     }
@@ -224,7 +223,8 @@ impl Engine {
         let control =
             self.grammar_helper(SRGRMFMT::SRGRMFMT_DRAGONNATIVE1, &compiled, false, wrapped)?;
 
-        let guid = grammar_guid(&control)?;
+        let grammar_dragon = control.cast()?;
+        let guid = grammar_guid(&grammar_dragon)?;
         let mut guid_data = guid_field.write().unwrap();
         *guid_data = Some(guid);
 
@@ -303,9 +303,7 @@ impl Drop for EngineRegistration {
     }
 }
 
-fn grammar_guid(grammar_control: &IUnknown) -> Result<GUID> {
-    let grammar_dragon = query_interface::<IDgnSRGramCommon>(grammar_control)?;
-
+fn grammar_guid(grammar_dragon: &IDgnSRGramCommon) -> Result<GUID> {
     let mut guid: GUID = unsafe { mem::uninitialized() };
     let rc = unsafe { grammar_dragon.identify(&mut guid) };
     rc.result()?;

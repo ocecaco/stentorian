@@ -1,7 +1,7 @@
 use byteorder::{LittleEndian, WriteBytesExt};
+use components::Cast;
 use components::bstr::BString;
 use components::comptr::ComPtr;
-use components::query_interface;
 use dragon::{RECEIVE_SDATA, SDATA, SRWORD};
 use errors::*;
 use interfaces::{IDgnSRGramSelect, ISRGramCFG, ISRGramCommon, ISRGramDictation};
@@ -15,7 +15,7 @@ pub struct CommandGrammarControl {
 }
 
 pub fn create_command(grammar_control: ComPtr<ISRGramCommon>) -> Result<CommandGrammarControl> {
-    let grammar_lists = query_interface::<ISRGramCFG>(&grammar_control)?;
+    let grammar_lists = grammar_control.cast()?;
 
     Ok(CommandGrammarControl {
         grammar_control: grammar_control,
@@ -102,7 +102,7 @@ pub struct SelectGrammarControl {
 }
 
 pub fn create_select(grammar_control: ComPtr<ISRGramCommon>) -> Result<SelectGrammarControl> {
-    let grammar_select = query_interface::<IDgnSRGramSelect>(&grammar_control)?;
+    let grammar_select = grammar_control.cast()?;
 
     Ok(SelectGrammarControl {
         grammar_activation: GrammarActivation(grammar_control),
@@ -182,7 +182,7 @@ pub struct DictationGrammarControl {
 }
 
 pub fn create_dictation(grammar_control: ComPtr<ISRGramCommon>) -> Result<DictationGrammarControl> {
-    let grammar_dictation = query_interface::<ISRGramDictation>(&grammar_control)?;
+    let grammar_dictation = grammar_control.cast()?;
 
     Ok(DictationGrammarControl {
         grammar_activation: GrammarActivation(grammar_control),
