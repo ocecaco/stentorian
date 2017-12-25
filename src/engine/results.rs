@@ -1,5 +1,5 @@
 use super::events::GrammarEvent;
-use components::{Cast, IUnknown, GUID};
+use components::GUID;
 use dragon::{SRRESWORDNODE, SRWORD};
 use errors::Result;
 use interfaces::{IDgnSRResSelect, ISRResGraph};
@@ -28,7 +28,7 @@ fn string_from_slice(s: &[u16]) -> String {
         .collect::<Vec<u16>>())
 }
 
-pub fn retrieve_command_choices(results: &IUnknown) -> Result<Vec<Words>> {
+pub fn retrieve_command_choices(results: &ISRResGraph) -> Result<Vec<Words>> {
     let mut choices = Vec::new();
 
     let mut i = 0;
@@ -40,9 +40,7 @@ pub fn retrieve_command_choices(results: &IUnknown) -> Result<Vec<Words>> {
     Ok(choices)
 }
 
-fn retrieve_words(results: &IUnknown, choice: u32) -> Result<Option<Words>> {
-    let results = results.cast::<ISRResGraph>()?;
-
+fn retrieve_words(results: &ISRResGraph, choice: u32) -> Result<Option<Words>> {
     type Path = [u32; 512];
     let mut path: Path = [0u32; 512];
     let mut actual_path_size: u32 = 0;
@@ -93,7 +91,7 @@ fn retrieve_words(results: &IUnknown, choice: u32) -> Result<Option<Words>> {
     Ok(Some(words))
 }
 
-pub fn retrieve_selection_choices(results: &IUnknown, guid: GUID) -> Result<Vec<Selection>> {
+pub fn retrieve_selection_choices(results: &IDgnSRResSelect, guid: GUID) -> Result<Vec<Selection>> {
     let mut choices = Vec::new();
 
     let mut i = 0;
@@ -105,9 +103,11 @@ pub fn retrieve_selection_choices(results: &IUnknown, guid: GUID) -> Result<Vec<
     Ok(choices)
 }
 
-fn retrieve_selection(results: &IUnknown, guid: GUID, choice: u32) -> Result<Option<(u32, u32)>> {
-    let results = results.cast::<IDgnSRResSelect>()?;
-
+fn retrieve_selection(
+    results: &IDgnSRResSelect,
+    guid: GUID,
+    choice: u32,
+) -> Result<Option<(u32, u32)>> {
     let mut start = 0;
     let mut stop = 0;
     let mut word_number = 0;
