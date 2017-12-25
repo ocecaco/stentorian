@@ -109,7 +109,9 @@ impl GrammarSink {
                 foreign: foreign,
                 ptr: results,
             };
-            let event = GrammarEvent::PhraseFinish(recognition);
+            let event = GrammarEvent::PhraseFinish {
+                result: recognition,
+            };
             self.send(event);
         }
 

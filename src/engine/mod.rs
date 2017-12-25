@@ -263,7 +263,7 @@ impl Engine {
                 e.map(|r| results::retrieve_command_choices(&r.ptr.cast().unwrap()).unwrap());
             callback(new_event);
         };
-        let control = self.grammar_helper(SRGRMFMT::SRGRMFMT_CFG, &compiled, false, wrapped)?;
+        let control = self.grammar_helper(SRGRMFMT::SRGRMFMT_DICTATION, &compiled, false, wrapped)?;
 
         grammarcontrol::create_dictation(control)
     }
@@ -273,7 +273,7 @@ impl Engine {
         F: Fn(CommandGrammarEvent) + Sync + 'static,
     {
         let rule = Rule {
-            name: "".to_owned(),
+            name: "dummy".to_owned(),
             exported: true,
             definition: Element::List {
                 name: "_impossible".to_owned(),

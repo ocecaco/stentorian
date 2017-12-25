@@ -1,6 +1,6 @@
 use byteorder::{LittleEndian, WriteBytesExt};
 use components::Cast;
-use components::bstr::BString;
+use components::bstr::{BStr, BString};
 use components::comptr::ComPtr;
 use dragon::{RECEIVE_SDATA, SDATA, SRWORD};
 use errors::*;
@@ -78,18 +78,30 @@ impl CommandGrammarControl {
     }
 }
 
-struct GrammarActivation(ComPtr<ISRGramCommon>);
+struct GrammarActivation(ComPtr<ISRGramCommon>, Option<BString>);
 
 impl GrammarActivation {
+    fn new(ptr: ComPtr<ISRGramCommon>, name: Option<&str>) -> Self {
+        GrammarActivation(ptr, name.map(|n| BString::from(n)))
+    }
+
+    fn name(&self) -> BStr {
+        if let Some(ref n) = self.1 {
+            return n.as_ref();
+        }
+
+        BStr::null()
+    }
+
     fn activate(&self) -> Result<()> {
-        let rc = unsafe { self.0.activate(ptr::null(), 0, BString::from("").as_ref()) };
+        let rc = unsafe { self.0.activate(ptr::null(), 0, self.name()) };
 
         try!(rc.result());
         Ok(())
     }
 
     fn deactivate(&self) -> Result<()> {
-        let rc = unsafe { self.0.deactivate(BString::from("").as_ref()) };
+        let rc = unsafe { self.0.deactivate(self.name()) };
 
         try!(rc.result());
         Ok(())
@@ -105,7 +117,7 @@ pub fn create_select(grammar_control: ComPtr<ISRGramCommon>) -> Result<SelectGra
     let grammar_select = grammar_control.cast()?;
 
     Ok(SelectGrammarControl {
-        grammar_activation: GrammarActivation(grammar_control),
+        grammar_activation: GrammarActivation::new(grammar_control, None),
         grammar_select: grammar_select,
     })
 }
@@ -185,7 +197,7 @@ pub fn create_dictation(grammar_control: ComPtr<ISRGramCommon>) -> Result<Dictat
     let grammar_dictation = grammar_control.cast()?;
 
     Ok(DictationGrammarControl {
-        grammar_activation: GrammarActivation(grammar_control),
+        grammar_activation: GrammarActivation::new(grammar_control, None),
         grammar_dictation: grammar_dictation,
     })
 }
@@ -216,7 +228,7 @@ pub struct CatchallGrammarControl {
 
 pub fn create_catchall(grammar_control: ComPtr<ISRGramCommon>) -> Result<CatchallGrammarControl> {
     Ok(CatchallGrammarControl {
-        grammar_activation: GrammarActivation(grammar_control),
+        grammar_activation: GrammarActivation::new(grammar_control, Some("dummy")),
     })
 }
 

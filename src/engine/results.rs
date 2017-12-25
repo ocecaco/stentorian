@@ -6,6 +6,7 @@ use interfaces::{IDgnSRResSelect, ISRResGraph};
 use std::mem;
 
 const VALUE_OUT_OF_RANGE: u32 = 0x8000_FFFF;
+const NOT_A_SELECT_RESULT: u32 = 0x8004_1019;
 
 pub type CommandGrammarEvent = GrammarEvent<Vec<Words>>;
 pub type Words = Vec<WordInfo>;
@@ -96,7 +97,9 @@ pub fn retrieve_selection_choices(results: &IDgnSRResSelect, guid: GUID) -> Resu
 
     let mut i = 0;
     while let Some(selection) = retrieve_selection(results, guid, i)? {
-        choices.push(selection);
+        if let Some(range) = selection {
+            choices.push(range);
+        }
         i += 1;
     }
 
@@ -107,7 +110,7 @@ fn retrieve_selection(
     results: &IDgnSRResSelect,
     guid: GUID,
     choice: u32,
-) -> Result<Option<(u32, u32)>> {
+) -> Result<Option<Option<(u32, u32)>>> {
     let mut start = 0;
     let mut stop = 0;
     let mut word_number = 0;
@@ -116,7 +119,10 @@ fn retrieve_selection(
     if rc.0 == VALUE_OUT_OF_RANGE {
         return Ok(None);
     }
+    if rc.0 == NOT_A_SELECT_RESULT {
+        return Ok(Some(None));
+    }
     rc.result()?;
 
-    Ok(Some((start, stop)))
+    Ok(Some(Some((start, stop))))
 }
