@@ -1,11 +1,12 @@
 use super::captures::{CaptureBuilder, Match};
 use super::instructions::Instruction;
+use engine::WordInfo;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 
 pub fn perform_match<'a, 'c>(
     program: &'a [Instruction],
-    string: &'c [(String, u32)],
+    string: &'c [WordInfo],
 ) -> Option<Vec<Match<'a>>> {
     let mut threads = Vec::new();
     threads.push(Thread::new(program, string));
@@ -26,7 +27,7 @@ type Result<T> = ::std::result::Result<T, ()>;
 #[derive(Debug, Clone)]
 struct Thread<'a, 'c> {
     instructions: &'a [Instruction],
-    string: &'c [(String, u32)],
+    string: &'c [WordInfo],
     program_pointer: usize,
     string_pointer: usize,
     rule_stack: Vec<u32>,
@@ -36,7 +37,7 @@ struct Thread<'a, 'c> {
 }
 
 impl<'a, 'c> Thread<'a, 'c> {
-    fn new(instructions: &'a [Instruction], string: &'c [(String, u32)]) -> Self {
+    fn new(instructions: &'a [Instruction], string: &'c [WordInfo]) -> Self {
         Thread {
             instructions: instructions,
             string: string,
@@ -55,15 +56,15 @@ impl<'a, 'c> Thread<'a, 'c> {
 
     fn match_token(&mut self, word: Option<&'a str>, rule_id: Option<u32>) -> Result<()> {
         let current = self.string.get(self.string_pointer);
-        if let Some(&(ref current_word, current_rule_id)) = current {
+        if let Some(word_info) = current {
             if let Some(word) = word {
-                if word != current_word {
+                if word != word_info.text {
                     return Err(());
                 }
             }
 
             if let Some(rule_id) = rule_id {
-                if rule_id != current_rule_id {
+                if rule_id != word_info.rule {
                     return Err(());
                 }
             }

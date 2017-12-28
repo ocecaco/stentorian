@@ -8,7 +8,9 @@ use std::mem;
 const VALUE_OUT_OF_RANGE: u32 = 0x8000_FFFF;
 const NOT_A_SELECT_RESULT: u32 = 0x8004_1019;
 
-pub type CommandGrammarEvent = GrammarEvent<Vec<Words>>;
+pub type DictationGrammarEvent = GrammarEvent<Vec<Words>>;
+pub type CatchallGrammarEvent = GrammarEvent<Vec<Words>>;
+pub type CommandGrammarEvent = GrammarEvent<Words>;
 pub type Words = Vec<WordInfo>;
 
 #[derive(Debug, Serialize)]
@@ -41,7 +43,7 @@ pub fn retrieve_command_choices(results: &ISRResGraph) -> Result<Vec<Words>> {
     Ok(choices)
 }
 
-fn retrieve_words(results: &ISRResGraph, choice: u32) -> Result<Option<Words>> {
+pub fn retrieve_words(results: &ISRResGraph, choice: u32) -> Result<Option<Words>> {
     type Path = [u32; 512];
     let mut path: Path = [0u32; 512];
     let mut actual_path_size: u32 = 0;

@@ -23,7 +23,8 @@ mod results;
 pub use self::events::{EngineEvent, GrammarEvent};
 pub use self::grammarcontrol::{CatchallGrammarControl, CommandGrammarControl,
                                DictationGrammarControl, SelectGrammarControl};
-pub use self::results::{CommandGrammarEvent, SelectGrammarEvent};
+pub use self::results::{CatchallGrammarEvent, CommandGrammarEvent, DictationGrammarEvent,
+                        SelectGrammarEvent, WordInfo, Words};
 
 mod grammar_flags {
     bitflags! {
@@ -244,8 +245,11 @@ impl Engine {
         let compiled = compile_command_grammar(grammar)?;
 
         let wrapped = move |e: RawGrammarEvent| {
-            let new_event =
-                e.map(|r| results::retrieve_command_choices(&r.ptr.cast().unwrap()).unwrap());
+            let new_event = e.map(|r| {
+                results::retrieve_words(&r.ptr.cast().unwrap(), 0)
+                    .unwrap()
+                    .unwrap()
+            });
             callback(new_event);
         };
         let control = self.grammar_helper(SRGRMFMT::SRGRMFMT_CFG, &compiled, false, wrapped)?;
@@ -255,7 +259,7 @@ impl Engine {
 
     pub fn dictation_grammar_load<F>(&self, callback: F) -> Result<DictationGrammarControl>
     where
-        F: Fn(CommandGrammarEvent) + Sync + 'static,
+        F: Fn(DictationGrammarEvent) + Sync + 'static,
     {
         let compiled = compile_dictation_grammar();
         let wrapped = move |e: RawGrammarEvent| {
@@ -270,7 +274,7 @@ impl Engine {
 
     pub fn catchall_grammar_load<F>(&self, callback: F) -> Result<CatchallGrammarControl>
     where
-        F: Fn(CommandGrammarEvent) + Sync + 'static,
+        F: Fn(CatchallGrammarEvent) + Sync + 'static,
     {
         let rule = Rule {
             name: "dummy".to_owned(),

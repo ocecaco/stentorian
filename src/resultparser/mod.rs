@@ -4,6 +4,7 @@ mod captures;
 mod instructions;
 
 pub use self::captures::{CaptureTree, Match};
+use engine::WordInfo;
 use grammar::Grammar;
 
 pub struct Matcher {
@@ -17,7 +18,7 @@ impl Matcher {
         }
     }
 
-    pub fn perform_match<'a>(&'a self, string: &[(String, u32)]) -> Option<Vec<Match<'a>>> {
+    pub fn perform_match<'a>(&'a self, string: &[WordInfo]) -> Option<Vec<Match<'a>>> {
         vm::perform_match(&self.instructions, string)
     }
 }
