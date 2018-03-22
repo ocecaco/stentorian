@@ -1,5 +1,5 @@
 use super::events::GrammarEvent;
-use components::GUID;
+use components::{GUID, Cast};
 use dragon::{SRRESWORDNODE, SRWORD};
 use errors::Result;
 use interfaces::{IDgnSRResSelect, ISRResGraph};
@@ -21,7 +21,7 @@ pub struct WordInfo {
     pub end_time: u64,
 }
 
-pub type Selection = (u32, u32);
+pub type Selection = (Words, u32, u32);
 pub type SelectGrammarEvent = GrammarEvent<Vec<Selection>>;
 
 fn string_from_slice(s: &[u16]) -> String {
@@ -94,13 +94,15 @@ pub fn retrieve_words(results: &ISRResGraph, choice: u32) -> Result<Option<Words
     Ok(Some(words))
 }
 
-pub fn retrieve_selection_choices(results: &IDgnSRResSelect, guid: GUID) -> Result<Vec<Selection>> {
+pub fn retrieve_selection_choices(select_results: &IDgnSRResSelect, guid: GUID) -> Result<Vec<Selection>> {
+    let graph_results = select_results.cast()?;
     let mut choices = Vec::new();
 
     let mut i = 0;
-    while let Some(selection) = retrieve_selection(results, guid, i)? {
-        if let Some(range) = selection {
-            choices.push(range);
+    while let Some(selection) = retrieve_selection(select_results, guid, i)? {
+        if let Some((a, b)) = selection {
+            let words = retrieve_words(&graph_results, i)?.unwrap();
+            choices.push((words, a, b));
         }
         i += 1;
     }
