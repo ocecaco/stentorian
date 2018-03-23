@@ -1,5 +1,5 @@
 use super::GrammarEvent;
-use super::grammar_flags::GrammarSinkFlags;
+use super::GrammarFlags;
 use components::{raw_to_comptr, ComInterface, IUnknown, IUnknownVtable, RawComPtr, HRESULT, IID,
                  ULONG};
 use components::comptr::ComPtr;
@@ -27,12 +27,12 @@ pub struct GrammarSink {
     vtable1: &'static ISRGramNotifySinkVtable,
     vtable2: &'static IDgnGetSinkFlagsVtable,
     ref_count: RefCount,
-    flags: GrammarSinkFlags,
+    flags: GrammarFlags,
     callback: Callback,
 }
 
 impl GrammarSink {
-    pub fn create(flags: GrammarSinkFlags, callback: Callback) -> ComPtr<IUnknown> {
+    pub fn create(flags: GrammarFlags, callback: Callback) -> ComPtr<IUnknown> {
         let result = GrammarSink {
             vtable1: &v1::VTABLE,
             vtable2: &v2::VTABLE,

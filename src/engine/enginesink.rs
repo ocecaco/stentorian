@@ -1,5 +1,5 @@
 use super::EngineEvent;
-use super::engine_flags::EngineSinkFlags;
+use super::EngineFlags;
 use components::{raw_to_comptr, ComInterface, IUnknown, IUnknownVtable, RawComPtr, HRESULT, IID,
                  ULONG};
 use components::bstr::BStr;
@@ -22,12 +22,12 @@ pub struct EngineSink {
     vtable2: &'static IDgnGetSinkFlagsVtable,
     vtable3: &'static IDgnSREngineNotifySinkVtable,
     ref_count: RefCount,
-    flags: EngineSinkFlags,
+    flags: EngineFlags,
     callback: Callback,
 }
 
 impl EngineSink {
-    pub fn create(flags: EngineSinkFlags, callback: Callback) -> ComPtr<IUnknown> {
+    pub fn create(flags: EngineFlags, callback: Callback) -> ComPtr<IUnknown> {
         let sink = EngineSink {
             vtable1: &v1::VTABLE,
             vtable2: &v2::VTABLE,

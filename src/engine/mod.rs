@@ -1,7 +1,7 @@
 use self::enginesink::{EngineSink, PauseCookie};
 use self::grammarsink::{GrammarSink, RawGrammarEvent};
 use components::{create_instance, raw_to_comptr, Cast, ComInterface, IUnknown, RawComPtr,
-                 CLSCTX_LOCAL_SERVER, GUID, HRESULT};
+                 CLSCTX, GUID, HRESULT};
 use components::comptr::ComPtr;
 use dragon::SRGRMFMT;
 use errors::*;
@@ -26,33 +26,29 @@ pub use self::grammarcontrol::{CatchallGrammarControl, CommandGrammarControl,
 pub use self::results::{CatchallGrammarEvent, CommandGrammarEvent, DictationGrammarEvent,
                         SelectGrammarEvent, WordInfo, Words};
 
-mod grammar_flags {
-    bitflags! {
-        pub flags GrammarSinkFlags: u32 {
-            const SEND_PHRASE_START = 0x1000,
-            const SEND_PHRASE_HYPOTHESIS = 0x2000,
-            const SEND_PHRASE_FINISH = 0x4000,
-            const SEND_FOREIGN_FINISH = 0x8000,
-        }
+bitflags! {
+    pub struct GrammarFlags: u32 {
+        const SEND_PHRASE_START = 0x1000;
+        const SEND_PHRASE_HYPOTHESIS = 0x2000;
+        const SEND_PHRASE_FINISH = 0x4000;
+        const SEND_FOREIGN_FINISH = 0x8000;
     }
 }
 
-mod engine_flags {
-    bitflags! {
-        pub flags EngineSinkFlags: u32 {
-            const SEND_BEGIN_UTTERANCE = 0x01,
-            const SEND_END_UTTERANCE = 0x02,
-            const SEND_VU_METER = 0x04,
-            const SEND_ATTRIBUTE = 0x08,
-            const SEND_INTERFERENCE = 0x10,
-            const SEND_SOUND = 0x20,
-            const SEND_PAUSED = 0x40,
-            const SEND_ERROR = 0x80,
-            const SEND_PROGRESS = 0x100,
-            const SEND_MIMIC_DONE = 0x200,
+bitflags! {
+    pub struct EngineFlags: u32 {
+        const SEND_BEGIN_UTTERANCE = 0x01;
+        const SEND_END_UTTERANCE = 0x02;
+        const SEND_VU_METER = 0x04;
+        const SEND_ATTRIBUTE = 0x08;
+        const SEND_INTERFERENCE = 0x10;
+        const SEND_SOUND = 0x20;
+        const SEND_PAUSED = 0x40;
+        const SEND_ERROR = 0x80;
+        const SEND_PROGRESS = 0x100;
+        const SEND_MIMIC_DONE = 0x200;
 
-            const SEND_ALL = 0x3ff,
-        }
+        const SEND_ALL = 0x3ff;
     }
 }
 
@@ -139,7 +135,7 @@ impl Engine {
         F: Fn(EngineEvent) + Sync + 'static,
     {
         let sink = EngineSink::create(
-            engine_flags::SEND_PAUSED | engine_flags::SEND_ATTRIBUTE,
+            EngineFlags::SEND_PAUSED | EngineFlags::SEND_ATTRIBUTE,
             Box::new(callback),
         );
 
@@ -174,10 +170,10 @@ impl Engine {
     {
         let mut raw_control = ptr::null();
 
-        let mut flags = grammar_flags::SEND_PHRASE_START | grammar_flags::SEND_PHRASE_FINISH;
+        let mut flags = GrammarFlags::SEND_PHRASE_START | GrammarFlags::SEND_PHRASE_FINISH;
 
         if all_recognitions {
-            flags |= grammar_flags::SEND_FOREIGN_FINISH;
+            flags |= GrammarFlags::SEND_FOREIGN_FINISH;
         }
 
         let sink = GrammarSink::create(flags, Box::new(callback));
@@ -321,7 +317,7 @@ fn grammar_guid(grammar_dragon: &IDgnSRGramCommon) -> Result<GUID> {
 }
 
 fn get_central() -> Result<ComPtr<ISRCentral>> {
-    let provider = create_instance::<IServiceProvider>(&CLSID_DgnSite, None, CLSCTX_LOCAL_SERVER)?;
+    let provider = create_instance::<IServiceProvider>(&CLSID_DgnSite, None, CLSCTX::LOCAL_SERVER)?;
     let mut central: RawComPtr = ptr::null();
     unsafe {
         let rc = provider.query_service(&CLSID_DgnDictate, &ISRCentral::iid(), &mut central);
