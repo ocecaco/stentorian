@@ -16,7 +16,6 @@ pub type Words = Vec<WordInfo>;
 #[derive(Debug, Serialize)]
 pub struct WordInfo {
     pub text: String,
-    pub rule: u32,
     pub start_time: u64,
     pub end_time: u64,
 }
@@ -83,7 +82,6 @@ pub fn retrieve_words(results: &ISRResGraph, choice: u32) -> Result<Option<Words
 
         let info = WordInfo {
             text: string_from_slice(&word.buffer),
-            rule: word_node.dwCFGParse,
             start_time: word_node.qwStartTime,
             end_time: word_node.qwEndTime,
         };

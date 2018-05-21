@@ -82,29 +82,27 @@ impl<'a> Compiler<'a> {
     fn compile_grammar(mut self, grammar: &'a Grammar) -> Vec<Instruction> {
         let mut with_labels = Vec::new();
         let mut split_labels = Vec::new();
-        for (i, r) in (1u32..).zip(grammar.rules.iter()) {
+        for r in grammar.rules.iter() {
             let n = self.new_label();
             if r.exported {
                 split_labels.push(n);
             }
-            with_labels.push((i, r, n));
+            with_labels.push((r, n));
             self.rule_name_to_label.insert(&r.name, n);
         }
 
         self.emit(make_split(&split_labels));
 
-        for &(i, r, label) in &with_labels {
-            self.compile_single_rule(i, r, label);
+        for &(r, label) in &with_labels {
+            self.compile_single_rule(r, label);
         }
 
         self.instructions
     }
 
-    fn compile_single_rule(&mut self, rule_id: u32, rule: &'a Rule, start_label: LabelName) {
+    fn compile_single_rule(&mut self, rule: &'a Rule, start_label: LabelName) {
         self.emit(Instruction::Label(start_label));
-        self.emit(Instruction::RuleStart(rule_id));
         self.compile_element(&rule.definition);
-        self.emit(Instruction::RuleStop);
     }
 
     fn compile_element(&mut self, element: &'a Element) {
@@ -172,14 +170,23 @@ impl<'a> Compiler<'a> {
                 let target = JumpTarget::Symbolic(self.rule_name_to_label[name]);
                 self.emit(Instruction::RuleCall(target));
             }
-            Element::List { .. } | Element::DictationWord => {
+            Element::List { .. } | Element::DictationWord | Element::SpellingLetter => {
                 self.emit(Instruction::AnyWord);
             }
             Element::Dictation => {
-                self.emit(Instruction::GreedyRule(1_000_000));
-            }
-            Element::SpellingLetter => {
-                self.emit(Instruction::GreedyRule(1_000_001));
+                let loop_label = self.new_label();
+                let done_label = self.new_label();
+
+                self.emit(Instruction::Label(loop_label));
+
+                self.emit(Instruction::Progress);
+
+                self.emit(Instruction::AnyWord);
+
+                // non-greedy since done label is put first
+                self.emit(make_split(&[done_label, loop_label]));
+
+                self.emit(Instruction::Label(done_label));
             }
         }
     }

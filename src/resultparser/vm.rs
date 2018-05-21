@@ -30,7 +30,6 @@ struct Thread<'a, 'c> {
     string: &'c [WordInfo],
     program_pointer: usize,
     string_pointer: usize,
-    rule_stack: Vec<u32>,
     call_stack: Vec<usize>,
     captures: CaptureBuilder<'a>,
     progress: HashMap<usize, usize>,
@@ -43,28 +42,17 @@ impl<'a, 'c> Thread<'a, 'c> {
             string: string,
             program_pointer: 0,
             string_pointer: 0,
-            rule_stack: Vec::new(),
             call_stack: Vec::new(),
             captures: CaptureBuilder::new(),
             progress: HashMap::new(),
         }
     }
 
-    fn current_rule(&self) -> u32 {
-        *self.rule_stack.last().unwrap()
-    }
-
-    fn match_token(&mut self, word: Option<&'a str>, rule_id: Option<u32>) -> Result<()> {
+    fn match_token(&mut self, word: Option<&'a str>) -> Result<()> {
         let current = self.string.get(self.string_pointer);
         if let Some(word_info) = current {
             if let Some(word) = word {
                 if word != word_info.text {
-                    return Err(());
-                }
-            }
-
-            if let Some(rule_id) = rule_id {
-                if rule_id != word_info.rule {
                     return Err(());
                 }
             }
@@ -83,37 +71,16 @@ impl<'a, 'c> Thread<'a, 'c> {
 
             match *next {
                 Instruction::Literal(ref grammar_word) => {
-                    let id = self.current_rule();
-                    self.match_token(Some(grammar_word), Some(id))?;
+                    self.match_token(Some(grammar_word))?;
                 }
                 Instruction::AnyWord => {
-                    let id = self.current_rule();
-                    self.match_token(None, Some(id))?;
-                }
-                Instruction::GreedyRule(rule_id) => {
-                    while let Ok(_) = self.match_token(None, Some(rule_id)) {
-                        // empty loop body
-                    }
+                    self.match_token(None)?;
                 }
                 Instruction::CaptureStart(ref name) => {
                     self.captures.capture_start(name, self.string_pointer);
                 }
                 Instruction::CaptureStop => {
                     self.captures.capture_stop(self.string_pointer);
-                }
-                Instruction::RuleStart(id) => {
-                    self.rule_stack.push(id);
-                }
-                Instruction::RuleStop => {
-                    self.rule_stack.pop();
-
-                    if let Some(return_address) = self.call_stack.pop() {
-                        self.program_pointer = return_address;
-                    } else if self.string_pointer == self.string.len() {
-                        return Ok(self.captures.done());
-                    } else {
-                        return Err(());
-                    }
                 }
                 Instruction::RuleCall(ref t) => {
                     self.call_stack.push(self.program_pointer);
