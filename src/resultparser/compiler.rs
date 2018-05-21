@@ -103,6 +103,7 @@ impl<'a> Compiler<'a> {
     fn compile_single_rule(&mut self, rule: &'a Rule, start_label: LabelName) {
         self.emit(Instruction::Label(start_label));
         self.compile_element(&rule.definition);
+        self.emit(Instruction::Return);
     }
 
     fn compile_element(&mut self, element: &'a Element) {

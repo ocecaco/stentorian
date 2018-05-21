@@ -31,6 +31,7 @@ pub enum Instruction {
     CaptureStop,
 
     RuleCall(JumpTarget),
+    Return,
     Jump(JumpTarget),
     Split(Box<[JumpTarget]>),
 }

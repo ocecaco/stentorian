@@ -82,6 +82,15 @@ impl<'a, 'c> Thread<'a, 'c> {
                 Instruction::CaptureStop => {
                     self.captures.capture_stop(self.string_pointer);
                 }
+                Instruction::Return => {
+                    if let Some(return_address) = self.call_stack.pop() {
+                        self.program_pointer = return_address;
+                    } else if self.string_pointer == self.string.len() {
+                        return Ok(self.captures.done());
+                    } else {
+                        return Err(());
+                    }
+                }
                 Instruction::RuleCall(ref t) => {
                     self.call_stack.push(self.program_pointer);
                     self.program_pointer = t.address();
