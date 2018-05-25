@@ -13,23 +13,16 @@ mod intern;
 mod ruletoken;
 
 pub mod errors {
-    error_chain! {
-        errors {
-            UnknownRule(name: String) {
-                description("unknown rule name in grammar definition")
-                    display("unknown rule name in grammar definition: {}", name)
-            }
+    pub type Result<T> = ::std::result::Result<T, GrammarError>;
 
-            DuplicateRule(name: String) {
-                description("duplicate rule name in grammar definition")
-                    display("duplicate rule name in grammar definition: {}", name)
-            }
-
-            ReservedRule(name: String) {
-                description("reserved rule name in grammar definition")
-                    display("reserved rule name in grammar definition: {}", name)
-            }
-        }
+    #[derive(Fail, Debug)]
+    pub enum GrammarError {
+        #[fail(display = "unknown rule name in grammar definition: {}", name)]
+        UnknownRule { name: String },
+        #[fail(display = "duplicate rule name in grammar definition: {}", name)]
+        DuplicateRule { name: String },
+        #[fail(display = "reserved rule name in grammar definition: {}", name)]
+        ReservedRule { name: String },
     }
 }
 
@@ -152,7 +145,7 @@ impl<'a> GrammarCompiler<'a> {
 
     fn declare_rule(&mut self, id: RuleId, name: &'a str) -> Result<()> {
         match self.rule_name_to_id.entry(name) {
-            Entry::Occupied(_) => Err(ErrorKind::DuplicateRule(name.to_string()).into()),
+            Entry::Occupied(_) => Err(GrammarError::DuplicateRule { name: name.to_string() }),
             Entry::Vacant(entry) => {
                 entry.insert(id);
                 Ok(())
@@ -205,7 +198,7 @@ impl<'a> GrammarCompiler<'a> {
             }
             Element::RuleRef { ref name } => {
                 let maybe_id = self.rule_name_to_id.get::<str>(name);
-                let result = maybe_id.ok_or_else(|| ErrorKind::UnknownRule(name.clone()))?;
+                let result = maybe_id.ok_or_else(|| GrammarError::UnknownRule { name: name.clone() })?;
                 output.push(RuleToken::Rule(*result));
             }
             Element::List { ref name } => {

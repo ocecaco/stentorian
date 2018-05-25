@@ -4,6 +4,10 @@ extern crate byteorder;
 #[macro_use]
 extern crate bitflags;
 
+extern crate failure;
+#[macro_use]
+extern crate failure_derive;
+
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
@@ -15,21 +19,31 @@ extern crate log;
 #[macro_use]
 extern crate components;
 
-#[macro_use]
-extern crate error_chain;
-
 pub mod errors {
-    error_chain! {
-        links {
-            Com(::components::errors::Error, ::components::errors::ErrorKind);
-            Grammar(::grammarcompiler::errors::Error, ::grammarcompiler::errors::ErrorKind);
-        }
+    use ::components::errors::ComError;
+    use ::grammarcompiler::errors::GrammarError;
 
-        errors {
-            GrammarGone {
-                description("attempt to perform operation on unloaded grammar")
-                display("attempt to perform operation on unloaded grammar")
-            }
+    pub type Result<T> = ::std::result::Result<T, Error>;
+
+    #[derive(Fail, Debug)]
+    pub enum Error {
+        #[fail(display = "{}", _0)]
+        Com(#[cause] ComError),
+        #[fail(display = "{}", _0)]
+        Grammar(#[cause] GrammarError),
+        #[fail(display = "attempt to perform operation on unloaded grammar")]
+        GrammarGone,
+    }
+
+    impl From<ComError> for Error {
+        fn from(e: ComError) -> Error {
+            Error::Com(e)
+        }
+    }
+
+    impl From<GrammarError> for Error {
+        fn from(e: GrammarError) -> Error {
+            Error::Grammar(e)
         }
     }
 }
