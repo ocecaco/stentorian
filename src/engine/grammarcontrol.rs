@@ -1,7 +1,7 @@
 use byteorder::{LittleEndian, WriteBytesExt};
-use components::Cast;
 use components::bstr::{BStr, BString};
 use components::comptr::ComPtr;
+use components::Cast;
 use dragon::{RECEIVE_SDATA, SDATA, SRWORD};
 use errors::*;
 use interfaces::{IDgnSRGramSelect, ISRGramCFG, ISRGramCommon, ISRGramDictation};
@@ -27,7 +27,7 @@ impl CommandGrammarControl {
     pub fn rule_activate(&self, name: &str) -> Result<()> {
         let rc = unsafe {
             self.grammar_control
-                .activate(ptr::null(), 0, BString::from(name).as_ref())
+                .activate(ptr::null_mut(), 0, BString::from(name).as_ref())
         };
 
         try!(rc.result());
@@ -94,7 +94,7 @@ impl GrammarActivation {
     }
 
     fn activate(&self) -> Result<()> {
-        let rc = unsafe { self.0.activate(ptr::null(), 0, self.name()) };
+        let rc = unsafe { self.0.activate(ptr::null_mut(), 0, self.name()) };
 
         try!(rc.result());
         Ok(())

@@ -1,30 +1,36 @@
 use self::enginesink::{EngineSink, PauseCookie};
 use self::grammarsink::{GrammarSink, RawGrammarEvent};
-use components::{create_instance, raw_to_comptr, Cast, ComInterface, IUnknown, RawComPtr,
-                 CLSCTX, GUID, HRESULT};
 use components::comptr::ComPtr;
+use components::{
+    create_instance, raw_to_comptr, Cast, ComInterface, IUnknown, RawComPtr, CLSCTX_LOCAL_SERVER,
+    GUID, HRESULT,
+};
 use dragon::SRGRMFMT;
 use errors::*;
 use grammar::{Element, Grammar, Rule};
 use grammarcompiler::{compile_command_grammar, compile_dictation_grammar, compile_select_grammar};
-use interfaces::{CLSID_DgnDictate, CLSID_DgnSite, IDgnSREngineControl, IDgnSREngineNotifySink,
-                 IDgnSRGramCommon, ISRCentral, ISRGramCommon, ISRGramNotifySink, ISRSpeaker,
-                 IServiceProvider};
+use interfaces::{
+    CLSID_DgnDictate, CLSID_DgnSite, IDgnSREngineControl, IDgnSREngineNotifySink, IDgnSRGramCommon,
+    ISRCentral, ISRGramCommon, ISRGramNotifySink, ISRSpeaker, IServiceProvider,
+};
 use std::mem;
 use std::ptr;
 use std::sync::{Arc, RwLock};
 
 mod enginesink;
-mod grammarsink;
-mod grammarcontrol;
 mod events;
+mod grammarcontrol;
+mod grammarsink;
 mod results;
 
 pub use self::events::{EngineEvent, GrammarEvent};
-pub use self::grammarcontrol::{CatchallGrammarControl, CommandGrammarControl,
-                               DictationGrammarControl, SelectGrammarControl};
-pub use self::results::{CatchallGrammarEvent, CommandGrammarEvent, DictationGrammarEvent,
-                        SelectGrammarEvent, WordInfo, Words};
+pub use self::grammarcontrol::{
+    CatchallGrammarControl, CommandGrammarControl, DictationGrammarControl, SelectGrammarControl,
+};
+pub use self::results::{
+    CatchallGrammarEvent, CommandGrammarEvent, DictationGrammarEvent, SelectGrammarEvent, WordInfo,
+    Words,
+};
 
 bitflags! {
     pub struct GrammarFlags: u32 {
@@ -168,7 +174,7 @@ impl Engine {
     where
         F: Fn(RawGrammarEvent) + Sync + 'static,
     {
-        let mut raw_control = ptr::null();
+        let mut raw_control = ptr::null_mut();
 
         let mut flags = GrammarFlags::SEND_PHRASE_START | GrammarFlags::SEND_PHRASE_FINISH;
 
@@ -317,8 +323,8 @@ fn grammar_guid(grammar_dragon: &IDgnSRGramCommon) -> Result<GUID> {
 }
 
 fn get_central() -> Result<ComPtr<ISRCentral>> {
-    let provider = create_instance::<IServiceProvider>(&CLSID_DgnSite, None, CLSCTX::LOCAL_SERVER)?;
-    let mut central: RawComPtr = ptr::null();
+    let provider = create_instance::<IServiceProvider>(&CLSID_DgnSite, None, CLSCTX_LOCAL_SERVER)?;
+    let mut central: RawComPtr = ptr::null_mut();
     unsafe {
         let rc = provider.query_service(&CLSID_DgnDictate, &ISRCentral::iid(), &mut central);
         try!(rc.result());

@@ -95,7 +95,7 @@ impl RECEIVE_SDATA {
 
 impl Drop for RECEIVE_SDATA {
     fn drop(&mut self) {
-        unsafe { com_memory_free(self.data as *const _) };
+        unsafe { com_memory_free(self.data as *mut _) };
     }
 }
 
