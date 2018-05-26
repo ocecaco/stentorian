@@ -3,7 +3,7 @@ name = "stentorian"
 version = "0.1.0"
 authors = ["Daniël Louwrink <daniel.louwrink@gmail.com>"]
 
-[dependencies]
+[target.i686-pc-windows-msvc.dependencies]
 components = { path = "components" }
 byteorder = "1.2"
 bitflags = "1.0"

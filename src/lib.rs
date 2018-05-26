@@ -1,3 +1,6 @@
+#![cfg(windows)]
+#![cfg(target_arch = "x86")]
+#![cfg(target_env = "msvc")]
 #![allow(dead_code)]
 extern crate byteorder;
 
