@@ -2,6 +2,13 @@
 name = "stentorian"
 version = "0.1.0"
 authors = ["Daniël Louwrink <daniel.louwrink@gmail.com>"]
+license = "LGPL-3.0"
+description = """
+Unofficial library for interoperating with Nuance's Dragon NaturallySpeaking and
+Dragon Professional Individual (Dragon versions 12-15 should work).
+"""
+repository = "https://github.com/ocecaco/stentorian"
+keywords = ["speech", "recognition", "voice", "command"]
 
 [target.i686-pc-windows-msvc.dependencies]
 components = "0.1"
