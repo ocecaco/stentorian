@@ -4,15 +4,46 @@ use engine::WordInfo;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 
+#[derive(Debug, Clone)]
+struct Vm<'a, 'c> {
+    available_threads: Vec<Thread<'a, 'c>>,
+    blocked_threads: Vec<Thread<'a, 'c>>,
+}
+
+impl<'a, 'c> Vm<'a, 'c> {
+    fn new() -> Self {
+        Vm {
+            available_threads: Vec::new(),
+            blocked_threads: Vec::new(),
+        }
+    }
+
+    fn push_available(&mut self, t: Thread<'a, 'c>) {
+        self.available_threads.push(t);
+    }
+
+    fn push_blocked(&mut self, t: Thread<'a, 'c>) {
+        self.blocked_threads.push(t);
+    }
+
+    fn next_thread(&mut self) -> Option<Thread<'a, 'c>> {
+        if let t@Some(_) = self.available_threads.pop() {
+            return t;
+        }
+
+        return self.blocked_threads.pop();
+    }
+}
+
 pub fn perform_match<'a, 'c>(
     program: &'a [Instruction],
     string: &'c [WordInfo],
 ) -> Option<Vec<Match<'a>>> {
-    let mut threads = Vec::new();
-    threads.push(Thread::new(program, string));
+    let mut vm = Vm::new();
+    vm.push_available(Thread::new(program, string));
 
-    while let Some(t) = threads.pop() {
-        let result = t.run(&mut threads).ok();
+    while let Some(t) = vm.next_thread() {
+        let result = t.run(&mut vm).ok();
 
         if result.is_some() {
             return result;
@@ -64,7 +95,7 @@ impl<'a, 'c> Thread<'a, 'c> {
         }
     }
 
-    fn run(mut self, threads: &mut Vec<Thread<'a, 'c>>) -> Result<Vec<Match<'a>>> {
+    fn run(mut self, threads: &mut Vm<'a, 'c>) -> Result<Vec<Match<'a>>> {
         loop {
             let next = &self.instructions[self.program_pointer];
             self.program_pointer += 1;
@@ -104,10 +135,18 @@ impl<'a, 'c> Thread<'a, 'c> {
                     for t in rest.iter().rev() {
                         let mut branch = self.clone();
                         branch.program_pointer = t.address();
-                        threads.push(branch);
+                        threads.push_available(branch);
                     }
 
                     self.program_pointer = first.address();
+                }
+                Instruction::Block => {
+                    // Current thread fails immediately, spawn a blocked thread for when all other
+                    // threads have failed
+                    let mut blocked = self.clone();
+                    blocked.program_pointer = self.program_pointer + 1;
+                    threads.push_blocked(blocked);
+                    return Err(());
                 }
                 Instruction::Progress => {
                     // make sure we've progressed since the last time

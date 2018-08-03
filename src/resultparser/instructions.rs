@@ -27,6 +27,8 @@ pub enum Instruction {
 
     Progress,
 
+    Block, // Block until all other alternatives have been tried
+
     CaptureStart(String),
     CaptureStop,
 

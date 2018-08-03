@@ -178,6 +178,8 @@ impl<'a> Compiler<'a> {
                 let loop_label = self.new_label();
                 let done_label = self.new_label();
 
+                self.emit(Instruction::Block); // Only parse as dictation as last resort, when all other threads have failed
+
                 self.emit(Instruction::Label(loop_label));
 
                 self.emit(Instruction::Progress);
