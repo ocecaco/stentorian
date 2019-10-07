@@ -1,8 +1,8 @@
 use super::captures::{CaptureBuilder, Match};
 use super::instructions::Instruction;
-use engine::WordInfo;
-use std::collections::HashMap;
+use crate::engine::WordInfo;
 use std::collections::hash_map::Entry;
+use std::collections::HashMap;
 
 pub fn perform_match<'a, 'c>(
     program: &'a [Instruction],

@@ -1,3 +1,5 @@
+use serde::Serialize;
+
 #[derive(Debug, Clone, Serialize)]
 pub struct CaptureTree<'a, T> {
     pub name: &'a str,

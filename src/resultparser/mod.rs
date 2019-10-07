@@ -1,11 +1,11 @@
-mod compiler;
-mod vm;
 mod captures;
+mod compiler;
 mod instructions;
+mod vm;
 
 pub use self::captures::{CaptureTree, Match};
-use engine::WordInfo;
-use grammar::Grammar;
+use crate::engine::WordInfo;
+use crate::grammar::Grammar;
 
 pub struct Matcher {
     instructions: Vec<instructions::Instruction>,

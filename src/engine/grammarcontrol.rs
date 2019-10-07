@@ -1,10 +1,10 @@
+use crate::dragon::{RECEIVE_SDATA, SDATA, SRWORD};
+use crate::errors::*;
+use crate::interfaces::{IDgnSRGramSelect, ISRGramCFG, ISRGramCommon, ISRGramDictation};
 use byteorder::{LittleEndian, WriteBytesExt};
 use components::bstr::{BStr, BString};
 use components::comptr::ComPtr;
 use components::Cast;
-use dragon::{RECEIVE_SDATA, SDATA, SRWORD};
-use errors::*;
-use interfaces::{IDgnSRGramSelect, ISRGramCFG, ISRGramCommon, ISRGramDictation};
 use std::mem;
 use std::ptr;
 use std::slice;
@@ -30,7 +30,7 @@ impl CommandGrammarControl {
                 .activate(ptr::null_mut(), 0, BString::from(name).as_ref())
         };
 
-        try!(rc.result());
+        rc.result()?;
         Ok(())
     }
 
@@ -40,7 +40,7 @@ impl CommandGrammarControl {
                 .deactivate(BString::from(name).as_ref())
         };
 
-        try!(rc.result());
+        rc.result()?;
         Ok(())
     }
 
@@ -51,7 +51,7 @@ impl CommandGrammarControl {
 
         let rc = unsafe { self.grammar_lists.list_append(name.as_ref(), data) };
 
-        try!(rc.result());
+        rc.result()?;
         Ok(())
     }
 
@@ -62,7 +62,7 @@ impl CommandGrammarControl {
 
         let rc = unsafe { self.grammar_lists.list_remove(name.as_ref(), data) };
 
-        try!(rc.result());
+        rc.result()?;
         Ok(())
     }
 
@@ -73,7 +73,7 @@ impl CommandGrammarControl {
 
         let rc = unsafe { self.grammar_lists.list_set(name.as_ref(), data) };
 
-        try!(rc.result());
+        rc.result()?;
         Ok(())
     }
 }
@@ -96,14 +96,14 @@ impl GrammarActivation {
     fn activate(&self) -> Result<()> {
         let rc = unsafe { self.0.activate(ptr::null_mut(), 0, self.name()) };
 
-        try!(rc.result());
+        rc.result()?;
         Ok(())
     }
 
     fn deactivate(&self) -> Result<()> {
         let rc = unsafe { self.0.deactivate(self.name()) };
 
-        try!(rc.result());
+        rc.result()?;
         Ok(())
     }
 }

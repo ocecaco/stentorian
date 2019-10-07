@@ -1,8 +1,9 @@
 use super::events::GrammarEvent;
-use components::{GUID, Cast};
-use dragon::{SRRESWORDNODE, SRWORD};
-use errors::Result;
-use interfaces::{IDgnSRResSelect, ISRResGraph};
+use crate::dragon::{SRRESWORDNODE, SRWORD, VOICEPARTOFSPEECH};
+use crate::errors::Result;
+use crate::interfaces::{IDgnSRResSelect, ISRResGraph};
+use components::{Cast, GUID};
+use serde::Serialize;
 use std::mem;
 
 const VALUE_OUT_OF_RANGE: u32 = 0x8000_FFFF;
@@ -24,10 +25,12 @@ pub type Selection = (Words, u32, u32);
 pub type SelectGrammarEvent = GrammarEvent<Vec<Selection>>;
 
 fn string_from_slice(s: &[u16]) -> String {
-    String::from_utf16_lossy(&s.iter()
-        .cloned()
-        .take_while(|&x| x != 0)
-        .collect::<Vec<u16>>())
+    String::from_utf16_lossy(
+        &s.iter()
+            .cloned()
+            .take_while(|&x| x != 0)
+            .collect::<Vec<u16>>(),
+    )
 }
 
 pub fn retrieve_command_choices(results: &ISRResGraph) -> Result<Vec<Words>> {
@@ -63,8 +66,28 @@ pub fn retrieve_words(results: &ISRResGraph, choice: u32) -> Result<Option<Words
     // bytes to number of elements
     let actual_path_size = actual_path_size / mem::size_of::<u32>() as u32;
 
-    let mut word_node: SRRESWORDNODE = unsafe { mem::uninitialized() };
-    let mut word: SRWORD = unsafe { mem::uninitialized() };
+    let mut word_node: SRRESWORDNODE = SRRESWORDNODE {
+        dwNextWordNode: 0,
+        dwUpAlternateWordNode: 0,
+        dwDownAlternateWordNode: 0,
+        dwPreviousWordNode: 0,
+        dwPhonemeNode: 0,
+        qwStartTime: 0,
+        qwEndTime: 0,
+        dwWordScore: 0,
+        wVolume: 0,
+        wPitch: 0,
+        pos: VOICEPARTOFSPEECH::VPS_UNKNOWN,
+        dwCFGParse: 0,
+        dwCue: 0,
+    };
+
+    let mut word: SRWORD = SRWORD {
+        size: 0,
+        word_number: 0,
+        buffer: [0u16; 128],
+    };
+
     let mut size_needed = 0u32;
 
     let mut words = Vec::new();
@@ -92,7 +115,10 @@ pub fn retrieve_words(results: &ISRResGraph, choice: u32) -> Result<Option<Words
     Ok(Some(words))
 }
 
-pub fn retrieve_selection_choices(select_results: &IDgnSRResSelect, guid: GUID) -> Result<Vec<Selection>> {
+pub fn retrieve_selection_choices(
+    select_results: &IDgnSRResSelect,
+    guid: GUID,
+) -> Result<Vec<Selection>> {
     let graph_results = select_results.cast()?;
     let mut choices = Vec::new();
 

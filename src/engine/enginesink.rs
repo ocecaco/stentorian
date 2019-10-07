@@ -1,12 +1,17 @@
 use super::EngineEvent;
 use super::EngineFlags;
-use components::{raw_to_comptr, ComInterface, IUnknown, IUnknownVtable, RawComPtr, HRESULT, IID,
-                 ULONG};
+use crate::interfaces::{
+    IDgnGetSinkFlags, IDgnGetSinkFlagsVtable, IDgnSREngineNotifySink, IDgnSREngineNotifySinkVtable,
+    ISRNotifySink, ISRNotifySinkVtable,
+};
 use components::bstr::BStr;
 use components::comptr::ComPtr;
 use components::refcount::RefCount;
-use interfaces::{IDgnGetSinkFlags, IDgnGetSinkFlagsVtable, IDgnSREngineNotifySink,
-                 IDgnSREngineNotifySinkVtable, ISRNotifySink, ISRNotifySinkVtable};
+use components::{
+    coclass, query_interface, raw_to_comptr, ComInterface, IUnknown, IUnknownVtable, RawComPtr,
+    HRESULT, IID, ULONG,
+};
+use log::debug;
 use std::boxed::Box;
 
 fn _ensure_kinds() {
@@ -14,7 +19,7 @@ fn _ensure_kinds() {
     ensure_sync::<EngineSink>();
 }
 
-pub type Callback = Box<Fn(EngineEvent) + Sync>;
+pub type Callback = Box<dyn Fn(EngineEvent) + Sync>;
 
 #[repr(C)]
 pub struct EngineSink {

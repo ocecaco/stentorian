@@ -1,7 +1,7 @@
 #![cfg_attr(feature = "cargo-clippy", allow(unreadable_literal))]
-use components::{IUnknown, RawComPtr, GUID, HRESULT, HWND, IID};
+use crate::dragon::{RECEIVE_SDATA, SDATA, SRGRMFMT, SRMODEINFO, SRRESWORDNODE, SRWORD};
 use components::bstr::BStr;
-use dragon::{RECEIVE_SDATA, SDATA, SRGRMFMT, SRMODEINFO, SRRESWORDNODE, SRWORD};
+use components::{com_interface, define_guid, IUnknown, RawComPtr, GUID, HRESULT, HWND, IID};
 use std::os::raw::c_void;
 
 define_guid!(pub CLSID_DgnDictate = 0xdd100001,

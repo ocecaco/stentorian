@@ -1,18 +1,22 @@
 use self::enginesink::{EngineSink, PauseCookie};
 use self::grammarsink::{GrammarSink, RawGrammarEvent};
+use crate::dragon::SRGRMFMT;
+use crate::errors::*;
+use crate::grammar::{Element, Grammar, Rule};
+use crate::grammarcompiler::{
+    compile_command_grammar, compile_dictation_grammar, compile_select_grammar,
+};
+use crate::interfaces::{
+    CLSID_DgnDictate, CLSID_DgnSite, IDgnSREngineControl, IDgnSREngineNotifySink, IDgnSRGramCommon,
+    ISRCentral, ISRGramCommon, ISRGramNotifySink, ISRSpeaker, IServiceProvider,
+};
+use bitflags::bitflags;
 use components::comptr::ComPtr;
 use components::{
     create_instance, raw_to_comptr, Cast, ComInterface, IUnknown, RawComPtr, CLSCTX_LOCAL_SERVER,
     GUID, HRESULT,
 };
-use dragon::SRGRMFMT;
-use errors::*;
-use grammar::{Element, Grammar, Rule};
-use grammarcompiler::{compile_command_grammar, compile_dictation_grammar, compile_select_grammar};
-use interfaces::{
-    CLSID_DgnDictate, CLSID_DgnSite, IDgnSREngineControl, IDgnSREngineNotifySink, IDgnSRGramCommon,
-    ISRCentral, ISRGramCommon, ISRGramNotifySink, ISRSpeaker, IServiceProvider,
-};
+use serde::{Deserialize, Serialize};
 use std::mem;
 use std::ptr;
 use std::sync::{Arc, RwLock};
@@ -86,14 +90,14 @@ impl Engine {
     pub fn resume(&self, cookie: PauseCookie) -> Result<()> {
         let rc = unsafe { self.engine_control.resume(cookie.into()) };
 
-        try!(rc.result());
+        rc.result()?;
         Ok(())
     }
 
     pub fn microphone_set_state(&self, state: MicrophoneState) -> Result<()> {
         let rc = unsafe { self.engine_control.set_mic_state(state as u16, 0) };
 
-        try!(rc.result());
+        rc.result()?;
         Ok(())
     }
 
@@ -105,7 +109,7 @@ impl Engine {
             self.engine_control.get_mic_state(ptr)
         };
 
-        try!(rc.result());
+        rc.result()?;
         Ok(state)
     }
 
@@ -130,7 +134,7 @@ impl Engine {
             return Ok(None);
         }
 
-        try!(rc.result());
+        rc.result()?;
         Ok(Some(String::from_utf16_lossy(
             &buffer[..(required / 2 - 1) as usize],
         )))
@@ -154,7 +158,7 @@ impl Engine {
             )
         };
 
-        try!(rc.result());
+        rc.result()?;
 
         let registration = EngineRegistration {
             central: self.central.clone(),
@@ -195,7 +199,7 @@ impl Engine {
             )
         };
 
-        try!(rc.result());
+        rc.result()?;
 
         let grammar_control = unsafe { raw_to_comptr::<IUnknown>(raw_control, true) };
         let grammar_control = grammar_control.cast()?;
@@ -269,7 +273,8 @@ impl Engine {
                 e.map(|r| results::retrieve_command_choices(&r.ptr.cast().unwrap()).unwrap());
             callback(new_event);
         };
-        let control = self.grammar_helper(SRGRMFMT::SRGRMFMT_DICTATION, &compiled, false, wrapped)?;
+        let control =
+            self.grammar_helper(SRGRMFMT::SRGRMFMT_DICTATION, &compiled, false, wrapped)?;
 
         grammarcontrol::create_dictation(control)
     }
@@ -315,7 +320,13 @@ impl Drop for EngineRegistration {
 }
 
 fn grammar_guid(grammar_dragon: &IDgnSRGramCommon) -> Result<GUID> {
-    let mut guid: GUID = unsafe { mem::uninitialized() };
+    let mut guid: GUID = GUID {
+        data1: 0,
+        data2: 0,
+        data3: 0,
+        data4: [0u8; 8],
+    };
+
     let rc = unsafe { grammar_dragon.identify(&mut guid) };
     rc.result()?;
 
@@ -327,7 +338,7 @@ fn get_central() -> Result<ComPtr<ISRCentral>> {
     let mut central: RawComPtr = ptr::null_mut();
     unsafe {
         let rc = provider.query_service(&CLSID_DgnDictate, &ISRCentral::iid(), &mut central);
-        try!(rc.result());
+        rc.result()?;
         Ok(raw_to_comptr::<ISRCentral>(central, true))
     }
 }

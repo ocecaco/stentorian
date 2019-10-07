@@ -127,19 +127,19 @@ pub enum VOICEPARTOFSPEECH {
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct SRRESWORDNODE {
-    dwNextWordNode: u32,
-    dwUpAlternateWordNode: u32,
-    dwDownAlternateWordNode: u32,
-    dwPreviousWordNode: u32,
-    dwPhonemeNode: u32,
+    pub dwNextWordNode: u32,
+    pub dwUpAlternateWordNode: u32,
+    pub dwDownAlternateWordNode: u32,
+    pub dwPreviousWordNode: u32,
+    pub dwPhonemeNode: u32,
     pub qwStartTime: u64,
     pub qwEndTime: u64,
-    dwWordScore: u32,
-    wVolume: u16,
-    wPitch: u16,
-    pos: VOICEPARTOFSPEECH,
+    pub dwWordScore: u32,
+    pub wVolume: u16,
+    pub wPitch: u16,
+    pub pos: VOICEPARTOFSPEECH,
     pub dwCFGParse: u32,
-    dwCue: u32,
+    pub dwCue: u32,
 }
 
 #[repr(C)]

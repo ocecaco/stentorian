@@ -1,5 +1,5 @@
 use super::instructions::{Instruction, JumpTarget, LabelName};
-use grammar::{Element, Grammar, Rule};
+use crate::grammar::{Element, Grammar, Rule};
 use std::collections::HashMap;
 
 pub fn compile_matcher(grammar: &Grammar) -> Vec<Instruction> {
@@ -34,9 +34,11 @@ fn relabel(instructions: &mut [Instruction], locations: &HashMap<LabelName, usiz
             Instruction::Jump(ref mut target) | Instruction::RuleCall(ref mut target) => {
                 relabel_target(target, locations);
             }
-            Instruction::Split(ref mut targets) => for t in targets.iter_mut() {
-                relabel_target(t, locations);
-            },
+            Instruction::Split(ref mut targets) => {
+                for t in targets.iter_mut() {
+                    relabel_target(t, locations);
+                }
+            }
             Instruction::Label(_) => {
                 *i = Instruction::NoOp;
             }
@@ -108,9 +110,11 @@ impl<'a> Compiler<'a> {
 
     fn compile_element(&mut self, element: &'a Element) {
         match *element {
-            Element::Sequence { ref children } => for c in children.iter() {
-                self.compile_element(c);
-            },
+            Element::Sequence { ref children } => {
+                for c in children.iter() {
+                    self.compile_element(c);
+                }
+            }
             Element::Alternative { ref children } => {
                 let mut labels = Vec::new();
                 for _ in 0..children.len() {

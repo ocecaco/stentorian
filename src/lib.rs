@@ -1,30 +1,10 @@
 #![cfg(windows)]
 #![cfg(target_arch = "x86")]
 #![cfg(target_env = "msvc")]
-#![allow(dead_code)]
-extern crate byteorder;
-
-#[macro_use]
-extern crate bitflags;
-
-extern crate failure;
-#[macro_use]
-extern crate failure_derive;
-
-extern crate serde;
-#[macro_use]
-extern crate serde_derive;
-extern crate serde_json;
-
-#[macro_use]
-extern crate log;
-
-#[macro_use]
-extern crate components;
-
 pub mod errors {
-    use ::components::errors::ComError;
-    use ::grammarcompiler::errors::GrammarError;
+    use crate::grammarcompiler::errors::GrammarError;
+    use components::errors::ComError;
+    use failure::Fail;
 
     pub type Result<T> = ::std::result::Result<T, Error>;
 
@@ -55,9 +35,9 @@ pub mod engine;
 pub mod grammar;
 pub mod resultparser;
 
-mod interfaces;
 mod dragon;
 mod grammarcompiler;
+mod interfaces;
 
 use errors::*;
 

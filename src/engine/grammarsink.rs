@@ -1,11 +1,15 @@
 use super::GrammarEvent;
 use super::GrammarFlags;
-use components::{raw_to_comptr, ComInterface, IUnknown, IUnknownVtable, RawComPtr, HRESULT, IID,
-                 ULONG};
+use crate::interfaces::{
+    IDgnGetSinkFlags, IDgnGetSinkFlagsVtable, ISRGramNotifySink, ISRGramNotifySinkVtable,
+};
 use components::comptr::ComPtr;
 use components::refcount::RefCount;
-use interfaces::{IDgnGetSinkFlags, IDgnGetSinkFlagsVtable, ISRGramNotifySink,
-                 ISRGramNotifySinkVtable};
+use components::{
+    coclass, query_interface, raw_to_comptr, ComInterface, IUnknown, IUnknownVtable, RawComPtr,
+    HRESULT, IID, ULONG,
+};
+use log::debug;
 use std::boxed::Box;
 use std::os::raw::c_void;
 
@@ -20,7 +24,7 @@ pub struct Recognition {
 }
 
 pub type RawGrammarEvent = GrammarEvent<Recognition>;
-pub type Callback = Box<Fn(RawGrammarEvent) + Sync>;
+pub type Callback = Box<dyn Fn(RawGrammarEvent) + Sync>;
 
 #[repr(C)]
 pub struct GrammarSink {

@@ -1,18 +1,22 @@
 use self::errors::*;
 use self::intern::Interner;
-use self::ruletoken::{RuleToken, ALTERNATIVE_END, ALTERNATIVE_START, OPTIONAL_END, OPTIONAL_START,
-                      REPETITION_END, REPETITION_START, SEQUENCE_END, SEQUENCE_START};
 pub use self::ruletoken::RuleId;
+use self::ruletoken::{
+    RuleToken, ALTERNATIVE_END, ALTERNATIVE_START, OPTIONAL_END, OPTIONAL_START, REPETITION_END,
+    REPETITION_START, SEQUENCE_END, SEQUENCE_START,
+};
+use crate::grammar::{Element, Grammar, Rule};
 use byteorder::{LittleEndian, WriteBytesExt};
-use grammar::{Element, Grammar, Rule};
-use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use std::collections::HashMap;
 use std::mem;
 
 mod intern;
 mod ruletoken;
 
 pub mod errors {
+    use failure::Fail;
+
     pub type Result<T> = ::std::result::Result<T, GrammarError>;
 
     #[derive(Fail, Debug)]
@@ -145,7 +149,9 @@ impl<'a> GrammarCompiler<'a> {
 
     fn declare_rule(&mut self, id: RuleId, name: &'a str) -> Result<()> {
         match self.rule_name_to_id.entry(name) {
-            Entry::Occupied(_) => Err(GrammarError::DuplicateRule { name: name.to_string() }),
+            Entry::Occupied(_) => Err(GrammarError::DuplicateRule {
+                name: name.to_string(),
+            }),
             Entry::Vacant(entry) => {
                 entry.insert(id);
                 Ok(())
@@ -198,7 +204,8 @@ impl<'a> GrammarCompiler<'a> {
             }
             Element::RuleRef { ref name } => {
                 let maybe_id = self.rule_name_to_id.get::<str>(name);
-                let result = maybe_id.ok_or_else(|| GrammarError::UnknownRule { name: name.clone() })?;
+                let result =
+                    maybe_id.ok_or_else(|| GrammarError::UnknownRule { name: name.clone() })?;
                 output.push(RuleToken::Rule(*result));
             }
             Element::List { ref name } => {

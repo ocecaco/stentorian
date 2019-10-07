@@ -1,4 +1,5 @@
 use super::enginesink::PauseCookie;
+use serde::Serialize;
 
 #[derive(Debug, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
